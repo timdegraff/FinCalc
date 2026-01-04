@@ -246,7 +246,9 @@ function attachSortingListeners() {
     document.querySelectorAll('[data-sort]').forEach(header => {
         header.onclick = () => {
             const type = header.dataset.sort;
-            const container = document.getElementById('budget-expenses-rows');
+            const targetId = header.dataset.target;
+            const container = document.getElementById(targetId);
+            if (!container) return;
             const rows = Array.from(container.querySelectorAll('tr'));
             const isAsc = header.dataset.order === 'asc';
             rows.sort((a, b) => {
@@ -256,6 +258,8 @@ function attachSortingListeners() {
             });
             header.dataset.order = isAsc ? 'desc' : 'asc';
             container.append(...rows);
+            // Re-trigger autoSave to preserve order
+            window.debouncedAutoSave();
         };
     });
 }

@@ -103,11 +103,11 @@ export const templates = {
                 </div>
                 <div class="flex flex-col gap-4 pb-2">
                     <label class="flex items-center gap-4 cursor-pointer group/check">
-                        <input data-id="remainsInRetirement" type="checkbox" class="w-6 h-6 accent-blue-500 rounded border-slate-600 bg-slate-900">
+                        <input data-id="remainsInRetirement" type="checkbox" class="w-6 h-6 flex-shrink-0 accent-blue-500 rounded border-slate-600 bg-slate-900">
                         <span class="text-[10px] uppercase font-black text-slate-500 group-hover/check:text-slate-300 transition-colors tracking-widest leading-none">Persists in retirement?</span>
                     </label>
                     <label class="flex items-center gap-4 cursor-pointer group/check">
-                        <input data-id="nonTaxable" type="checkbox" class="w-6 h-6 accent-teal-500 rounded border-slate-600 bg-slate-900">
+                        <input data-id="nonTaxable" type="checkbox" class="w-6 h-6 flex-shrink-0 accent-teal-500 rounded border-slate-600 bg-slate-900">
                         <span class="text-[10px] uppercase font-black text-slate-500 group-hover/check:text-slate-300 transition-colors tracking-widest leading-none">Non-Taxable?</span>
                     </label>
                 </div>

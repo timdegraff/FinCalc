@@ -1,3 +1,4 @@
+
 import { formatter } from './formatter.js';
 import { math, engine, assetColors } from './utils.js';
 
@@ -369,7 +370,7 @@ export const burndown = {
         const headerCells = keys.map(k => {
             const meta = burndown.assetMeta[k];
             if (!meta) return '';
-            return `<th class="p-3 text-right min-w-[85px] max-w-[100px]" style="color: ${meta.color}">${meta.short}</th>`;
+            return `<th class="p-3 text-right min-w-[90px] max-w-[110px]" style="color: ${meta.color}">${meta.short}</th>`;
         }).join('');
         
         const rows = results.map((r, i) => {
@@ -382,7 +383,7 @@ export const burndown = {
                 const activeColorStyle = amt > 0 ? `style="color: ${meta.color}"` : '';
                 const activeClass = amt > 0 ? 'font-black' : 'text-slate-600';
 
-                return `<td class="p-2 text-right border-l border-slate-800/50 min-w-[85px] max-w-[100px]">
+                return `<td class="p-2 text-right border-l border-slate-800/50 min-w-[90px] max-w-[110px]">
                     <div class="${activeClass}" ${activeColorStyle}>${formatter.formatCurrency(amt, 0)}</div>
                     <div class="text-[9px] ${k === 'heloc' && balance > 0 ? 'text-red-400' : 'opacity-40'}">${formatter.formatCurrency(balance, 0)}</div>
                 </td>`;
@@ -414,7 +415,7 @@ export const burndown = {
                 <td class="p-2 text-right text-blue-300 font-bold">${r.persistentIncome > 0 ? formatter.formatCurrency(r.persistentIncome / inflationFactor, 0) : '—'}</td>
                 <td class="p-2 text-center space-y-1 w-24">${badge}${snapDisplay}</td>
                 ${draws}
-                <td class="p-2 text-right font-black border-l border-slate-700 text-teal-400 min-w-[90px]">${formatter.formatCurrency(r.netWorth / inflationFactor, 0)}</td>
+                <td class="p-2 text-right font-black border-l border-slate-700 text-teal-400 min-w-[100px]">${formatter.formatCurrency(r.netWorth / inflationFactor, 0)}</td>
             </tr>`;
         }).join('');
         
