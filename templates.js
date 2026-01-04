@@ -1,38 +1,41 @@
 
-import { math } from './utils.js';
+import { math, stateTaxRates } from './utils.js';
 
 export const templates = {
     helpers: {
-        getEfficiencyBadge: (type, value = 0, costBasis = 0) => {
+        getEfficiencyBadge: (type, value = 0, costBasis = 0, state = 'Michigan') => {
             const v = math.fromCurrency(value);
             const b = math.fromCurrency(costBasis);
+            const stateRate = stateTaxRates[state] || 0;
             
-            // Logic: 100% if basis >= value (no taxable gains)
             if (v > 0 && b >= v) {
                  return `<div class="efficiency-badge inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[9px] font-black uppercase tracking-widest border border-current" title="100% Efficient (No Gains)">100%</div>`;
             }
 
             const efficiencies = {
-                'Taxable': { label: '92%', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-                'Pre-Tax (401k/IRA)': { label: '78%', color: 'text-amber-500', bg: 'bg-amber-500/10' },
-                'Post-Tax (Roth)': { label: '100%', color: 'text-purple-400', bg: 'bg-purple-400/10' },
-                'Cash': { label: '100%', color: 'text-pink-400', bg: 'bg-pink-400/10' },
-                'HSA': { label: '100%', color: 'text-teal-400', bg: 'bg-teal-400/10' },
-                'Crypto': { label: '85%', color: 'text-orange-400', bg: 'bg-orange-400/10' },
-                'Metals': { label: '72%', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
-                '529 Plan': { label: '100%', color: 'text-rose-400', bg: 'bg-rose-400/10' }
+                'Taxable': { baseEfficiency: 0.92, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+                'Pre-Tax (401k/IRA)': { baseEfficiency: 1 - (0.22 + stateRate), color: 'text-amber-500', bg: 'bg-amber-500/10' },
+                'Post-Tax (Roth)': { baseEfficiency: 1.0, color: 'text-purple-400', bg: 'bg-purple-400/10' },
+                'Cash': { baseEfficiency: 1.0, color: 'text-pink-400', bg: 'bg-pink-400/10' },
+                'HSA': { baseEfficiency: 1.0, color: 'text-teal-400', bg: 'bg-teal-400/10' },
+                'Crypto': { baseEfficiency: 1 - (0.15 + stateRate), color: 'text-orange-400', bg: 'bg-orange-400/10' },
+                'Metals': { baseEfficiency: 1 - (0.28 + stateRate), color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
+                '529 Plan': { baseEfficiency: 1.0, color: 'text-rose-400', bg: 'bg-rose-400/10' }
             };
             const e = efficiencies[type] || efficiencies['Taxable'];
             
-            let label = e.label;
-            // Precise Taxable Efficiency: 1 - (Gain_Ratio * Cap_Gains_Tax)
-            if (type === 'Taxable' && v > 0 && b > 0) {
+            let label;
+            if (type === 'Taxable' && v > 0) {
                 const gainRatio = Math.max(0, (v - b) / v);
-                const efficiency = 1 - (gainRatio * 0.15); // Est 15% Cap Gains tax
+                // 15% Federal + State Rate
+                const combinedTaxRate = 0.15 + stateRate;
+                const efficiency = 1 - (gainRatio * combinedTaxRate);
                 label = Math.round(efficiency * 100) + '%';
+            } else {
+                label = Math.round(e.baseEfficiency * 100) + '%';
             }
 
-            return `<div class="efficiency-badge inline-flex items-center px-1.5 py-0.5 rounded ${e.bg} ${e.color} text-[9px] font-black uppercase tracking-widest border border-current opacity-80" title="Est. Realizable Value Post-Tax">${label}</div>`;
+            return `<div class="efficiency-badge inline-flex items-center px-1.5 py-0.5 rounded ${e.bg} ${e.color} text-[9px] font-black uppercase tracking-widest border border-current opacity-80" title="Est. Realizable Value Post-Tax (${state} Tax: ${Math.round(stateRate*1000)/10}%)">${label}</div>`;
         },
         getTypeClass: (type) => {
             const map = {
@@ -49,32 +52,35 @@ export const templates = {
         }
     },
 
-    investment: (data) => `
-        <td class="w-8"><i class="fas fa-bars drag-handle text-slate-700"></i></td>
-        <td><input data-id="name" type="text" placeholder="Account" class="input-base w-full font-bold text-white"></td>
-        <td>
-            <div class="flex items-center">
-                <select data-id="type" class="input-base w-full font-bold ${templates.helpers.getTypeClass(data.type)}">
-                    <option>Taxable</option>
-                    <option>Pre-Tax (401k/IRA)</option>
-                    <option>Post-Tax (Roth)</option>
-                    <option>Cash</option>
-                    <option>Crypto</option>
-                    <option>Metals</option>
-                    <option>HSA</option>
-                    <option>529 Plan</option>
-                </select>
-            </div>
-        </td>
-        <td><input data-id="value" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-bold mono-numbers"></td>
-        <td><input data-id="costBasis" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-blue-400 opacity-60 mono-numbers"></td>
-        <td class="text-center w-20">
-            <div data-id="efficiency-container">
-                ${templates.helpers.getEfficiencyBadge(data.type || 'Taxable', data.value, data.costBasis)}
-            </div>
-        </td>
-        <td class="text-center"><button data-action="remove" class="text-slate-700 hover:text-red-400"><i class="fas fa-times"></i></button></td>
-    `,
+    investment: (data) => {
+        const state = window.currentData?.assumptions?.state || 'Michigan';
+        return `
+            <td class="w-8"><i class="fas fa-bars drag-handle text-slate-700"></i></td>
+            <td><input data-id="name" type="text" placeholder="Account" class="input-base w-full font-bold text-white"></td>
+            <td>
+                <div class="flex items-center">
+                    <select data-id="type" class="input-base w-full font-bold ${templates.helpers.getTypeClass(data.type)}">
+                        <option>Taxable</option>
+                        <option>Pre-Tax (401k/IRA)</option>
+                        <option>Post-Tax (Roth)</option>
+                        <option>Cash</option>
+                        <option>Crypto</option>
+                        <option>Metals</option>
+                        <option>HSA</option>
+                        <option>529 Plan</option>
+                    </select>
+                </div>
+            </td>
+            <td><input data-id="value" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-bold mono-numbers"></td>
+            <td><input data-id="costBasis" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-blue-400 opacity-60 mono-numbers"></td>
+            <td class="text-center w-20">
+                <div data-id="efficiency-container">
+                    ${templates.helpers.getEfficiencyBadge(data.type || 'Taxable', data.value, data.costBasis, state)}
+                </div>
+            </td>
+            <td class="text-center"><button data-action="remove" class="text-slate-700 hover:text-red-400"><i class="fas fa-times"></i></button></td>
+        `;
+    },
     income: () => `
         <div class="bg-slate-800 rounded-2xl border border-slate-700/50 p-6 flex flex-col gap-5 relative group shadow-lg">
             <button data-action="remove" class="absolute top-4 right-4 text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all">

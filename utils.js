@@ -22,6 +22,25 @@ export const assetColors = {
     '529 Plan': '#fb7185'
 };
 
+export const stateTaxRates = {
+    'Michigan': 0.0425,
+    'Florida': 0.00,
+    'Texas': 0.00,
+    'California': 0.093,
+    'New York': 0.0685,
+    'Washington': 0.00,
+    'Nevada': 0.00,
+    'Tennessee': 0.00,
+    'New Hampshire': 0.00,
+    'South Dakota': 0.00,
+    'Wyoming': 0.00,
+    'Illinois': 0.0495,
+    'Ohio': 0.0399,
+    'Indiana': 0.0305,
+    'Wisconsin': 0.053,
+    'North Carolina': 0.045
+};
+
 export const math = {
     toCurrency: (value, isCompact = false) => {
         if (isNaN(value) || value === null) return '$0';
@@ -51,12 +70,12 @@ export const assumptions = {
         inflation: 3, 
         filingStatus: 'Married Filing Jointly', 
         benefitCeiling: 1.38, 
-        helocRate: 7
+        helocRate: 7,
+        state: 'Michigan'
     }
 };
 
 export const engine = {
-    // IRS 2022 Single Life Expectancy Table (Ages 30-60 relevant for early retirement)
     getLifeExpectancy: (age) => {
         const table = {
             30: 55.3, 31: 54.3, 32: 53.3, 33: 52.4, 34: 51.4, 35: 50.5, 36: 49.5, 37: 48.6, 38: 47.6, 39: 46.7,
@@ -70,22 +89,17 @@ export const engine = {
         return table[roundedAge];
     },
 
-    // Calculates the Maximum Allowable 72(t) SEPP Payment using the Amortization Method
-    // Based on IRS Notice 2022-06 (Allows up to 5% interest rate or 120% AFR)
     calculateMaxSepp: (balance, age) => {
         if (balance <= 0) return 0;
         const n = engine.getLifeExpectancy(age);
-        const r = 0.05; // 5% Max per Notice 2022-06
-        
-        // Amortization Formula: A = P * [ r(1+r)^n ] / [ (1+r)^n - 1 ]
+        const r = 0.05; 
         const numerator = r * Math.pow(1 + r, n);
         const denominator = Math.pow(1 + r, n) - 1;
         const annualPayment = balance * (numerator / denominator);
-        
         return Math.floor(annualPayment);
     },
 
-    calculateTax: (taxableIncome, status = 'Single') => {
+    calculateTax: (taxableIncome, status = 'Single', state = 'Michigan') => {
         const stdDed = status === 'Single' ? 15000 : 30000;
         let taxable = Math.max(0, taxableIncome - stdDed);
         let tax = 0;
@@ -103,6 +117,11 @@ export const engine = {
             if (taxable <= 0) break;
         }
         if (taxable > 0) tax += taxable * 0.32;
+
+        // Add State Tax
+        const stateRate = stateTaxRates[state] || 0;
+        tax += (taxableIncome * stateRate);
+
         return tax;
     },
 
@@ -110,23 +129,18 @@ export const engine = {
         const monthlyGross = income / 12;
         const snapFpl = (16060 + (hhSize - 1) * 5650) * inflationFactor;
         const snapGrossLimit = snapFpl * 2.0; 
-
         if (monthlyGross > (snapGrossLimit / 12)) return 0;
-
         const stdDed = (hhSize <= 3 ? 205 : (hhSize === 4 ? 220 : (hhSize === 5 ? 255 : 295))) * inflationFactor;
         const adjIncome = Math.max(0, monthlyGross - stdDed);
         const suaAmt = (hasSUA ? 680 : 0) * inflationFactor; 
         const totalShelter = shelterCosts + suaAmt;
         const shelterThreshold = adjIncome / 2;
         const rawExcessShelter = Math.max(0, totalShelter - shelterThreshold);
-        
         const shelterCap = 712 * inflationFactor; 
         const finalShelterDeduction = (isDisabled) ? rawExcessShelter : Math.min(rawExcessShelter, shelterCap);
-        
         const netIncome = Math.max(0, adjIncome - finalShelterDeduction);
         const maxBenefit = (295 + (hhSize - 1) * 215) * inflationFactor;
         const estimatedBenefit = Math.max(0, maxBenefit - (netIncome * 0.3));
-        
         return estimatedBenefit;
     },
 
@@ -156,8 +170,7 @@ export const engine = {
             if (x.incomeExpensesMonthly) writes *= 12;
             const bonus = base * (parseFloat(x.bonusPct) / 100 || 0);
             const personal401k = base * (parseFloat(x.contribution) / 100 || 0);
-            const match401k = base * (parseFloat(x.match) / 100 || 0);
-            total401kContribution += (personal401k + math.fromCurrency(x.bonusMatch || 0)); // Note: match logic simplified
+            total401kContribution += personal401k;
             return s + Math.max(0, base + bonus - writes);
         }, 0);
 

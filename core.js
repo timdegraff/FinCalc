@@ -3,7 +3,7 @@ import { GoogleGenAI } from '@google/genai';
 import { signInWithGoogle, logoutUser } from './auth.js';
 import { templates } from './templates.js';
 import { autoSave, updateSummaries } from './data.js';
-import { math, engine, assetColors, assumptions } from './utils.js';
+import { math, engine, assetColors, assumptions, stateTaxRates } from './utils.js';
 import { formatter } from './formatter.js';
 
 let assetChart = null;
@@ -17,6 +17,24 @@ export function initializeUI() {
     attachCoPilotListeners();
     attachPasteListeners();
     showTab('assets-debts');
+}
+
+function refreshEfficiencyBadges() {
+    const state = window.currentData?.assumptions?.state || 'Michigan';
+    document.querySelectorAll('#investment-rows tr').forEach(invRow => {
+        const valueEl = invRow.querySelector('[data-id="value"]');
+        const basisEl = invRow.querySelector('[data-id="costBasis"]');
+        const typeEl = invRow.querySelector('[data-id="type"]');
+        const container = invRow.querySelector('[data-id="efficiency-container"]');
+        if (container && typeEl && valueEl && basisEl) {
+            container.innerHTML = templates.helpers.getEfficiencyBadge(
+                typeEl.value, 
+                valueEl.value, 
+                basisEl.value,
+                state
+            );
+        }
+    });
 }
 
 function attachGlobalListeners() {
@@ -41,7 +59,8 @@ function attachGlobalListeners() {
                     container.innerHTML = templates.helpers.getEfficiencyBadge(
                         typeEl.value, 
                         valueEl.value, 
-                        basisEl.value
+                        basisEl.value,
+                        window.currentData?.assumptions?.state || 'Michigan'
                     );
                 }
             }
@@ -73,7 +92,8 @@ function attachGlobalListeners() {
                 }
                 syncAllInputs(id, val);
                 if (window.currentData && window.currentData.assumptions) {
-                    window.currentData.assumptions[id] = parseFloat(val) || val;
+                    window.currentData.assumptions[id] = (e.target.tagName === 'SELECT' || isNaN(parseFloat(val))) ? val : parseFloat(val);
+                    if (id === 'state') refreshEfficiencyBadges();
                 }
             }
 
@@ -307,6 +327,11 @@ window.createAssumptionControls = (data) => {
     container.innerHTML = `
         <div class="col-span-full mb-4 pb-2 border-b border-slate-700/50 flex items-center gap-2"><i class="fas fa-user-circle text-blue-400"></i><h3 class="label-std text-slate-400">Personal & Strategy</h3></div>
         <div class="space-y-6 lg:border-r lg:border-slate-700/30 lg:pr-8">
+            <label class="block"><span class="label-std text-slate-500">Legal State of Residence</span>
+                <select data-id="state" class="input-base w-full mt-1 font-bold">
+                    ${Object.keys(stateTaxRates).sort().map(s => `<option ${data.assumptions?.state === s ? 'selected' : ''}>${s}</option>`).join('')}
+                </select>
+            </label>
             <label class="block"><span class="label-std text-slate-500">Filing Status</span><select data-id="filingStatus" class="input-base w-full mt-1 font-bold"><option>Single</option><option>Married Filing Jointly</option></select></label>
             <label class="block"><span class="label-std text-slate-500">Benefit Target Threshold</span><select data-id="benefitCeiling" class="input-base w-full mt-1 font-bold"><option value="1.38">138% FPL (Medicaid)</option><option value="2.5">250% FPL (Silver)</option><option value="999">No Subsidies</option></select></label>
             <div id="assumptions-life"></div>
@@ -329,7 +354,7 @@ window.createAssumptionControls = (data) => {
             sub.appendChild(div);
         });
     });
-    container.querySelectorAll('select').forEach(s => s.value = data.assumptions?.[s.dataset.id] || (s.dataset.id === 'benefitCeiling' ? '1.38' : 'Single'));
+    container.querySelectorAll('select').forEach(s => s.value = data.assumptions?.[s.dataset.id] || (s.dataset.id === 'benefitCeiling' ? '1.38' : (s.dataset.id === 'state' ? 'Michigan' : 'Single')));
 };
 
 function debounce(func, wait) { let timeout; return (...args) => { clearTimeout(timeout); timeout = setTimeout(() => func(...args), wait); }; }

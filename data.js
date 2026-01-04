@@ -89,6 +89,8 @@ function scrapeDataFromUI() {
         projectionEndAge: parseFloat(document.getElementById('input-projection-end')?.value) || 75
     };
 
+    const stateEl = document.querySelector('[data-id="state"]');
+    if (stateEl) data.assumptions.state = stateEl.value;
     const filingStatusEl = document.querySelector('[data-id="filingStatus"]');
     if (filingStatusEl) data.assumptions.filingStatus = filingStatusEl.value;
     const benefitCeilingEl = document.querySelector('[data-id="benefitCeiling"]');
