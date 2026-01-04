@@ -45,11 +45,12 @@ function attachGlobalListeners() {
     if (logoutBtn) logoutBtn.onclick = logoutUser;
 
     document.body.addEventListener('input', (e) => {
-        if (e.target.closest('.input-base, .input-range') || e.target.closest('input[data-id]')) {
-            handleLinkedBudgetValues(e.target);
+        const target = e.target;
+        if (target.closest('.input-base, .input-range') || target.closest('input[data-id]')) {
+            handleLinkedBudgetValues(target);
             
             // IMMEDIATE UI FEEDBACK FOR INVESTMENT EFFICIENCY
-            const invRow = e.target.closest('#investment-rows tr');
+            const invRow = target.closest('#investment-rows tr');
             if (invRow) {
                 const valueEl = invRow.querySelector('[data-id="value"]');
                 const basisEl = invRow.querySelector('[data-id="costBasis"]');
@@ -65,14 +66,16 @@ function attachGlobalListeners() {
                 }
             }
 
-            if (e.target.dataset.id === 'contribution' || e.target.dataset.id === 'amount') {
-                const row = e.target.closest('tr') || e.target.closest('.bg-slate-800');
+            if (target.dataset.id === 'contribution' || target.dataset.id === 'amount') {
+                const row = target.closest('tr') || target.closest('.bg-slate-800');
                 if (row) checkIrsLimits(row);
             }
             
-            const id = e.target.dataset.id || e.target.dataset.liveId;
-            if (id) {
-                let val = e.target.value;
+            const id = target.dataset.id || target.dataset.liveId;
+            const isAssumptionControl = target.closest('#assumptions-container') || target.closest('#burndown-live-sliders') || target.id === 'input-top-retire-age';
+
+            if (id && isAssumptionControl) {
+                let val = target.value;
                 if (id === 'currentAge' || id === 'retirementAge') {
                     const currentAge = parseFloat(document.querySelector('[data-id="currentAge"]')?.value || window.currentData?.assumptions?.currentAge || 40);
                     let retirementAge = parseFloat(document.querySelector('[data-id="retirementAge"]')?.value || window.currentData?.assumptions?.retirementAge || 65);
@@ -86,13 +89,15 @@ function attachGlobalListeners() {
                         const newR = parseFloat(val);
                         if (newR < currentAge) {
                             val = currentAge;
-                            e.target.value = val;
+                            target.value = val;
                         }
                     }
                 }
                 syncAllInputs(id, val);
                 if (window.currentData && window.currentData.assumptions) {
-                    window.currentData.assumptions[id] = (e.target.tagName === 'SELECT' || isNaN(parseFloat(val))) ? val : parseFloat(val);
+                    // Fix: Use math.fromCurrency for any potentially formatted values instead of naked parseFloat
+                    const numericVal = (target.tagName === 'SELECT' || isNaN(parseFloat(val))) ? val : (target.dataset.type === 'currency' ? math.fromCurrency(val) : parseFloat(val));
+                    window.currentData.assumptions[id] = numericVal;
                     if (id === 'state') refreshEfficiencyBadges();
                 }
             }
