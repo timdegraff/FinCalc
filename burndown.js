@@ -28,6 +28,11 @@ export const burndown = {
                                 </select>
                             </div>
 
+                            <div id="swr-indicator" class="hidden flex flex-col items-center justify-center px-4 border-l border-slate-700">
+                                <span class="label-std text-slate-500">Safe Draw (SWR)</span>
+                                <span id="swr-value" class="text-teal-400 font-black mono-numbers text-lg">0%</span>
+                            </div>
+
                             <div class="h-8 w-[1px] bg-slate-700 mx-2"></div>
 
                             <!-- Rule 72t Toggle -->
@@ -86,7 +91,12 @@ export const burndown = {
     attachListeners: () => {
         const strategySelect = document.getElementById('burndown-strategy');
         if (strategySelect) {
-            strategySelect.onchange = () => { burndown.run(); window.debouncedAutoSave(); };
+            strategySelect.onchange = () => { 
+                const swrInd = document.getElementById('swr-indicator');
+                if (swrInd) swrInd.classList.toggle('hidden', strategySelect.value !== 'perpetual');
+                burndown.run(); 
+                window.debouncedAutoSave(); 
+            };
         }
         const seppToggle = document.getElementById('toggle-rule-72t');
         if (seppToggle) {
@@ -112,7 +122,11 @@ export const burndown = {
         burndown.priorityOrder = data?.priority || ['cash', 'taxable', 'roth-basis', 'heloc', '401k', 'roth-earnings', 'crypto', 'metals', 'hsa'];
         isRealDollars = !!data?.isRealDollars;
         const strategySelect = document.getElementById('burndown-strategy');
-        if (strategySelect && data?.strategy) strategySelect.value = data.strategy;
+        if (strategySelect && data?.strategy) {
+            strategySelect.value = data.strategy;
+            const swrInd = document.getElementById('swr-indicator');
+            if (swrInd) swrInd.classList.toggle('hidden', data.strategy !== 'perpetual');
+        }
         
         const seppToggle = document.getElementById('toggle-rule-72t');
         if (seppToggle) seppToggle.checked = !!data?.useSEPP;
@@ -188,6 +202,13 @@ export const burndown = {
                 burndown.sortable = new Sortable(priorityList, { animation: 150, onEnd: () => { burndown.priorityOrder = Array.from(priorityList.children).map(el => el.dataset.pk); burndown.run(); window.debouncedAutoSave(); } });
             }
         }
+
+        // Calculate SWR for the indicator
+        const stockGrowth = (data.assumptions.stockGrowth || 8) / 100;
+        const inflationRate = (data.assumptions.inflation || 3) / 100;
+        const swrValue = Math.max(0, stockGrowth - inflationRate);
+        const swrEl = document.getElementById('swr-value');
+        if (swrEl) swrEl.textContent = `${(swrValue * 100).toFixed(1)}%`;
 
         const results = burndown.calculate(data);
         const tableContainer = document.getElementById('burndown-table-container');
@@ -290,9 +311,9 @@ export const burndown = {
                 if (state.strategy === 'medicaid') currentYearBudget = fpl * 1.38;
                 else if (state.strategy === 'silver') currentYearBudget = fpl * 2.50;
                 else if (state.strategy === 'perpetual') {
-                    // Perpetual Safe Draw = NW * (WeightedReturn - Inflation)
-                    // Assume weighted return is based on asset allocation, approx stockGrowth for now
+                    // Perpetual Safe Draw = Portfolio Value * (Growth % - Inflation %)
                     const safeRate = Math.max(0, stockGrowth - inflationRate);
+                    // This draw keeps the portfolio flat in REAL terms.
                     currentYearBudget = currentNW * safeRate;
                 }
             }
