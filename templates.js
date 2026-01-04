@@ -7,9 +7,9 @@ export const templates = {
             const v = math.fromCurrency(value);
             const b = math.fromCurrency(costBasis);
             
-            // Logic: 100% if basis >= value
+            // Logic: 100% if basis >= value (no taxable gains)
             if (v > 0 && b >= v) {
-                 return `<div class="ml-2 inline-flex items-center px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase tracking-widest border border-current" title="100% Efficient (No Gains)">100%</div>`;
+                 return `<div class="efficiency-badge inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[9px] font-black uppercase tracking-widest border border-current" title="100% Efficient (No Gains)">100%</div>`;
             }
 
             const efficiencies = {
@@ -25,13 +25,14 @@ export const templates = {
             const e = efficiencies[type] || efficiencies['Taxable'];
             
             let label = e.label;
+            // Precise Taxable Efficiency: 1 - (Gain_Ratio * Cap_Gains_Tax)
             if (type === 'Taxable' && v > 0 && b > 0) {
                 const gainRatio = Math.max(0, (v - b) / v);
-                const efficiency = 1 - (gainRatio * 0.15); 
+                const efficiency = 1 - (gainRatio * 0.15); // Est 15% Cap Gains tax
                 label = Math.round(efficiency * 100) + '%';
             }
 
-            return `<div class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded ${e.bg} ${e.color} text-[8px] font-black uppercase tracking-widest border border-current opacity-70" title="Est. Realizable Value">${label}</div>`;
+            return `<div class="efficiency-badge inline-flex items-center px-1.5 py-0.5 rounded ${e.bg} ${e.color} text-[9px] font-black uppercase tracking-widest border border-current opacity-80" title="Est. Realizable Value Post-Tax">${label}</div>`;
         },
         getTypeClass: (type) => {
             const map = {
@@ -63,12 +64,14 @@ export const templates = {
                     <option>HSA</option>
                     <option>529 Plan</option>
                 </select>
-                ${templates.helpers.getEfficiencyBadge(data.type || 'Taxable', data.value, data.costBasis)}
             </div>
         </td>
         <td><input data-id="value" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-bold mono-numbers"></td>
-        <td>
-            <input data-id="costBasis" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-blue-400 opacity-60 mono-numbers">
+        <td><input data-id="costBasis" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-blue-400 opacity-60 mono-numbers"></td>
+        <td class="text-center w-20">
+            <div data-id="efficiency-container">
+                ${templates.helpers.getEfficiencyBadge(data.type || 'Taxable', data.value, data.costBasis)}
+            </div>
         </td>
         <td class="text-center"><button data-action="remove" class="text-slate-700 hover:text-red-400"><i class="fas fa-times"></i></button></td>
     `,
