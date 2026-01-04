@@ -24,7 +24,7 @@ export const burndown = {
                             <!-- New Quick Access Slider -->
                             <div class="flex items-center gap-4 bg-slate-900/50 p-2 rounded-xl border border-slate-700">
                                 <span class="text-[10px] font-bold text-slate-500 uppercase whitespace-nowrap">Retire Age: <span id="label-top-retire-age" class="text-purple-400">65</span></span>
-                                <input type="range" id="input-top-retire-age" min="18" max="100" value="65" class="w-24 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500">
+                                <input type="range" id="input-top-retire-age" data-id="retirementAge" min="18" max="100" value="65" class="w-24 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500">
                             </div>
 
                             <button id="toggle-burndown-real" class="px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-xl text-[10px] font-bold text-slate-400 hover:text-white transition-all uppercase tracking-widest flex items-center gap-2">
@@ -111,14 +111,30 @@ export const burndown = {
         const topRetireInput = document.getElementById('input-top-retire-age');
         if (topRetireInput) {
             topRetireInput.oninput = (e) => {
-                const newVal = parseFloat(e.target.value);
+                let newVal = parseFloat(e.target.value);
                 if (newVal < window.currentData.assumptions.currentAge) {
-                    e.target.value = window.currentData.assumptions.currentAge;
-                    return;
+                    newVal = window.currentData.assumptions.currentAge;
+                    e.target.value = newVal;
                 }
+                
+                const mainInput = document.querySelector(`#assumptions-container [data-id="retirementAge"]`);
+                if (mainInput) {
+                    mainInput.value = newVal;
+                    const mainLabel = mainInput.previousElementSibling?.querySelector('span');
+                    if (mainLabel) mainLabel.textContent = newVal;
+                }
+
                 window.currentData.assumptions.retirementAge = newVal;
                 const label = document.getElementById('label-top-retire-age');
                 if (label) label.textContent = newVal;
+                
+                const liveInput = document.querySelector(`#burndown-live-sliders [data-live-id="retirementAge"]`);
+                if (liveInput) {
+                    liveInput.value = newVal;
+                    const liveLabel = liveInput.previousElementSibling?.querySelector('span');
+                    if (liveLabel) liveLabel.textContent = newVal;
+                }
+
                 window.debouncedAutoSave();
             };
         }
@@ -128,7 +144,6 @@ export const burndown = {
         burndown.priorityOrder = data?.priority || ['cash', 'taxable', 'roth-basis', 'heloc', '401k', 'roth-earnings', 'crypto', 'metals', 'hsa'];
         isRealDollars = !!data?.isRealDollars;
         
-        // Sync UI for loaded state
         const realBtn = document.getElementById('toggle-burndown-real');
         if (realBtn) {
             realBtn.classList.toggle('text-blue-400', isRealDollars);
@@ -215,6 +230,23 @@ export const burndown = {
                         const rSlider = sliderContainer.querySelector('[data-live-id="retirementAge"]');
                         if (rSlider) { rSlider.value = newVal; rSlider.previousElementSibling.querySelector('span').textContent = newVal; }
                     }
+                    
+                    const mainInput = document.querySelector(`#assumptions-container [data-id="${key}"]`);
+                    if (mainInput) {
+                        mainInput.value = newVal;
+                        const mainLabel = mainInput.previousElementSibling?.querySelector('span');
+                        if (mainLabel) mainLabel.textContent = newVal;
+                        
+                        if (key === 'retirementAge') {
+                            const topInput = document.getElementById('input-top-retire-age');
+                            if (topInput) {
+                                topInput.value = newVal;
+                                const topLabel = document.getElementById('label-top-retire-age');
+                                if (topLabel) topLabel.textContent = newVal;
+                            }
+                        }
+                    }
+
                     div.querySelector('span').textContent = newVal;
                     data.assumptions[key] = newVal;
                     window.debouncedAutoSave();
@@ -257,13 +289,13 @@ export const burndown = {
         const filingStatus = assumptions.filingStatus || 'Single';
         const currentYear = new Date().getFullYear();
 
-        let taxValue = investments.filter(i => i.type === 'Taxable').reduce((s, i) => s + math.fromCurrency(i.value), 0);
-        let taxBasis = investments.filter(i => i.type === 'Taxable').reduce((s, i) => {
+        const taxValue = investments.filter(i => i.type === 'Taxable').reduce((s, i) => s + math.fromCurrency(i.value), 0);
+        const taxBasis = investments.filter(i => i.type === 'Taxable').reduce((s, i) => {
             const b = math.fromCurrency(i.costBasis);
             return s + (b === 0 ? math.fromCurrency(i.value) : b);
         }, 0);
         
-        let bal = {
+        const bal = {
             'cash': investments.filter(i => i.type === 'Cash').reduce((s, i) => s + math.fromCurrency(i.value), 0),
             'taxable': taxValue,
             'roth-basis': investments.filter(i => i.type === 'Post-Tax (Roth)').reduce((s, i) => s + (math.fromCurrency(i.costBasis) || 0), 0),
@@ -280,8 +312,8 @@ export const burndown = {
         const fixedOtherAssets = otherAssets.reduce((s, o) => s + (math.fromCurrency(o.value) - math.fromCurrency(o.loan)), 0);
         const helocLimit = helocs.reduce((s, h) => s + math.fromCurrency(h.limit), 0);
         const fpl2026Base = filingStatus === 'Single' ? 16060 : 21710;
-        let baseAnnualBudget = state.useSync ? (budget.expenses?.reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0) : state.manualBudget;
-        let ssBenefitBase = (assumptions.ssMonthly || 0) * 12;
+        const baseAnnualBudget = state.useSync ? (budget.expenses?.reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0) : state.manualBudget;
+        const ssBenefitBase = (assumptions.ssMonthly || 0) * 12;
         
         const results = [];
         const endAge = parseFloat(document.getElementById('input-projection-end')?.value) || 100;
@@ -293,7 +325,14 @@ export const burndown = {
             const yearResult = { age, year: currentYear + i, draws: {}, totalDraw: 0 };
             const inflationFactor = Math.pow(1 + inflationRate, i);
             const fpl = fpl2026Base * inflationFactor;
-            let currentYearBudget = baseAnnualBudget * inflationFactor;
+            const currentYearBudget = baseAnnualBudget * inflationFactor;
+
+            // Handle Savings during working years to keep in sync with Projections
+            if (age < assumptions.retirementAge) {
+                const summaries = engine.calculateSummaries(data);
+                bal['401k'] += summaries.total401kContribution;
+                bal['taxable'] += (budget.savings?.reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0);
+            }
 
             let taxableIncome = 0;
             let nonTaxableIncome = 0;
@@ -361,13 +400,15 @@ export const burndown = {
             const stockG = (1 + (assumptions.stockGrowth / 100));
             const cryptoG = (1 + (assumptions.cryptoGrowth / 100));
             const metalsG = (1 + (assumptions.metalsGrowth / 100));
+            
+            // Apply Growth for next year
             bal['taxable'] *= stockG;
             bal['401k'] *= stockG;
             bal['roth-basis'] *= stockG;
             bal['roth-earnings'] *= stockG;
+            bal['hsa'] *= stockG; // Specifically requested Stock APY growth for HSA
             bal['crypto'] *= cryptoG;
             bal['metals'] *= metalsG;
-            bal['hsa'] *= stockG;
             hidden529 *= stockG;
         }
         return results;
@@ -390,7 +431,6 @@ export const burndown = {
                 const balance = r.balances[k] / inflationFactor;
                 const meta = burndown.assetMeta[k];
                 
-                // Color active draws with their specific asset type color
                 const activeColorStyle = amt > 0 ? `style="color: ${meta.color}"` : '';
                 const activeClass = amt > 0 ? 'font-black' : 'text-slate-600';
 
@@ -400,7 +440,7 @@ export const burndown = {
                 </td>`;
             }).join('');
             
-            let badge = r.isMedicaid ? `<span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 text-[9px] font-bold">MEDICAID</span>` : (r.isSilver ? `<span class="px-2 py-0.5 rounded bg-purple-900/40 text-purple-400 text-[9px] font-bold">SILVER</span>` : `<span class="text-[9px] text-slate-700">PRIVATE</span>`);
+            const badge = r.isMedicaid ? `<span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 text-[9px] font-bold">MEDICAID</span>` : (r.isSilver ? `<span class="px-2 py-0.5 rounded bg-purple-900/40 text-purple-400 text-[9px] font-bold">SILVER</span>` : `<span class="text-[9px] text-slate-700">PRIVATE</span>`);
             const snapDisplay = r.snapBenefit > 0 ? `<div class="text-[8px] text-emerald-500 font-bold tracking-tight">+${formatter.formatCurrency(r.snapBenefit / inflationFactor, 0)} SNAP</div>` : '';
             
             return `<tr class="border-b border-slate-800/50 hover:bg-slate-800/20 text-[10px]">

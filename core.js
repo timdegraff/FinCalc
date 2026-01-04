@@ -33,13 +33,38 @@ function attachGlobalListeners() {
                 const row = e.target.closest('tr') || e.target.closest('.bg-slate-800');
                 if (row) checkIrsLimits(row);
             }
+            
+            // Sync labels and twin sliders
             if (e.target.dataset.id) {
+                const val = e.target.value;
                 const label = e.target.previousElementSibling?.querySelector('span');
                 if (label) {
                     if (e.target.dataset.id === 'ssMonthly') {
-                        label.textContent = math.toCurrency(parseFloat(e.target.value));
+                        label.textContent = math.toCurrency(parseFloat(val));
                     } else {
-                        label.textContent = e.target.value;
+                        label.textContent = val;
+                    }
+                }
+
+                // TWIN SYNC: If moving main assumptions, update burndown counterparts
+                const isMainAssumption = e.target.closest('#assumptions-container');
+                if (isMainAssumption) {
+                    const id = e.target.dataset.id;
+                    // Update Burndown Live Sliders
+                    const liveSlider = document.querySelector(`#burndown-live-sliders [data-live-id="${id}"]`);
+                    if (liveSlider) {
+                        liveSlider.value = val;
+                        const liveLabel = liveSlider.previousElementSibling?.querySelector('span');
+                        if (liveLabel) liveLabel.textContent = val;
+                    }
+                    // Update Burndown Top Quick Access (specifically for retirementAge)
+                    if (id === 'retirementAge') {
+                        const topInput = document.getElementById('input-top-retire-age');
+                        if (topInput) {
+                            topInput.value = val;
+                            const topLabel = document.getElementById('label-top-retire-age');
+                            if (topLabel) topLabel.textContent = val;
+                        }
                     }
                 }
             }
@@ -48,15 +73,27 @@ function attachGlobalListeners() {
             if (e.target.dataset.id === 'currentAge' || e.target.dataset.id === 'retirementAge') {
                 const container = e.target.closest('#assumptions-container') || e.target.closest('#burndown-live-sliders');
                 if (container) {
-                    const cAgeInput = container.querySelector('[data-id="currentAge"]') || container.querySelector('[data-live-id="currentAge"]');
-                    const rAgeInput = container.querySelector('[data-id="retirementAge"]') || container.querySelector('[data-live-id="retirementAge"]');
+                    const isLive = !!e.target.dataset.liveId;
+                    const cAgeInput = container.querySelector(isLive ? '[data-live-id="currentAge"]' : '[data-id="currentAge"]');
+                    const rAgeInput = container.querySelector(isLive ? '[data-live-id="retirementAge"]' : '[data-id="retirementAge"]');
+                    
                     if (cAgeInput && rAgeInput) {
                         const cVal = Math.round(parseFloat(cAgeInput.value));
-                        const rVal = Math.round(parseFloat(rAgeInput.value));
+                        let rVal = Math.round(parseFloat(rAgeInput.value));
                         if (rVal < cVal) {
                             rAgeInput.value = cVal;
                             const rLabel = rAgeInput.previousElementSibling?.querySelector('span');
                             if (rLabel) rLabel.textContent = cVal;
+                            
+                            // Propagate this sync to the main container too if we are in the live slider
+                            if (isLive) {
+                                const mainRInput = document.querySelector('#assumptions-container [data-id="retirementAge"]');
+                                if (mainRInput) {
+                                    mainRInput.value = cVal;
+                                    const mainRLabel = mainRInput.previousElementSibling?.querySelector('span');
+                                    if (mainRLabel) mainRLabel.textContent = cVal;
+                                }
+                            }
                         }
                     }
                 }
