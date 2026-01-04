@@ -48,7 +48,7 @@ function attachGlobalListeners() {
         if (e.target.id === 'btn-reset-market') {
             const marketDefaults = {
                 stockGrowth: 8,
-                cryptoGrowth: 15,
+                cryptoGrowth: 10,
                 metalsGrowth: 6,
                 realEstateGrowth: 3,
                 inflation: 3
@@ -362,7 +362,7 @@ window.updateSidebarChart = (data) => {
     assetChart = new Chart(ctx, {
         type: 'doughnut',
         data: { labels: Object.keys(totals), datasets: [{ data: Object.values(totals), backgroundColor: Object.keys(totals).map(l => assetColors[l] || assetColors['Taxable']), borderWidth: 0, hoverOffset: 2 }] },
-        options: { plugins: { legend: { display: false }, tooltip: { bodyFont: { family: "'JetBrains Mono', monospace" }, callbacks: { label: (c) => `${c.label}: ${((c.parsed / totalSum) * 100).toFixed(1)}%` } } }, cutout: '75%', responsive: true, maintainAspectRatio: false }
+        options: { plugins: { legend: { display: false }, tooltip: { bodyFont: { family: "'Inter', sans-serif" }, callbacks: { label: (c) => `${c.label}: ${((c.parsed / totalSum) * 100).toFixed(1)}%` } } }, cutout: '75%', responsive: true, maintainAspectRatio: false }
     });
 };
 
@@ -392,7 +392,7 @@ window.createAssumptionControls = (data) => {
     const groups = {
         life: [{ id: 'currentAge', label: 'Current Age', min: 18, max: 100, step: 1 }, { id: 'retirementAge', label: 'Retirement Age', min: 18, max: 100, step: 1 }],
         retirement: [{ id: 'ssStartAge', label: 'SS Start Age', min: 62, max: 70, step: 1 }, { id: 'ssMonthly', label: 'SS Monthly (Today\'s $)', min: 0, max: 6000, step: 100, isCurrency: true }],
-        market: [{ id: 'stockGrowth', label: 'Stocks APY %', min: 0, max: 15, step: 0.5 }, { id: 'cryptoGrowth', label: 'Bitcoin %', min: 0, max: 50, step: 1 }, { id: 'metalsGrowth', label: 'Metals %', min: 0, max: 15, step: 1 }, { id: 'realEstateGrowth', label: 'Real Estate APY %', min: 0, max: 15, step: 0.5 }, { id: 'inflation', label: 'Inflation %', min: 0, max: 10, step: 0.1 }]
+        market: [{ id: 'stockGrowth', label: 'Stocks APY %', min: 0, max: 15, step: 0.5 }, { id: 'cryptoGrowth', label: 'Bitcoin %', min: 0, max: 15, step: 0.5 }, { id: 'metalsGrowth', label: 'Metals %', min: 0, max: 15, step: 0.5 }, { id: 'realEstateGrowth', label: 'Real Estate APY %', min: 0, max: 15, step: 0.5 }, { id: 'inflation', label: 'Inflation %', min: 0, max: 10, step: 0.1 }]
     };
     Object.entries(groups).forEach(([g, configs]) => {
         const sub = document.getElementById(`assumptions-${g}`);

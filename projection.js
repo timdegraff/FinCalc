@@ -14,13 +14,22 @@ export const projection = {
         isRealDollars = !!settings.isRealDollars;
         const realBtn = document.getElementById('toggle-projection-real');
         if (realBtn) {
-            realBtn.classList.toggle('text-blue-400', isRealDollars);
-            realBtn.classList.toggle('border-blue-500', isRealDollars);
+            projection.updateToggleStyle(realBtn);
         }
     },
 
     scrape: () => {
         return { isRealDollars };
+    },
+
+    updateToggleStyle: (btn) => {
+        if (!btn) return;
+        btn.classList.toggle('bg-blue-600/20', isRealDollars);
+        btn.classList.toggle('text-blue-400', isRealDollars);
+        btn.classList.toggle('border-blue-500/30', isRealDollars);
+        btn.innerHTML = isRealDollars ? 
+            '<i class="fas fa-sync-alt"></i> 2026 Dollars' : 
+            '<i class="fas fa-calendar-alt"></i> Nominal Dollars';
     },
 
     run: (data) => {
@@ -34,8 +43,7 @@ export const projection = {
             realBtn.dataset.init = "true";
             realBtn.onclick = () => {
                 isRealDollars = !isRealDollars;
-                realBtn.classList.toggle('text-blue-400', isRealDollars);
-                realBtn.classList.toggle('border-blue-500', isRealDollars);
+                projection.updateToggleStyle(realBtn);
                 projection.run(window.currentData);
                 window.debouncedAutoSave();
             };
@@ -140,6 +148,12 @@ function renderChart(labels, datasets) {
             scales: {
                 y: { 
                     stacked: true, 
+                    title: {
+                        display: true,
+                        text: isRealDollars ? 'Net Worth (2026 Dollars)' : 'Net Worth (Nominal Dollars)',
+                        font: { family: "'Inter', sans-serif", weight: '800', size: 9 },
+                        color: '#475569'
+                    },
                     ticks: { 
                         font: { family: "'Inter', sans-serif" }, 
                         callback: (v) => math.toCurrency(v, true) 

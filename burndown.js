@@ -58,7 +58,7 @@ export const burndown = {
                             </div>
 
                             <button id="toggle-burndown-real" class="px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-xl label-std font-black text-slate-400 hover:text-white transition-all flex items-center gap-2">
-                                <i class="fas fa-sync"></i> Real Dollars
+                                <i class="fas fa-calendar-alt"></i> Nominal Dollars
                             </button>
                         </div>
                         
@@ -107,6 +107,16 @@ export const burndown = {
         burndown.attachListeners();
     },
 
+    updateToggleStyle: (btn) => {
+        if (!btn) return;
+        btn.classList.toggle('bg-blue-600/20', isRealDollars);
+        btn.classList.toggle('text-blue-400', isRealDollars);
+        btn.classList.toggle('border-blue-500/30', isRealDollars);
+        btn.innerHTML = isRealDollars ? 
+            '<i class="fas fa-sync-alt"></i> 2026 Dollars' : 
+            '<i class="fas fa-calendar-alt"></i> Nominal Dollars';
+    },
+
     attachListeners: () => {
         const triggers = ['burndown-strategy', 'toggle-rule-72t', 'toggle-budget-sync', 'toggle-roth-ladder', 'toggle-die-with-zero'];
         triggers.forEach(id => {
@@ -141,8 +151,7 @@ export const burndown = {
         if (realBtn) {
             realBtn.onclick = () => {
                 isRealDollars = !isRealDollars;
-                realBtn.classList.toggle('text-blue-400', isRealDollars);
-                realBtn.classList.toggle('border-blue-500', isRealDollars);
+                burndown.updateToggleStyle(realBtn);
                 burndown.run();
                 window.debouncedAutoSave();
             };
@@ -172,8 +181,7 @@ export const burndown = {
 
         const realBtn = document.getElementById('toggle-burndown-real');
         if (realBtn) {
-            realBtn.classList.toggle('text-blue-400', isRealDollars);
-            realBtn.classList.toggle('border-blue-500', isRealDollars);
+            burndown.updateToggleStyle(realBtn);
         }
         
         const manualInput = document.getElementById('input-manual-budget');
@@ -218,8 +226,8 @@ export const burndown = {
                 { key: 'slowGoFactor', label: 'Age 62 Budget %', min: 0.1, max: 1.5, step: 0.05, isPct: true },
                 { key: 'noGoFactor', label: 'Age 80 Budget %', min: 0.1, max: 1.5, step: 0.05, isPct: true },
                 { key: 'stockGrowth', label: 'Stocks APY %', min: 0, max: 15, step: 0.5 },
-                { key: 'cryptoGrowth', label: 'Bitcoin %', min: 0, max: 50, step: 1 },
-                { key: 'metalsGrowth', label: 'Metals %', min: 0, max: 15, step: 1 },
+                { key: 'cryptoGrowth', label: 'Bitcoin %', min: 0, max: 15, step: 0.5 },
+                { key: 'metalsGrowth', label: 'Metals %', min: 0, max: 15, step: 0.5 },
                 { key: 'inflation', label: 'Inflation %', min: 0, max: 10, step: 0.1 }
             ];
             sliderConfigs.forEach(({ key, label, min, max, step, isPct }) => {
@@ -265,8 +273,8 @@ export const burndown = {
         const inflationRate = (assumptions.inflation || 3) / 100;
         const stockGrowth = (assumptions.stockGrowth || 8) / 100;
         const cryptoGrowth = (assumptions.cryptoGrowth || 15) / 100;
-        const metalsGrowth = (assumptions.metalsGrowth || 6) / 100;
-        const realEstateGrowth = (assumptions.realEstateGrowth || 3) / 100;
+        const metalsGrowth = (assumptions.metalsGrowth || 15) / 100;
+        const realEstateGrowth = (assumptions.realEstateGrowth || 15) / 100;
         
         const filingStatus = assumptions.filingStatus || 'Single';
         const currentYear = new Date().getFullYear();
@@ -358,8 +366,8 @@ export const burndown = {
 
             // Draw Strategy overrides
             if (isRetired) {
-                if (state.strategy === 'medicaid') currentYearBudget = fpl * 1.38;
-                else if (state.strategy === 'silver') currentYearBudget = fpl * 2.50;
+                if (state.strategy === 'medicaid') currentYearBudget = (fpl * 1.38) - 100; // Aim slightly below to ensure eligibility
+                else if (state.strategy === 'silver') currentYearBudget = (fpl * 2.50) - 100;
                 else if (state.strategy === 'perpetual') {
                     const safeRate = Math.max(0, stockGrowth - inflationRate);
                     currentYearBudget = currentNW * safeRate;
@@ -406,8 +414,8 @@ export const burndown = {
             yearResult.magi = Math.max(0, taxableIncome);
             
             yearResult.isMedicare = age >= 65;
-            yearResult.isMedicaid = yearResult.magi < fpl * 1.38;
-            yearResult.isSilver = yearResult.magi < fpl * 2.5 && !yearResult.isMedicaid;
+            yearResult.isMedicaid = yearResult.magi <= fpl * 1.38;
+            yearResult.isSilver = yearResult.magi <= fpl * 2.5 && !yearResult.isMedicaid;
 
             let remainingNeed = Math.max(0, netBudgetNeeded - (taxableIncome + nonTaxableIncome - tax));
 
@@ -438,7 +446,7 @@ export const burndown = {
 
             // ROTH LADDER TOP-OFF (Optimization for Medicaid/Tax efficiency)
             if (isRetired && state.useRothLadder) {
-                const medicaidLimit = fpl * 1.38;
+                const medicaidLimit = (fpl * 1.38) - 1; // Buffer by $1 to stay in status
                 if (taxableIncome < medicaidLimit) {
                     const topOffAmt = Math.min(bal['401k'], medicaidLimit - taxableIncome);
                     if (topOffAmt > 0) {
@@ -454,8 +462,8 @@ export const burndown = {
             yearResult.balances = { ...bal };
             yearResult.budget = currentYearBudget;
             yearResult.netWorth = currentNW - yearResult.penalty;
-            yearResult.isMedicaid = yearResult.magi < fpl * 1.38;
-            yearResult.isSilver = yearResult.magi < fpl * 2.5 && !yearResult.isMedicaid;
+            yearResult.isMedicaid = yearResult.magi <= fpl * 1.38;
+            yearResult.isSilver = yearResult.magi <= fpl * 2.5 && !yearResult.isMedicaid;
 
             results.push(yearResult);
 

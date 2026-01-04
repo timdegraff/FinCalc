@@ -64,7 +64,7 @@ export const assumptions = {
         ssStartAge: 67, 
         ssMonthly: 3000, 
         stockGrowth: 8, 
-        cryptoGrowth: 15, 
+        cryptoGrowth: 10, 
         metalsGrowth: 6, 
         realEstateGrowth: 3, 
         inflation: 3, 
