@@ -44,6 +44,23 @@ function attachGlobalListeners() {
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) logoutBtn.onclick = logoutUser;
 
+    document.body.addEventListener('click', (e) => {
+        if (e.target.id === 'btn-reset-market') {
+            const marketDefaults = {
+                stockGrowth: 8,
+                cryptoGrowth: 15,
+                metalsGrowth: 6,
+                realEstateGrowth: 3,
+                inflation: 3
+            };
+            Object.entries(marketDefaults).forEach(([id, val]) => {
+                syncAllInputs(id, val);
+                if (window.currentData?.assumptions) window.currentData.assumptions[id] = val;
+            });
+            window.debouncedAutoSave();
+        }
+    });
+
     document.body.addEventListener('input', (e) => {
         const target = e.target;
         if (target.closest('.input-base, .input-range') || target.closest('input[data-id]')) {
@@ -95,7 +112,6 @@ function attachGlobalListeners() {
                 }
                 syncAllInputs(id, val);
                 if (window.currentData && window.currentData.assumptions) {
-                    // Fix: Use math.fromCurrency for any potentially formatted values instead of naked parseFloat
                     const numericVal = (target.tagName === 'SELECT' || isNaN(parseFloat(val))) ? val : (target.dataset.type === 'currency' ? math.fromCurrency(val) : parseFloat(val));
                     window.currentData.assumptions[id] = numericVal;
                     if (id === 'state') refreshEfficiencyBadges();
@@ -122,9 +138,13 @@ function syncAllInputs(id, val) {
     ];
     selectors.forEach(sel => {
         document.querySelectorAll(sel).forEach(el => {
-            if (el.value !== val) el.value = val;
+            if (el.value != val) el.value = val;
             let label = el.id === 'input-top-retire-age' ? document.getElementById('label-top-retire-age') : el.previousElementSibling?.querySelector('span');
-            if (label) label.textContent = id === 'ssMonthly' ? math.toCurrency(parseFloat(val)) : val;
+            if (label) {
+                if (id === 'ssMonthly') label.textContent = math.toCurrency(parseFloat(val));
+                else if (id.toLowerCase().includes('growth') || id === 'inflation') label.textContent = `${val}%`;
+                else label.textContent = val;
+            }
         });
     });
 }
@@ -241,15 +261,16 @@ function attachDynamicRowListeners() {
             window.debouncedAutoSave();
         }
     });
+    // Robust change listener for dropdowns, checkboxes, etc.
     document.body.addEventListener('change', (e) => {
-        if (e.target.dataset.id === 'type' && e.target.closest('#investment-rows, #budget-savings-rows')) {
-            if (e.target.closest('#investment-rows')) updateCostBasisVisibility(e.target.closest('tr'));
-            e.target.className = `input-base w-full font-bold ${templates.helpers.getTypeClass(e.target.value)}`;
-            // Optimization: Trigger immediate auto-save on dropdown changes that affect UI logic/reset data
-            window.debouncedAutoSave();
+        const target = e.target;
+        if (target.dataset.id === 'type') {
+            if (target.closest('#investment-rows')) updateCostBasisVisibility(target.closest('tr'));
+            target.className = `input-base w-full font-bold ${templates.helpers.getTypeClass(target.value)}`;
         }
-        if (e.target.dataset.id === 'nonTaxableUntil' || e.target.dataset.id === 'remainsInRetirement') {
-             window.debouncedAutoSave();
+        // Save whenever any data-id field changes
+        if (target.dataset.id) {
+            window.debouncedAutoSave();
         }
     });
 }
@@ -306,6 +327,10 @@ window.addRow = (containerId, type, data = {}) => {
         const val = data[key];
         if (val !== undefined) {
             if (input.type === 'checkbox') input.checked = !!val;
+            else if (input.tagName === 'SELECT') {
+                input.value = val;
+                input.className = `input-base w-full font-bold ${templates.helpers.getTypeClass(val)}`;
+            }
             else if (input.dataset.type === 'currency') input.value = math.toCurrency(val);
             else input.value = val;
         }
@@ -353,11 +378,16 @@ window.createAssumptionControls = (data) => {
                 </select>
             </label>
             <label class="block"><span class="label-std text-slate-500">Filing Status</span><select data-id="filingStatus" class="input-base w-full mt-1 font-bold"><option>Single</option><option>Married Filing Jointly</option></select></label>
-            <label class="block"><span class="label-std text-slate-500">Benefit Target Threshold</span><select data-id="benefitCeiling" class="input-base w-full mt-1 font-bold"><option value="1.38">138% FPL (Medicaid)</option><option value="2.5">250% FPL (Silver)</option><option value="999">No Subsidies</option></select></label>
             <div id="assumptions-life"></div>
         </div>
         <div class="space-y-6 lg:border-r lg:border-slate-700/30 lg:px-8"><div class="mb-4 pb-2 border-b border-slate-700/50 flex items-center gap-2"><i class="fas fa-university text-emerald-400"></i><h3 class="label-std text-slate-400">Retirement & Social Security</h3></div><div id="assumptions-retirement"></div></div>
-        <div class="space-y-6 lg:pl-8"><div class="mb-4 pb-2 border-b border-slate-700/50 flex items-center gap-2"><i class="fas fa-chart-area text-amber-400"></i><h3 class="label-std text-slate-400">Market & Growth</h3></div><div id="assumptions-market"></div></div>
+        <div class="space-y-6 lg:pl-8">
+            <div class="mb-4 pb-2 border-b border-slate-700/50 flex items-center justify-between">
+                <div class="flex items-center gap-2"><i class="fas fa-chart-area text-amber-400"></i><h3 class="label-std text-slate-400">Market & Growth</h3></div>
+                <button id="btn-reset-market" class="text-[9px] font-black uppercase text-slate-600 hover:text-blue-400 transition-colors">Reset Defaults</button>
+            </div>
+            <div id="assumptions-market"></div>
+        </div>
     `;
     const groups = {
         life: [{ id: 'currentAge', label: 'Current Age', min: 18, max: 100, step: 1 }, { id: 'retirementAge', label: 'Retirement Age', min: 18, max: 100, step: 1 }],
@@ -370,7 +400,8 @@ window.createAssumptionControls = (data) => {
             let val = data.assumptions?.[id] ?? assumptions.defaults[id];
             const div = document.createElement('div');
             div.className = 'space-y-2 mb-6';
-            div.innerHTML = `<label class="flex justify-between label-std text-slate-500">${label} <span class="text-emerald-400 font-black mono-numbers">${isCurrency ? math.toCurrency(val) : val}</span></label><input type="range" data-id="${id}" value="${val}" min="${min}" max="${max}" step="${step}" class="input-range">`;
+            const suffix = (id.toLowerCase().includes('growth') || id === 'inflation') ? '%' : '';
+            div.innerHTML = `<label class="flex justify-between label-std text-slate-500">${label} <span class="text-emerald-400 font-black mono-numbers">${isCurrency ? math.toCurrency(val) : val + suffix}</span></label><input type="range" data-id="${id}" value="${val}" min="${min}" max="${max}" step="${step}" class="input-range">`;
             
             if (id === 'ssMonthly') {
                 div.innerHTML += `
@@ -385,7 +416,7 @@ window.createAssumptionControls = (data) => {
             sub.appendChild(div);
         });
     });
-    container.querySelectorAll('select').forEach(s => s.value = data.assumptions?.[s.dataset.id] || (s.dataset.id === 'benefitCeiling' ? '1.38' : (s.dataset.id === 'state' ? 'Michigan' : 'Single')));
+    container.querySelectorAll('select').forEach(s => s.value = data.assumptions?.[s.dataset.id] || (s.dataset.id === 'state' ? 'Michigan' : 'Single'));
 };
 
 function debounce(func, wait) { let timeout; return (...args) => { clearTimeout(timeout); timeout = setTimeout(() => func(...args), wait); }; }

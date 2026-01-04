@@ -2,24 +2,24 @@
 export const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
 
 export const assetColors = {
-    'Cash': '#f472b6',
-    'Taxable': '#10b981',
+    'Cash': '#f472b6', // Magenta/Pink
+    'Taxable': '#10b981', // Emerald
     'Brokerage': '#10b981',
-    'Pre-Tax (401k/IRA)': '#3b82f6',
+    'Pre-Tax (401k/IRA)': '#3b82f6', // Blue
     'Pre-Tax': '#3b82f6',
-    'Post-Tax (Roth)': '#a855f7',
+    'Post-Tax (Roth)': '#a855f7', // Purple
     'Post-Tax': '#a855f7',
     'Roth Basis': '#a855f7',
     'Roth Gains': '#9333ea',
-    'Crypto': '#f59e0b',
+    'Crypto': '#f59e0b', // Amber/Orange
     'Bitcoin': '#f59e0b',
-    'Metals': '#eab308',
-    'Real Estate': '#6366f1',
+    'Metals': '#eab308', // Yellow
+    'Real Estate': '#6366f1', // Indigo
     'Other': '#94a3b8',
     'HELOC': '#ef4444',
     'Debt': '#dc2626',
-    'HSA': '#2dd4bf',
-    '529 Plan': '#fb7185'
+    'HSA': '#2dd4bf', // Teal
+    '529 Plan': '#fb7185' // Rose
 };
 
 export const stateTaxRates = {

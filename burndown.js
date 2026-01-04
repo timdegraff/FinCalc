@@ -16,8 +16,20 @@ export const burndown = {
                             <h3 class="text-xl font-black text-white flex items-center gap-2 uppercase tracking-tighter">
                                 <i class="fas fa-microchip text-purple-400"></i> Strategy Engine
                             </h3>
-                            <div class="h-8 w-[1px] bg-slate-700"></div>
+                            <div class="h-8 w-[1px] bg-slate-700 mx-2"></div>
                             
+                            <div class="flex flex-col gap-1">
+                                <label class="label-std text-slate-500">Draw Strategy</label>
+                                <select id="burndown-strategy" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-black text-blue-400 outline-none focus:border-blue-500 transition-all">
+                                    <option value="standard">Standard Budget</option>
+                                    <option value="medicaid">Benefit Opt (138% FPL Medicaid)</option>
+                                    <option value="silver">Benefit Opt (250% FPL Silver)</option>
+                                    <option value="perpetual">Wealth Preservation (Real Flat)</option>
+                                </select>
+                            </div>
+
+                            <div class="h-8 w-[1px] bg-slate-700 mx-2"></div>
+
                             <!-- Rule 72t Toggle -->
                             <label class="flex items-center gap-3 px-4 py-2 bg-slate-900/50 rounded-xl border border-slate-700 cursor-pointer group">
                                 <input type="checkbox" id="toggle-rule-72t" class="w-4 h-4 accent-purple-500">
@@ -30,10 +42,6 @@ export const burndown = {
                                 </div>
                             </label>
 
-                            <button id="btn-optimize-draw" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-black shadow-lg shadow-purple-900/20 transition-all flex items-center gap-2">
-                                <i class="fas fa-magic"></i> OPTIMIZE FOR BENEFITS
-                            </button>
-                            
                             <button id="toggle-burndown-real" class="px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-xl label-std font-black text-slate-400 hover:text-white transition-all flex items-center gap-2">
                                 <i class="fas fa-sync"></i> Real Dollars
                             </button>
@@ -76,6 +84,10 @@ export const burndown = {
     },
 
     attachListeners: () => {
+        const strategySelect = document.getElementById('burndown-strategy');
+        if (strategySelect) {
+            strategySelect.onchange = () => { burndown.run(); window.debouncedAutoSave(); };
+        }
         const seppToggle = document.getElementById('toggle-rule-72t');
         if (seppToggle) {
             seppToggle.onchange = () => { burndown.run(); window.debouncedAutoSave(); };
@@ -83,10 +95,6 @@ export const burndown = {
         const syncToggle = document.getElementById('toggle-budget-sync');
         if (syncToggle) {
             syncToggle.onchange = (e) => { burndown.run(); window.debouncedAutoSave(); };
-        }
-        const optBtn = document.getElementById('btn-optimize-draw');
-        if (optBtn) {
-            optBtn.onclick = () => { burndown.optimize(); burndown.run(); window.debouncedAutoSave(); };
         }
         const realBtn = document.getElementById('toggle-burndown-real');
         if (realBtn) {
@@ -103,6 +111,9 @@ export const burndown = {
     load: (data) => {
         burndown.priorityOrder = data?.priority || ['cash', 'taxable', 'roth-basis', 'heloc', '401k', 'roth-earnings', 'crypto', 'metals', 'hsa'];
         isRealDollars = !!data?.isRealDollars;
+        const strategySelect = document.getElementById('burndown-strategy');
+        if (strategySelect && data?.strategy) strategySelect.value = data.strategy;
+        
         const seppToggle = document.getElementById('toggle-rule-72t');
         if (seppToggle) seppToggle.checked = !!data?.useSEPP;
         
@@ -116,10 +127,12 @@ export const burndown = {
     },
 
     scrape: () => {
+        const strategySelect = document.getElementById('burndown-strategy');
         const syncToggle = document.getElementById('toggle-budget-sync');
         const seppToggle = document.getElementById('toggle-rule-72t');
         return { 
             priority: burndown.priorityOrder,
+            strategy: strategySelect?.value || 'standard',
             useSync: syncToggle?.checked ?? true,
             useSEPP: seppToggle?.checked ?? false,
             isRealDollars
@@ -136,10 +149,6 @@ export const burndown = {
         'crypto': { label: 'Bitcoin', short: 'Bitcoin', color: assetColors['Crypto'] },
         'metals': { label: 'Metals', short: 'Metals', color: assetColors['Metals'] },
         'hsa': { label: 'HSA', short: 'HSA', color: assetColors['HSA'] }
-    },
-
-    optimize: () => {
-        burndown.priorityOrder = ['cash', 'taxable', 'roth-basis', 'heloc', '401k', 'roth-earnings', 'crypto', 'metals', 'hsa'];
     },
 
     run: () => {
@@ -161,7 +170,7 @@ export const burndown = {
                 const div = document.createElement('div');
                 div.className = 'space-y-1';
                 div.innerHTML = `
-                    <label class="flex justify-between label-std text-slate-500">${label} <span class="text-blue-400 font-black mono-numbers">${val}</span></label>
+                    <label class="flex justify-between label-std text-slate-500">${label} <span class="text-blue-400 font-black mono-numbers">${val}%</span></label>
                     <input type="range" data-live-id="${key}" data-id="${key}" value="${val}" min="${min}" max="${max}" step="${step}" class="input-range">
                 `;
                 sliderContainer.appendChild(div);
@@ -189,6 +198,11 @@ export const burndown = {
         const { assumptions, investments = [], otherAssets = [], realEstate = [], income = [], budget = {}, helocs = [], benefits = {} } = data;
         const state = burndown.scrape();
         const inflationRate = (assumptions.inflation || 3) / 100;
+        const stockGrowth = (assumptions.stockGrowth || 8) / 100;
+        const cryptoGrowth = (assumptions.cryptoGrowth || 15) / 100;
+        const metalsGrowth = (assumptions.metalsGrowth || 6) / 100;
+        const realEstateGrowth = (assumptions.realEstateGrowth || 3) / 100;
+        
         const filingStatus = assumptions.filingStatus || 'Single';
         const currentYear = new Date().getFullYear();
 
@@ -221,14 +235,13 @@ export const burndown = {
         const duration = endAge - assumptions.currentAge;
 
         let temp401k = bal['401k'];
-        const stockG = (1 + (assumptions.stockGrowth / 100));
         for (let i = 0; i < (assumptions.retirementAge - assumptions.currentAge); i++) {
              const summaries = engine.calculateSummaries(data);
              temp401k += summaries.total401kContribution;
              (budget.savings || []).forEach(s => {
                  if (s.type === 'Pre-Tax (401k/IRA)') temp401k += math.fromCurrency(s.annual);
              });
-             temp401k *= stockG;
+             temp401k *= (1 + stockGrowth);
         }
         
         const seppFixedAmount = state.useSEPP ? engine.calculateMaxSepp(temp401k, assumptions.retirementAge) : 0;
@@ -260,14 +273,29 @@ export const burndown = {
                     else if (s.type === 'Post-Tax (Roth)') bal['roth-basis'] += amt;
                     else if (s.type === 'Cash') bal['cash'] += amt;
                     else if (s.type === 'HSA') bal['hsa'] += amt;
-                    else if (type === 'Crypto') bal['crypto'] += amt;
-                    else if (type === 'Metals') bal['metals'] += amt;
+                    else if (s.type === 'Crypto') bal['crypto'] += amt;
+                    else if (s.type === 'Metals') bal['metals'] += amt;
                     else if (s.type === 'Pre-Tax (401k/IRA)') bal['401k'] += amt;
                 });
             }
 
+            const currentRE = realEstate.reduce((s, r) => s + (math.fromCurrency(r.value) * Math.pow(1 + realEstateGrowth, i) - math.fromCurrency(r.mortgage)), 0);
+            const currentNW = (bal['cash'] + bal['taxable'] + bal['roth-basis'] + bal['roth-earnings'] + bal['401k'] + bal['crypto'] + bal['metals'] + bal['hsa'] + hidden529 + fixedOtherAssets + currentRE) - bal['heloc'];
+
             let baseAnnualBudget = state.useSync ? (budget.expenses || []).reduce((sum, exp) => (isRetired && exp.removedInRetirement) ? sum : sum + math.fromCurrency(exp.annual), 0) : math.fromCurrency(document.getElementById('input-manual-budget')?.value || 0);
-            const currentYearBudget = baseAnnualBudget * inflationFactor;
+            let currentYearBudget = baseAnnualBudget * inflationFactor;
+
+            // Strategy Overrides
+            if (isRetired) {
+                if (state.strategy === 'medicaid') currentYearBudget = fpl * 1.38;
+                else if (state.strategy === 'silver') currentYearBudget = fpl * 2.50;
+                else if (state.strategy === 'perpetual') {
+                    // Perpetual Safe Draw = NW * (WeightedReturn - Inflation)
+                    // Assume weighted return is based on asset allocation, approx stockGrowth for now
+                    const safeRate = Math.max(0, stockGrowth - inflationRate);
+                    currentYearBudget = currentNW * safeRate;
+                }
+            }
 
             let taxableIncome = 0;
             let nonTaxableIncome = 0;
@@ -345,21 +373,16 @@ export const burndown = {
             yearResult.magi = Math.max(0, taxableIncome);
             yearResult.balances = { ...bal };
             yearResult.budget = currentYearBudget;
-            const currentRE = realEstate.reduce((s, r) => s + (math.fromCurrency(r.value) * Math.pow(1 + (assumptions.realEstateGrowth / 100), i) - math.fromCurrency(r.mortgage)), 0);
-            yearResult.netWorth = (bal['cash'] + bal['taxable'] + bal['roth-basis'] + bal['roth-earnings'] + bal['401k'] + bal['crypto'] + bal['metals'] + bal['hsa'] + hidden529 + fixedOtherAssets + currentRE) - bal['heloc'] - yearResult.penalty;
+            yearResult.netWorth = currentNW - yearResult.penalty;
             results.push(yearResult);
 
-            const stockG = (1 + (assumptions.stockGrowth / 100));
-            const cryptoG = (1 + (assumptions.cryptoGrowth / 100));
-            const metalsG = (1 + (assumptions.metalsGrowth / 100));
-            
-            bal['taxable'] *= stockG;
-            bal['401k'] *= stockG;
-            bal['roth-basis'] *= stockG;
-            bal['roth-earnings'] *= stockG;
-            bal['hsa'] *= stockG; 
-            bal['crypto'] *= cryptoG;
-            bal['metals'] *= metalsG;
+            bal['taxable'] *= (1 + stockGrowth);
+            bal['401k'] *= (1 + stockGrowth);
+            bal['roth-basis'] *= (1 + stockGrowth);
+            bal['roth-earnings'] *= (1 + stockGrowth);
+            bal['hsa'] *= (1 + stockGrowth); 
+            bal['crypto'] *= (1 + cryptoGrowth);
+            bal['metals'] *= (1 + metalsGrowth);
         }
         return results;
     },

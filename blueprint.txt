@@ -5,10 +5,12 @@ TO DO LIST
 [HUMAN-ONLY ACCESS: AI AGENTS ARE PROHIBITED FROM MODIFYING OR EDITING THIS BOX]
 [THE FOLLOWING SECTION IS RESERVED FOR THE HUMAN ARCHITECT]
 
+- [x] Align Gross Amount and Growth % in Income Cards.
+- [x] Replace non-taxable checkbox with "Non-Taxable Until (Year)" input.
+- [x] Fix persistence for Asset Class selects and Budget edits.
+- [x] Move Benefit Threshold to Burndown and implement Strategy selection.
+- [x] Add "Reset Market Growth" button to Assumptions.
 - [ ] 
-- [ ] 
-- [ ] Add "Net Income" preview to Income cards (Gross - Taxes - 401k - Match)
-- [x] Optimize updateCostBasisVisibility to trigger autoSave on visibility change.
 - [ ] 
 
 ================================================================================
@@ -25,21 +27,26 @@ CORE PHILOSOPHY & UI PREFERENCES
 --------------------------------------------------------------------------------
 1.  AESTHETICS: High-contrast "Dark Mode" (Slate-900/800). All numbers MUST use 
     'JetBrains Mono'. Labels use 'Inter' font with heavy tracking-tighter.
-2.  COLOR LOGIC:
+2.  COLOR LOGIC (STRICT ADHERENCE):
     - Teal (#14b8a6): Growth, Assets, Net Worth, HSA.
-    - Pink (#ec4899): Expenses, Liabilities, Debts, Cash.
+    - Pink (#ec4899): Expenses, Liabilities, Debts.
+    - Magenta (#f472b6): Cash.
+    - Amber (#f59e0b): Crypto (Bitcoin).
+    - Yellow (#eab308): Metals (Gold).
     - Blue (#3b82f6): Pre-Tax / 401k / Strategy.
     - Purple (#a855f7): Post-Tax / Roth.
-    - Amber (#f59e0b): Market / Stocks, Crypto (Bitcoin).
-    - Yellow (#eab308): Metals / Gold.
-    - Rose (#fb7185): 529 Plan.
     - Indigo (#6366f1): Real Estate.
+    - Rose (#fb7185): 529 Plan.
 3.  REAL-TIME: Every slider and input must trigger an immediate re-calculation. 
-    Persistence is handled via debounced Firebase saves.
+    Persistence is handled via debounced Firebase saves on BOTH 'input' and 'change' events.
 4.  ACCURACY: Tax brackets and benefit thresholds (FPL) are modeled on 2026 
     projections for Michigan.
 5.  PRECISION: MAGI calculation is king. The system must accurately distinguish 
     between taxable and non-taxable income for benefit optimization.
+6.  BENEFIT OPTIMIZATION: The burndown engine supports specific strategies:
+    - Medicaid Max (138% FPL Target)
+    - Silver Max (250% FPL Target)
+    - Real Value Preservation (Portfolio stays flat in inflation-adjusted terms)
 
 --------------------------------------------------------------------------------
 FILE ARCHITECTURE
@@ -65,7 +72,7 @@ KEY FEATURE LOGIC
     - Calculates SNAP benefits as a budget supplement based on resulting MAGI.
     - Supports 72(t) SEPP distributions for pre-59.5 bridge funding.
     - Draggable Draw Priority: Allows users to reorder which accounts get tapped.
-    - "Non-Taxable Until": Year-based logic to handle depreciation/passive losses.
+    - 3 Core Strategies: 138% FPL Max, 250% FPL Max, and Wealth Preservation.
     
 2.  BENEFITS MODULE:
     - Michigan 2026 Specific: No asset tests for SNAP/HMP. 
@@ -87,6 +94,6 @@ DATA PERSISTENCE (FIREBASE)
 --------------------------------------------------------------------------------
 - Structure: /users/{uid}/
 - All tables are scraped into JSON arrays.
-- Assumptions, Benefit settings, and Projection configurations are saved as 
-  top-level objects in the user document.
+- Scraper covers: inputs, selects, checkboxes, and toggle-buttons (frequency).
+- Persistence must be triggered by 'change' events on dropdowns and 'input' on text fields.
 ================================================================================

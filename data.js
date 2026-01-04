@@ -127,7 +127,9 @@ function scrapeRow(row) {
         const k = i.dataset.id;
         if (i.type === 'checkbox') d[k] = i.checked;
         else if (i.dataset.type === 'currency') d[k] = math.fromCurrency(i.value);
-        else d[k] = (i.type === 'number' || i.tagName === 'SELECT') ? (parseFloat(i.value) || i.value) : i.value;
+        else if (i.tagName === 'SELECT') d[k] = i.value;
+        else if (i.type === 'number') d[k] = parseFloat(i.value) || 0;
+        else d[k] = i.value;
     });
     return d;
 }

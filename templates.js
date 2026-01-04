@@ -76,14 +76,14 @@ export const templates = {
             <td>
                 <div class="flex items-center">
                     <select data-id="type" class="input-base w-full font-bold ${templates.helpers.getTypeClass(type)}">
-                        <option ${type === 'Taxable' ? 'selected' : ''}>Taxable</option>
-                        <option ${type === 'Pre-Tax (401k/IRA)' ? 'selected' : ''}>Pre-Tax (401k/IRA)</option>
-                        <option ${type === 'Post-Tax (Roth)' ? 'selected' : ''}>Post-Tax (Roth)</option>
-                        <option ${type === 'Cash' ? 'selected' : ''}>Cash</option>
-                        <option ${type === 'Crypto' ? 'selected' : ''}>Crypto</option>
-                        <option ${type === 'Metals' ? 'selected' : ''}>Metals</option>
-                        <option ${type === 'HSA' ? 'selected' : ''}>HSA</option>
-                        <option ${type === '529 Plan' ? 'selected' : ''}>529 Plan</option>
+                        <option value="Taxable" ${type === 'Taxable' ? 'selected' : ''}>Taxable</option>
+                        <option value="Pre-Tax (401k/IRA)" ${type === 'Pre-Tax (401k/IRA)' ? 'selected' : ''}>Pre-Tax (401k/IRA)</option>
+                        <option value="Post-Tax (Roth)" ${type === 'Post-Tax (Roth)' ? 'selected' : ''}>Post-Tax (Roth)</option>
+                        <option value="Cash" ${type === 'Cash' ? 'selected' : ''}>Cash</option>
+                        <option value="Crypto" ${type === 'Crypto' ? 'selected' : ''}>Crypto</option>
+                        <option value="Metals" ${type === 'Metals' ? 'selected' : ''}>Metals</option>
+                        <option value="HSA" ${type === 'HSA' ? 'selected' : ''}>HSA</option>
+                        <option value="529 Plan" ${type === '529 Plan' ? 'selected' : ''}>529 Plan</option>
                     </select>
                 </div>
             </td>
@@ -110,17 +110,17 @@ export const templates = {
             </div>
             
             <div class="p-5 space-y-6">
-                <!-- Row 1: Gross & Growth -->
-                <div class="grid grid-cols-2 gap-6 items-end">
-                    <div class="space-y-1">
-                        <div class="flex justify-between items-center h-4 mb-0.5">
+                <!-- Row 1: Gross & Growth - Perfectly Aligned -->
+                <div class="grid grid-cols-2 gap-6 items-start">
+                    <div class="space-y-1.5">
+                        <div class="flex justify-between items-center h-4">
                             <label class="label-std text-slate-500">Gross Amount</label>
                             <button data-action="toggle-freq" data-id="isMonthly" class="text-blue-500 hover:text-blue-400 label-std">Annual</button>
                         </div>
                         <input data-id="amount" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-teal-400 font-bold mono-numbers">
                     </div>
-                    <div class="space-y-1">
-                        <div class="h-4 mb-0.5">
+                    <div class="space-y-1.5">
+                        <div class="h-4 flex items-center">
                             <label class="label-std text-slate-500">Annual Growth %</label>
                         </div>
                         <input data-id="increase" type="number" step="0.1" placeholder="0" class="input-base w-full text-white font-bold mono-numbers">
@@ -144,8 +144,8 @@ export const templates = {
                 </div>
 
                 <!-- Row 3: Deductions/Expenses -->
-                <div class="space-y-1">
-                    <div class="flex justify-between items-center">
+                <div class="space-y-1.5">
+                    <div class="flex justify-between items-center h-4">
                         <label class="label-std text-slate-500">Direct Deductions / Expenses</label>
                         <button data-action="toggle-freq" data-id="incomeExpensesMonthly" class="text-blue-500 hover:text-blue-400 label-std">Annual</button>
                     </div>
@@ -153,12 +153,12 @@ export const templates = {
                 </div>
 
                 <!-- Row 4: Settings -->
-                <div class="flex flex-wrap items-center gap-6 pt-2 border-t border-slate-700/30">
-                    <div class="flex flex-col gap-1">
+                <div class="flex flex-wrap items-end justify-between gap-6 pt-2 border-t border-slate-700/30">
+                    <div class="flex flex-col gap-1.5">
                         <label class="label-std text-slate-500">Non-Taxable Until (Year)</label>
                         <input data-id="nonTaxableUntil" type="number" placeholder="2026" class="input-base w-24 text-teal-400 font-bold mono-numbers">
                     </div>
-                    <label class="flex items-center gap-3 cursor-pointer pt-4">
+                    <label class="flex items-center gap-3 cursor-pointer h-10">
                         <input data-id="remainsInRetirement" type="checkbox" class="w-4 h-4 accent-blue-500 rounded bg-slate-900 border-slate-700">
                         <span class="label-std text-slate-500 hover:text-blue-400 transition-colors">Stays in Retirement?</span>
                     </label>
@@ -171,14 +171,14 @@ export const templates = {
         return `
             <td>
                 <select data-id="type" class="input-base w-full font-bold ${templates.helpers.getTypeClass(type)}">
-                    <option ${type === 'Taxable' ? 'selected' : ''}>Taxable</option>
-                    <option ${type === 'Pre-Tax (401k/IRA)' ? 'selected' : ''}>Pre-Tax (401k/IRA)</option>
-                    <option ${type === 'Post-Tax (Roth)' ? 'selected' : ''}>Post-Tax (Roth)</option>
-                    <option ${type === 'Cash' ? 'selected' : ''}>Cash</option>
-                    <option ${type === 'Crypto' ? 'selected' : ''}>Crypto</option>
-                    <option ${type === 'Metals' ? 'selected' : ''}>Metals</option>
-                    <option ${type === 'HSA' ? 'selected' : ''}>HSA</option>
-                    <option ${type === '529 Plan' ? 'selected' : ''}>529 Plan</option>
+                    <option value="Taxable" ${type === 'Taxable' ? 'selected' : ''}>Taxable</option>
+                    <option value="Pre-Tax (401k/IRA)" ${type === 'Pre-Tax (401k/IRA)' ? 'selected' : ''}>Pre-Tax (401k/IRA)</option>
+                    <option value="Post-Tax (Roth)" ${type === 'Post-Tax (Roth)' ? 'selected' : ''}>Post-Tax (Roth)</option>
+                    <option value="Cash" ${type === 'Cash' ? 'selected' : ''}>Cash</option>
+                    <option value="Crypto" ${type === 'Crypto' ? 'selected' : ''}>Crypto</option>
+                    <option value="Metals" ${type === 'Metals' ? 'selected' : ''}>Metals</option>
+                    <option value="HSA" ${type === 'HSA' ? 'selected' : ''}>HSA</option>
+                    <option value="529 Plan" ${type === '529 Plan' ? 'selected' : ''}>529 Plan</option>
                 </select>
             </td>
             <td><input data-id="monthly" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-bold mono-numbers" ${data.isLocked ? 'readonly' : ''}></td>
