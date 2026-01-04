@@ -245,8 +245,9 @@ export const burndown = {
 
         for (let i = 0; i <= duration; i++) {
             const age = assumptions.currentAge + i;
+            const currentYearIter = currentYear + i;
             const isRetired = age >= assumptions.retirementAge;
-            const yearResult = { age, year: currentYear + i, draws: {}, totalDraw: 0, seppAmount: 0, penalty: 0 };
+            const yearResult = { age, year: currentYearIter, draws: {}, totalDraw: 0, seppAmount: 0, penalty: 0 };
             const inflationFactor = Math.pow(1 + inflationRate, i);
             const fpl = fpl2026Base * inflationFactor;
 
@@ -259,8 +260,8 @@ export const burndown = {
                     else if (s.type === 'Post-Tax (Roth)') bal['roth-basis'] += amt;
                     else if (s.type === 'Cash') bal['cash'] += amt;
                     else if (s.type === 'HSA') bal['hsa'] += amt;
-                    else if (s.type === 'Crypto') bal['crypto'] += amt;
-                    else if (s.type === 'Metals') bal['metals'] += amt;
+                    else if (type === 'Crypto') bal['crypto'] += amt;
+                    else if (type === 'Metals') bal['metals'] += amt;
                     else if (s.type === 'Pre-Tax (401k/IRA)') bal['401k'] += amt;
                 });
             }
@@ -277,8 +278,11 @@ export const burndown = {
                 let amt = math.fromCurrency(inc.amount) * (inc.isMonthly ? 12 : 1);
                 amt -= (math.fromCurrency(inc.incomeExpenses) * (inc.incomeExpensesMonthly ? 12 : 1));
                 amt *= Math.pow(1 + (inc.increase / 100 || 0), i);
+                
                 if (isRetired) persistentIncomeTotal += Math.max(0, amt);
-                if (inc.nonTaxable) nonTaxableIncome += Math.max(0, amt);
+                
+                const isNonTaxableYear = inc.nonTaxableUntil && parseInt(inc.nonTaxableUntil) >= currentYearIter;
+                if (isNonTaxableYear) nonTaxableIncome += Math.max(0, amt);
                 else taxableIncome += Math.max(0, amt);
             });
 

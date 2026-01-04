@@ -111,16 +111,18 @@ export const templates = {
             
             <div class="p-5 space-y-6">
                 <!-- Row 1: Gross & Growth -->
-                <div class="grid grid-cols-2 gap-6">
+                <div class="grid grid-cols-2 gap-6 items-end">
                     <div class="space-y-1">
-                        <div class="flex justify-between items-center">
+                        <div class="flex justify-between items-center h-4 mb-0.5">
                             <label class="label-std text-slate-500">Gross Amount</label>
                             <button data-action="toggle-freq" data-id="isMonthly" class="text-blue-500 hover:text-blue-400 label-std">Annual</button>
                         </div>
                         <input data-id="amount" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-teal-400 font-bold mono-numbers">
                     </div>
                     <div class="space-y-1">
-                        <label class="label-std text-slate-500">Annual Growth %</label>
+                        <div class="h-4 mb-0.5">
+                            <label class="label-std text-slate-500">Annual Growth %</label>
+                        </div>
                         <input data-id="increase" type="number" step="0.1" placeholder="0" class="input-base w-full text-white font-bold mono-numbers">
                     </div>
                 </div>
@@ -151,12 +153,12 @@ export const templates = {
                 </div>
 
                 <!-- Row 4: Settings -->
-                <div class="flex flex-wrap gap-6 pt-2 border-t border-slate-700/30">
-                    <label class="flex items-center gap-3 cursor-pointer">
-                        <input data-id="nonTaxable" type="checkbox" class="w-4 h-4 accent-teal-500 rounded bg-slate-900 border-slate-700">
-                        <span class="label-std text-slate-500 hover:text-teal-400 transition-colors">Non-Taxable?</span>
-                    </label>
-                    <label class="flex items-center gap-3 cursor-pointer">
+                <div class="flex flex-wrap items-center gap-6 pt-2 border-t border-slate-700/30">
+                    <div class="flex flex-col gap-1">
+                        <label class="label-std text-slate-500">Non-Taxable Until (Year)</label>
+                        <input data-id="nonTaxableUntil" type="number" placeholder="2026" class="input-base w-24 text-teal-400 font-bold mono-numbers">
+                    </div>
+                    <label class="flex items-center gap-3 cursor-pointer pt-4">
                         <input data-id="remainsInRetirement" type="checkbox" class="w-4 h-4 accent-blue-500 rounded bg-slate-900 border-slate-700">
                         <span class="label-std text-slate-500 hover:text-blue-400 transition-colors">Stays in Retirement?</span>
                     </label>

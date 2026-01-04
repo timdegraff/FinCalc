@@ -1,0 +1,92 @@
+
+================================================================================
+TO DO LIST
+================================================================================
+[HUMAN-ONLY ACCESS: AI AGENTS ARE PROHIBITED FROM MODIFYING OR EDITING THIS BOX]
+[THE FOLLOWING SECTION IS RESERVED FOR THE HUMAN ARCHITECT]
+
+- [ ] 
+- [ ] 
+- [ ] Add "Net Income" preview to Income cards (Gross - Taxes - 401k - Match)
+- [x] Optimize updateCostBasisVisibility to trigger autoSave on visibility change.
+- [ ] 
+
+================================================================================
+PROJECT OVERVIEW: FINCALC CO-PILOT
+================================================================================
+FinCalc is a high-fidelity financial architecture tool designed for precision 
+planning, specifically optimized for the 2026 Michigan tax/benefit landscape. 
+It differs from generic calculators by focusing on MAGI (Modified Adjusted Gross 
+Income) manipulation to maximize state benefits like Medicaid and SNAP while 
+simulating complex retirement bridges (72t/SEPP).
+
+--------------------------------------------------------------------------------
+CORE PHILOSOPHY & UI PREFERENCES
+--------------------------------------------------------------------------------
+1.  AESTHETICS: High-contrast "Dark Mode" (Slate-900/800). All numbers MUST use 
+    'JetBrains Mono'. Labels use 'Inter' font with heavy tracking-tighter.
+2.  COLOR LOGIC:
+    - Teal (#14b8a6): Growth, Assets, Net Worth, HSA.
+    - Pink (#ec4899): Expenses, Liabilities, Debts, Cash.
+    - Blue (#3b82f6): Pre-Tax / 401k / Strategy.
+    - Purple (#a855f7): Post-Tax / Roth.
+    - Amber (#f59e0b): Market / Stocks, Crypto (Bitcoin).
+    - Yellow (#eab308): Metals / Gold.
+    - Rose (#fb7185): 529 Plan.
+    - Indigo (#6366f1): Real Estate.
+3.  REAL-TIME: Every slider and input must trigger an immediate re-calculation. 
+    Persistence is handled via debounced Firebase saves.
+4.  ACCURACY: Tax brackets and benefit thresholds (FPL) are modeled on 2026 
+    projections for Michigan.
+5.  PRECISION: MAGI calculation is king. The system must accurately distinguish 
+    between taxable and non-taxable income for benefit optimization.
+
+--------------------------------------------------------------------------------
+FILE ARCHITECTURE
+--------------------------------------------------------------------------------
+- index.html: The shell. Uses a sidebar-main layout with tab-based navigation.
+- index.css: Global styles, custom scrollbars, and Tailwind overrides.
+- main.js: The entry point. Initializes modules and handles Firebase Auth state.
+- core.js: UI Orchestrator. Manages listeners, tab switching, and assumptions.
+- data.js: The "Brain". Handles UI scraping, Firebase persistence, and summary updates.
+- utils.js: The "Engine". Contains all math for taxes, SEPP, SNAP, and asset colors.
+- templates.js: Visual building blocks. Contains the HTML generators for dynamic rows.
+- formatter.js: Standardizes currency and numeric input behaviors.
+- benefits.js: Specialized logic for Medicaid/HMP and SNAP eligibility.
+- projection.js: Long-term forecasting logic. Renders the Stacked Area chart and Data Table.
+- burndown.js: Retirement simulator. Handles draggable priority and withdrawal logic.
+- auth.js: Google OAuth bridge.
+
+--------------------------------------------------------------------------------
+KEY FEATURE LOGIC
+--------------------------------------------------------------------------------
+1.  STRATEGY ENGINE (Burndown):
+    - Prioritizes "Persistent Income" (SS, Pensions) first.
+    - Calculates SNAP benefits as a budget supplement based on resulting MAGI.
+    - Supports 72(t) SEPP distributions for pre-59.5 bridge funding.
+    - Draggable Draw Priority: Allows users to reorder which accounts get tapped.
+    - "Non-Taxable Until": Year-based logic to handle depreciation/passive losses.
+    
+2.  BENEFITS MODULE:
+    - Michigan 2026 Specific: No asset tests for SNAP/HMP. 
+    - Real-time FPL (Federal Poverty Level) ratio tracking.
+    - Automated Health Tier assignment (Medicaid vs HMP vs Silver Marketplace).
+
+3.  PROJECTION:
+    - Models growth based on separate asset class percentages (Stocks vs Crypto vs Real Estate).
+    - Includes an "End Age" slider to cap the visualization.
+    - Toggleable "Real Dollars" mode to visualize value adjusted for inflation.
+    - Granular Data Table: Every 5-year snapshot of account balances.
+
+4.  INVESTMENT EFFICIENCY:
+    - Calculates a real-time "Efficiency %" badge for every account.
+    - Logic: 100% for Roth/529. Tax-adjusted for 401k. Gains-adjusted for Taxable.
+
+--------------------------------------------------------------------------------
+DATA PERSISTENCE (FIREBASE)
+--------------------------------------------------------------------------------
+- Structure: /users/{uid}/
+- All tables are scraped into JSON arrays.
+- Assumptions, Benefit settings, and Projection configurations are saved as 
+  top-level objects in the user document.
+================================================================================

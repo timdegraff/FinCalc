@@ -245,6 +245,11 @@ function attachDynamicRowListeners() {
         if (e.target.dataset.id === 'type' && e.target.closest('#investment-rows, #budget-savings-rows')) {
             if (e.target.closest('#investment-rows')) updateCostBasisVisibility(e.target.closest('tr'));
             e.target.className = `input-base w-full font-bold ${templates.helpers.getTypeClass(e.target.value)}`;
+            // Optimization: Trigger immediate auto-save on dropdown changes that affect UI logic/reset data
+            window.debouncedAutoSave();
+        }
+        if (e.target.dataset.id === 'nonTaxableUntil' || e.target.dataset.id === 'remainsInRetirement') {
+             window.debouncedAutoSave();
         }
     });
 }
