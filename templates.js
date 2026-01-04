@@ -2,9 +2,16 @@
 import { math } from './utils.js';
 
 export const templates = {
-    // MODULAR HELPERS - DELETE LINE IN INVESTMENT TO REMOVE BADGE
     helpers: {
-        getEfficiencyBadge: (type) => {
+        getEfficiencyBadge: (type, value = 0, costBasis = 0) => {
+            const v = math.fromCurrency(value);
+            const b = math.fromCurrency(costBasis);
+            
+            // Logic: 100% if basis >= value
+            if (v > 0 && b >= v) {
+                 return `<div class="ml-2 inline-flex items-center px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase tracking-widest border border-current" title="100% Efficient (No Gains)">100%</div>`;
+            }
+
             const efficiencies = {
                 'Taxable': { label: '92%', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
                 'Pre-Tax (401k/IRA)': { label: '78%', color: 'text-amber-500', bg: 'bg-amber-500/10' },
@@ -16,16 +23,37 @@ export const templates = {
                 '529 Plan': { label: '100%', color: 'text-rose-400', bg: 'bg-rose-400/10' }
             };
             const e = efficiencies[type] || efficiencies['Taxable'];
-            return `<div class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded ${e.bg} ${e.color} text-[8px] font-black uppercase tracking-widest border border-current opacity-70" title="Est. Tax Efficiency">${e.label}</div>`;
+            
+            let label = e.label;
+            if (type === 'Taxable' && v > 0 && b > 0) {
+                const gainRatio = Math.max(0, (v - b) / v);
+                const efficiency = 1 - (gainRatio * 0.15); 
+                label = Math.round(efficiency * 100) + '%';
+            }
+
+            return `<div class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded ${e.bg} ${e.color} text-[8px] font-black uppercase tracking-widest border border-current opacity-70" title="Est. Realizable Value">${label}</div>`;
+        },
+        getTypeClass: (type) => {
+            const map = {
+                'Cash': 'text-type-cash',
+                'Taxable': 'text-type-taxable',
+                'Pre-Tax (401k/IRA)': 'text-type-pretax',
+                'Post-Tax (Roth)': 'text-type-posttax',
+                'Crypto': 'text-type-crypto',
+                'Metals': 'text-type-metals',
+                'HSA': 'text-type-hsa',
+                '529 Plan': 'text-type-529'
+            };
+            return map[type] || '';
         }
     },
 
     investment: (data) => `
-        <td class="px-4 py-3"><i class="fas fa-bars drag-handle text-slate-600"></i></td>
-        <td class="px-4 py-3"><input data-id="name" type="text" placeholder="Account" class="input-base w-full font-bold"></td>
-        <td class="px-4 py-3">
+        <td class="w-8"><i class="fas fa-bars drag-handle text-slate-700"></i></td>
+        <td><input data-id="name" type="text" placeholder="Account" class="input-base w-full font-bold text-white"></td>
+        <td>
             <div class="flex items-center">
-                <select data-id="type" class="input-base w-full">
+                <select data-id="type" class="input-base w-full font-bold ${templates.helpers.getTypeClass(data.type)}">
                     <option>Taxable</option>
                     <option>Pre-Tax (401k/IRA)</option>
                     <option>Post-Tax (Roth)</option>
@@ -35,140 +63,111 @@ export const templates = {
                     <option>HSA</option>
                     <option>529 Plan</option>
                 </select>
-                ${templates.helpers.getEfficiencyBadge(data.type || 'Taxable')}
+                ${templates.helpers.getEfficiencyBadge(data.type || 'Taxable', data.value, data.costBasis)}
             </div>
         </td>
-        <td class="px-4 py-3"><input data-id="value" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-black"></td>
-        <td class="px-4 py-3">
-            <input data-id="costBasis" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-blue-400 opacity-60">
+        <td><input data-id="value" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-bold mono-numbers"></td>
+        <td>
+            <input data-id="costBasis" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-blue-400 opacity-60 mono-numbers">
         </td>
-        <td class="px-4 py-3 text-center"><button data-action="remove" class="text-slate-500 hover:text-red-400"><i class="fas fa-times"></i></button></td>
+        <td class="text-center"><button data-action="remove" class="text-slate-700 hover:text-red-400"><i class="fas fa-times"></i></button></td>
     `,
     income: () => `
-        <div class="bg-slate-800 rounded-[2.5rem] border border-slate-700/50 p-10 flex flex-col gap-8 relative group shadow-2xl shadow-black/40">
-            <button data-action="remove" class="absolute top-8 right-8 text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all">
-                <i class="fas fa-times text-xl"></i>
+        <div class="bg-slate-800 rounded-2xl border border-slate-700/50 p-6 flex flex-col gap-5 relative group shadow-lg">
+            <button data-action="remove" class="absolute top-4 right-4 text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all">
+                <i class="fas fa-times"></i>
             </button>
             
-            <div class="space-y-4">
-                <label class="label-std text-slate-500">Source / Employer</label>
-                <input data-id="name" type="text" placeholder="Employer Name" class="bg-transparent border-none outline-none w-full text-white font-black text-4xl placeholder:text-slate-700 uppercase tracking-tighter">
+            <div class="space-y-1">
+                <label class="label-std text-slate-500">Source</label>
+                <input data-id="name" type="text" placeholder="Employer Name" class="bg-transparent border-none outline-none w-full text-white font-black text-xl placeholder:text-slate-700 uppercase tracking-tighter">
                 <div class="h-[1px] bg-slate-700/50 w-full"></div>
             </div>
 
-            <div class="grid grid-cols-2 gap-10">
-                <div class="space-y-3">
+            <div class="grid grid-cols-2 gap-5">
+                <div class="space-y-1">
                     <div class="flex justify-between items-center h-4">
-                        <label class="label-std text-slate-500">Amount</label>
+                        <label class="label-std text-slate-500">Gross</label>
                         <button data-action="toggle-freq" data-id="isMonthly" class="text-blue-500 hover:text-blue-400 label-std">Annual</button>
                     </div>
-                    <input data-id="amount" data-type="currency" type="text" placeholder="$0" class="mono-numbers bg-transparent border-none outline-none w-full text-teal-400 font-black text-3xl h-10">
+                    <input data-id="amount" data-type="currency" type="text" placeholder="$0" class="mono-numbers bg-transparent border-none outline-none w-full text-teal-400 font-bold text-base h-7">
                     <div class="h-[1px] bg-slate-700/50 w-full"></div>
                 </div>
-                <div class="space-y-3">
-                    <div class="flex items-center h-4">
-                        <label class="label-std text-slate-500">Growth %</label>
-                    </div>
-                    <input data-id="increase" type="number" step="0.1" placeholder="0" class="mono-numbers bg-transparent border-none outline-none w-full text-white font-black text-3xl h-10">
-                    <div class="h-[1px] bg-slate-700/50 w-full"></div>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-10">
-                <div class="space-y-3">
-                    <div class="flex justify-between items-center h-4">
-                        <label class="label-std text-slate-500">Expenses</label>
-                        <button data-action="toggle-freq" data-id="incomeExpensesMonthly" class="text-pink-500 hover:text-pink-400 label-std">Annual</button>
-                    </div>
-                    <input data-id="incomeExpenses" data-type="currency" type="text" placeholder="$0" class="mono-numbers bg-transparent border-none outline-none w-full text-pink-500 font-black text-3xl h-10">
-                    <div class="h-[1px] bg-slate-700/50 w-full"></div>
-                </div>
-                <div class="space-y-3">
-                    <div class="flex items-center h-4">
-                        <label class="label-std text-slate-500">Bonus %</label>
-                    </div>
-                    <input data-id="bonusPct" type="number" placeholder="0" class="mono-numbers bg-transparent border-none outline-none w-full text-white font-black text-3xl h-10">
+                <div class="space-y-1">
+                    <label class="label-std text-slate-500">Growth %</label>
+                    <input data-id="increase" type="number" step="0.1" placeholder="0" class="mono-numbers bg-transparent border-none outline-none w-full text-white font-bold text-base h-7">
                     <div class="h-[1px] bg-slate-700/50 w-full"></div>
                 </div>
             </div>
 
-            <div class="p-8 bg-slate-900/40 rounded-[1.5rem] border border-slate-700/30">
-                <div class="grid grid-cols-2 gap-10">
-                    <div class="space-y-3">
-                        <div class="flex items-center h-4">
-                            <label class="label-std text-slate-500 flex items-center gap-1">
-                                401K %
-                                <i data-id="capWarning" class="fas fa-exclamation-triangle text-amber-500 hidden" title="Exceeds $23,500 limit"></i>
-                            </label>
-                        </div>
-                        <input data-id="contribution" type="number" placeholder="0" class="mono-numbers bg-transparent border-none outline-none w-full text-white font-black text-3xl h-10">
+            <div class="p-4 bg-slate-900/40 rounded-xl border border-slate-700/30">
+                <div class="grid grid-cols-2 gap-5">
+                    <div class="space-y-1">
+                        <label class="label-std text-slate-500">401K %</label>
+                        <input data-id="contribution" type="number" placeholder="0" class="mono-numbers bg-transparent border-none outline-none w-full text-white font-bold text-base h-7">
                         <div class="h-[1px] bg-slate-700/50 w-full"></div>
                     </div>
-                    <div class="space-y-3">
-                        <div class="flex items-center h-4">
-                            <label class="label-std text-slate-500">Match %</label>
-                        </div>
-                        <input data-id="match" type="number" placeholder="0" class="mono-numbers bg-transparent border-none outline-none w-full text-white font-black text-3xl h-10">
+                    <div class="space-y-1">
+                        <label class="label-std text-slate-500">Match %</label>
+                        <input data-id="match" type="number" placeholder="0" class="mono-numbers bg-transparent border-none outline-none w-full text-white font-bold text-base h-7">
                         <div class="h-[1px] bg-slate-700/50 w-full"></div>
                     </div>
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-10 items-end">
-                <div class="space-y-3">
-                    <div class="flex items-center h-4">
-                        <label class="label-std text-slate-500">Tax Free Until (Year)</label>
-                    </div>
-                    <input data-id="taxFreeUntil" type="number" placeholder="0" class="mono-numbers bg-transparent border-none outline-none w-full text-white font-black text-3xl h-10">
-                    <div class="h-[1px] bg-slate-700/50 w-full"></div>
-                </div>
-                <div class="flex flex-col gap-4 pb-2">
-                    <label class="flex items-center gap-4 cursor-pointer group/check">
-                        <input data-id="remainsInRetirement" type="checkbox" class="w-6 h-6 flex-shrink-0 accent-blue-500 rounded border-slate-600 bg-slate-900">
-                        <span class="label-std text-slate-500 group-hover/check:text-slate-300 transition-colors leading-none">Persists in retirement?</span>
-                    </label>
-                    <label class="flex items-center gap-4 cursor-pointer group/check">
-                        <input data-id="nonTaxable" type="checkbox" class="w-6 h-6 flex-shrink-0 accent-teal-500 rounded border-slate-600 bg-slate-900">
-                        <span class="label-std text-slate-500 group-hover/check:text-slate-300 transition-colors leading-none">Non-Taxable?</span>
-                    </label>
-                </div>
+            <div class="flex flex-col gap-2 pt-2">
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <input data-id="remainsInRetirement" type="checkbox" class="w-4 h-4 accent-blue-500 rounded bg-slate-900">
+                    <span class="label-std text-slate-500 leading-none">Keeps in Retirement?</span>
+                </label>
             </div>
         </div>
     `,
     "budget-savings": (data) => `
-        <td class="px-6 py-3"><input data-id="name" data-paste="spreadsheet" type="text" placeholder="Account" class="input-base w-full" ${data.isLocked ? 'readonly' : ''}></td>
-        <td class="px-6 py-3"><input data-id="monthly" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-bold" ${data.isLocked ? 'readonly' : ''}></td>
-        <td class="px-6 py-3"><input data-id="annual" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-black" ${data.isLocked ? 'readonly' : ''}></td>
-        <td class="px-2 py-3 text-center">${data.isLocked ? '' : '<button data-action="remove" class="text-slate-500 hover:text-red-400"><i class="fas fa-times"></i></button>'}</td>
+        <td>
+            <select data-id="type" class="input-base w-full font-bold ${templates.helpers.getTypeClass(data.type)}">
+                <option>Taxable</option>
+                <option>Pre-Tax (401k/IRA)</option>
+                <option>Post-Tax (Roth)</option>
+                <option>Cash</option>
+                <option>Crypto</option>
+                <option>Metals</option>
+                <option>HSA</option>
+                <option>529 Plan</option>
+            </select>
+        </td>
+        <td><input data-id="monthly" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-bold mono-numbers" ${data.isLocked ? 'readonly' : ''}></td>
+        <td><input data-id="annual" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-black mono-numbers" ${data.isLocked ? 'readonly' : ''}></td>
+        <td class="text-center">${data.isLocked ? '' : '<button data-action="remove" class="text-slate-700 hover:text-red-400"><i class="fas fa-times"></i></button>'}</td>
     `,
     "budget-expense": () => `
-        <td class="px-6 py-3"><input data-id="name" data-paste="spreadsheet" type="text" placeholder="Expense (Paste from Sheets)" class="input-base w-full"></td>
-        <td class="px-6 py-3 text-center"><input data-id="removedInRetirement" type="checkbox" class="w-6 h-6 flex-shrink-0 accent-pink-500 rounded border-slate-600 bg-slate-900 mx-auto"></td>
-        <td class="px-6 py-3"><input data-id="monthly" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-400 font-bold"></td>
-        <td class="px-6 py-3"><input data-id="annual" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-500 font-black"></td>
-        <td class="px-2 py-3 text-center"><button data-action="remove" class="text-slate-500 hover:text-red-400"><i class="fas fa-times"></i></button></td>
+        <td><input data-id="name" type="text" placeholder="Expense Item" class="input-base w-full font-bold text-white"></td>
+        <td class="text-center"><input data-id="removedInRetirement" type="checkbox" class="w-4 h-4 accent-pink-500 rounded bg-slate-900 mx-auto"></td>
+        <td><input data-id="monthly" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-400 font-bold mono-numbers"></td>
+        <td><input data-id="annual" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-500 font-black mono-numbers"></td>
+        <td class="text-center"><button data-action="remove" class="text-slate-700 hover:text-red-400"><i class="fas fa-times"></i></button></td>
     `,
     realEstate: () => `
-        <td class="px-4 py-3"><input data-id="name" type="text" placeholder="Property" class="input-base w-full"></td>
-        <td class="px-4 py-3"><input data-id="value" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-black"></td>
-        <td class="px-4 py-3"><input data-id="mortgage" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-500 font-bold"></td>
-        <td class="px-4 py-3 text-center"><button data-action="remove" class="text-slate-500 hover:text-red-400"><i class="fas fa-times"></i></button></td>
+        <td><input data-id="name" type="text" placeholder="Property" class="input-base w-full font-bold text-white"></td>
+        <td><input data-id="value" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-black mono-numbers"></td>
+        <td><input data-id="mortgage" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-500 font-bold mono-numbers"></td>
+        <td class="text-center"><button data-action="remove" class="text-slate-700 hover:text-red-400"><i class="fas fa-times"></i></button></td>
     `,
     otherAsset: () => `
-        <td class="px-4 py-3"><input data-id="name" type="text" placeholder="Asset" class="input-base w-full"></td>
-        <td class="px-4 py-3"><input data-id="value" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-black"></td>
-        <td class="px-4 py-3"><input data-id="loan" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-500 font-bold"></td>
-        <td class="px-4 py-3 text-center"><button data-action="remove" class="text-slate-500 hover:text-red-400"><i class="fas fa-times"></i></button></td>
+        <td><input data-id="name" type="text" placeholder="Asset" class="input-base w-full font-bold text-white"></td>
+        <td><input data-id="value" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-black mono-numbers"></td>
+        <td><input data-id="loan" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-500 font-bold mono-numbers"></td>
+        <td class="text-center"><button data-action="remove" class="text-slate-700 hover:text-red-400"><i class="fas fa-times"></i></button></td>
     `,
     heloc: () => `
-        <td class="px-4 py-3"><input data-id="name" type="text" placeholder="HELOC" class="input-base w-full"></td>
-        <td class="px-4 py-3"><input data-id="balance" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-500 font-black"></td>
-        <td class="px-4 py-3"><input data-id="limit" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right font-bold"></td>
-        <td class="px-4 py-3 text-center"><button data-action="remove" class="text-slate-500 hover:text-red-400"><i class="fas fa-times"></i></button></td>
+        <td><input data-id="name" type="text" placeholder="HELOC" class="input-base w-full font-bold text-white"></td>
+        <td><input data-id="balance" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-500 font-black mono-numbers"></td>
+        <td><input data-id="limit" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right font-bold mono-numbers"></td>
+        <td class="text-center"><button data-action="remove" class="text-slate-700 hover:text-red-400"><i class="fas fa-times"></i></button></td>
     `,
     debt: () => `
-        <td class="px-4 py-3"><input data-id="name" type="text" placeholder="Debt" class="input-base w-full"></td>
-        <td class="px-4 py-3"><input data-id="balance" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-500 font-black"></td>
-        <td class="px-4 py-3 text-center"><button data-action="remove" class="text-slate-500 hover:text-red-400"><i class="fas fa-times"></i></button></td>
+        <td><input data-id="name" type="text" placeholder="Debt" class="input-base w-full font-bold text-white"></td>
+        <td><input data-id="balance" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-500 font-black mono-numbers"></td>
+        <td class="text-center"><button data-action="remove" class="text-slate-700 hover:text-red-400"><i class="fas fa-times"></i></button></td>
     `
 };

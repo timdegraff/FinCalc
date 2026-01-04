@@ -43,11 +43,11 @@ export function loadUserDataIntoUI(data) {
     populate(data.debts, 'debt-rows', 'debt');
     populate(data.income, 'income-cards', 'income');
     const summaries = engine.calculateSummaries(data);
-    window.addRow('budget-savings-rows', 'budget-savings', { name: '401k Contributions', annual: summaries.total401kContribution, monthly: summaries.total401kContribution / 12, isLocked: true });
-    populate(data.budget?.savings?.filter(s => s.name !== '401k Contributions'), 'budget-savings-rows', 'budget-savings');
+    
+    window.addRow('budget-savings-rows', 'budget-savings', { type: 'Pre-Tax (401k/IRA)', annual: summaries.total401kContribution, monthly: summaries.total401kContribution / 12, isLocked: true });
+    populate(data.budget?.savings?.filter(s => s.isLocked !== true), 'budget-savings-rows', 'budget-savings');
     populate(data.budget?.expenses, 'budget-expenses-rows', 'budget-expense');
     
-    // Load Projection End Age
     const projEndInput = document.getElementById('input-projection-end');
     const projEndLabel = document.getElementById('label-projection-end');
     if (projEndInput) {
@@ -91,7 +91,6 @@ function scrapeDataFromUI() {
 
     const filingStatusEl = document.querySelector('[data-id="filingStatus"]');
     if (filingStatusEl) data.assumptions.filingStatus = filingStatusEl.value;
-    
     const benefitCeilingEl = document.querySelector('[data-id="benefitCeiling"]');
     if (benefitCeilingEl) data.assumptions.benefitCeiling = benefitCeilingEl.value;
 
@@ -111,8 +110,9 @@ function scrapeDataFromUI() {
         data.income.push(d);
     });
     document.querySelectorAll('#budget-savings-rows tr').forEach(r => {
-        const nameInput = r.querySelector('[data-id="name"]');
-        if (nameInput && !nameInput.readOnly) data.budget.savings.push(scrapeRow(r));
+        const d = scrapeRow(r);
+        if (r.querySelector('[data-id="monthly"]')?.readOnly) d.isLocked = true;
+        data.budget.savings.push(d);
     });
     document.querySelectorAll('#budget-expenses-rows tr').forEach(r => data.budget.expenses.push(scrapeRow(r)));
     return data;
@@ -125,7 +125,7 @@ function scrapeRow(row) {
         const k = i.dataset.id;
         if (i.type === 'checkbox') d[k] = i.checked;
         else if (i.dataset.type === 'currency') d[k] = math.fromCurrency(i.value);
-        else d[k] = (i.type === 'number') ? parseFloat(i.value) || 0 : i.value;
+        else d[k] = (i.type === 'number' || i.tagName === 'SELECT') ? (parseFloat(i.value) || i.value) : i.value;
     });
     return d;
 }
@@ -144,7 +144,8 @@ export function updateSummaries(data) {
     set('sum-budget-savings', s.totalAnnualSavings);
     set('sum-budget-annual', s.totalAnnualBudget);
     set('sum-budget-total', s.totalAnnualSavings + s.totalAnnualBudget);
-    const r401k = Array.from(document.querySelectorAll('#budget-savings-rows tr')).find(r => r.querySelector('[data-id="name"]')?.readOnly);
+    
+    const r401k = Array.from(document.querySelectorAll('#budget-savings-rows tr')).find(r => r.querySelector('[data-id="monthly"]')?.readOnly);
     if (r401k) {
         const monthly = r401k.querySelector('[data-id="monthly"]');
         const annual = r401k.querySelector('[data-id="annual"]');

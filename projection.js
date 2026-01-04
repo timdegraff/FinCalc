@@ -4,7 +4,6 @@ import { math, engine, assetColors } from './utils.js';
 let chartInstance = null;
 let isRealDollars = false;
 
-// SYNC GLOBAL TYPOGRAPHY
 Chart.defaults.font.family = "'Inter', sans-serif";
 Chart.defaults.font.size = 10;
 Chart.defaults.color = "#64748b";
@@ -38,11 +37,10 @@ export const projection = {
                 realBtn.classList.toggle('text-blue-400', isRealDollars);
                 realBtn.classList.toggle('border-blue-500', isRealDollars);
                 projection.run(window.currentData);
-                window.debouncedAutoSave(); // Save state change
+                window.debouncedAutoSave();
             };
         }
         
-        // Buckets for Chart Display (Spendable Assets) - 529 removed per request
         let buckets = {
             'Cash': investments.filter(i => i.type === 'Cash').reduce((s, i) => s + math.fromCurrency(i.value), 0),
             'Brokerage': investments.filter(i => i.type === 'Taxable').reduce((s, i) => s + math.fromCurrency(i.value), 0),
@@ -54,9 +52,6 @@ export const projection = {
             'Real Estate': realEstate.reduce((s, r) => s + (math.fromCurrency(r.value) - math.fromCurrency(r.mortgage)), 0),
             'Other': otherAssets.reduce((s, o) => s + (math.fromCurrency(o.value) - math.fromCurrency(o.loan)), 0)
         };
-
-        // 529 handled as a "hidden" background asset for Net Worth only
-        let hidden529 = investments.filter(i => i.type === '529 Plan').reduce((s, i) => s + math.fromCurrency(i.value), 0);
 
         const stockGrowth = (assumptions.stockGrowth || 7) / 100;
         const cryptoGrowth = (assumptions.cryptoGrowth || 15) / 100;
@@ -81,11 +76,9 @@ export const projection = {
             const inflationFactor = Math.pow(1 + inflationRate, i);
             
             Object.keys(buckets).forEach((key, idx) => {
-                let nominalValue = buckets[key];
-                let displayValue = isRealDollars ? (nominalValue / inflationFactor) : nominalValue;
+                let displayValue = isRealDollars ? (buckets[key] / inflationFactor) : buckets[key];
                 datasets[idx].data.push(displayValue);
                 
-                // Growth logic
                 if (key === 'Brokerage' || key === 'Pre-Tax' || key === 'Post-Tax' || key === 'HSA') buckets[key] *= (1 + stockGrowth);
                 else if (key === 'Crypto') buckets[key] *= (1 + cryptoGrowth);
                 else if (key === 'Metals') buckets[key] *= (1 + metalsGrowth);
@@ -93,13 +86,21 @@ export const projection = {
                 else if (key === 'Cash') buckets[key] *= (1 + (inflationRate * 0.5));
             });
 
-            // Growth for hidden 529
-            hidden529 *= (1 + stockGrowth);
-
             if (age < assumptions.retirementAge) {
                 const summaries = engine.calculateSummaries(data);
                 buckets['Pre-Tax'] += summaries.total401kContribution;
-                buckets['Brokerage'] += (budget.savings?.reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0);
+                
+                (budget.savings || []).forEach(s => {
+                    const amt = math.fromCurrency(s.annual);
+                    const type = s.type;
+                    if (type === 'Taxable') buckets['Brokerage'] += amt;
+                    else if (type === 'Post-Tax (Roth)') buckets['Post-Tax'] += amt;
+                    else if (type === 'Cash') buckets['Cash'] += amt;
+                    else if (type === 'HSA') buckets['HSA'] += amt;
+                    else if (type === 'Crypto') buckets['Crypto'] += amt;
+                    else if (type === 'Metals') buckets['Metals'] += amt;
+                    else if (type === 'Pre-Tax (401k/IRA)') buckets['Pre-Tax'] += amt;
+                });
             }
         }
         
@@ -123,7 +124,7 @@ function renderChart(labels, datasets) {
                 legend: { display: true, position: 'bottom', labels: { usePointStyle: true, font: { weight: 'bold' } } },
                 tooltip: {
                     backgroundColor: '#0f172a',
-                    bodyFont: { family: "'JetBrains Mono', monospace", size: 12 },
+                    bodyFont: { family: "'JetBrains Mono', monospace", size: 10 },
                     callbacks: { label: (c) => `${c.dataset.label}: ${math.toCurrency(c.parsed.y)}` }
                 }
             },
