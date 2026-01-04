@@ -1,4 +1,3 @@
-
 import { formatter } from './formatter.js';
 import { math, engine, assetColors } from './utils.js';
 
@@ -297,7 +296,7 @@ export const burndown = {
             
             yearResult.magi = Math.max(0, taxableIncome);
             
-            // Benefit Logic
+            // Health Plan Transition Logic
             yearResult.isMedicare = age >= 65;
             yearResult.isMedicaid = yearResult.magi < fpl * 1.38;
             yearResult.isSilver = yearResult.magi < fpl * 2.5 && !yearResult.isMedicaid;
@@ -342,11 +341,13 @@ export const burndown = {
             const cryptoG = (1 + (assumptions.cryptoGrowth / 100));
             const metalsG = (1 + (assumptions.metalsGrowth / 100));
             
+            // All requested stock-apy growth assets
             bal['taxable'] *= stockG;
             bal['401k'] *= stockG;
             bal['roth-basis'] *= stockG;
             bal['roth-earnings'] *= stockG;
             bal['hsa'] *= stockG; 
+            
             bal['crypto'] *= cryptoG;
             bal['metals'] *= metalsG;
             hidden529 *= stockG;

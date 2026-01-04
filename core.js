@@ -1,4 +1,3 @@
-
 import { GoogleGenAI } from '@google/genai';
 import { signInWithGoogle, logoutUser } from './auth.js';
 import { templates } from './templates.js';
@@ -48,7 +47,6 @@ function attachGlobalListeners() {
                         const newC = parseFloat(val);
                         if (newC > retirementAge) {
                             retirementAge = newC;
-                            // Trigger sync for retirementAge immediately
                             syncAllInputs('retirementAge', newC);
                         }
                     } else if (id === 'retirementAge') {
@@ -63,7 +61,7 @@ function attachGlobalListeners() {
                 // 2. Sync all other elements sharing this ID
                 syncAllInputs(id, val);
                 
-                // 3. Update memory model immediately to prevent race conditions during "scrape"
+                // 3. Update memory model immediately
                 if (window.currentData && window.currentData.assumptions) {
                     window.currentData.assumptions[id] = parseFloat(val) || val;
                 }
@@ -80,11 +78,7 @@ function attachGlobalListeners() {
     });
 }
 
-/**
- * Robustly syncs every instance of an input and its label across the entire DOM.
- */
 function syncAllInputs(id, val) {
-    // Find all range inputs/selectors with this ID (Main, Live, Top)
     const selectors = [
         `#assumptions-container [data-id="${id}"]`,
         `#burndown-live-sliders [data-live-id="${id}"]`,
@@ -95,8 +89,6 @@ function syncAllInputs(id, val) {
     selectors.forEach(sel => {
         document.querySelectorAll(sel).forEach(el => {
             if (el.value !== val) el.value = val;
-            
-            // Sync associated labels (spans)
             let label = null;
             if (el.id === 'input-top-retire-age') {
                 label = document.getElementById('label-top-retire-age');
@@ -132,7 +124,6 @@ function attachPasteListeners() {
                 lines.forEach((line, index) => {
                     const columns = line.split('\t');
                     let name = '', monthly = 0;
-
                     if (target.dataset.id === 'monthly') {
                         if (columns.length > 1 && isNaN(math.fromCurrency(columns[0]))) {
                              name = columns[0];
@@ -144,9 +135,7 @@ function attachPasteListeners() {
                         name = columns[0] || '';
                         monthly = math.fromCurrency(columns[1] || '0');
                     }
-                    
                     const annual = monthly * 12;
-
                     if (index === 0 && !target.value.trim()) {
                         const row = target.closest('tr');
                         const nameInp = row.querySelector('[data-id="name"]');
@@ -168,16 +157,13 @@ function attachPasteListeners() {
 function checkIrsLimits(row) {
     const amountEl = row.querySelector('[data-id="amount"]');
     if (!amountEl) return;
-    
     const amountValue = math.fromCurrency(amountEl.value);
     const freqBtn = row.querySelector('[data-id="isMonthly"]');
     const isMonthly = freqBtn && freqBtn.textContent.trim().toLowerCase() === 'monthly';
     const baseAnnual = isMonthly ? amountValue * 12 : amountValue;
-    
     const personalPct = parseFloat(row.querySelector('[data-id="contribution"]')?.value) || 0;
     const personal401k = baseAnnual * (personalPct / 100);
     const limit = 23500; 
-    
     const warning = row.querySelector('[data-id="capWarning"]');
     if (warning) warning.classList.toggle('hidden', personal401k <= limit);
 }
@@ -191,7 +177,11 @@ function attachCoPilotListeners() {
             modal.classList.remove('hidden');
             container.innerHTML = `<div class="flex flex-col items-center justify-center py-20 gap-4"><div class="animate-spin text-teal-400 text-4xl"><i class="fas fa-circle-notch"></i></div><p class="font-bold text-slate-500">Reviewing strategy...</p></div>`;
             try {
-                const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+                // Safer access to process.env in browser environments that may lack it globally
+                const env = (typeof process !== 'undefined') ? process.env : {};
+                const apiKey = env.API_KEY || '';
+                
+                const ai = new GoogleGenAI({ apiKey });
                 const prompt = `Financial data summary: ${JSON.stringify(window.currentData)}. Give 3 short optimization tips for 2026 Michigan benefits/taxes.`;
                 const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
                 container.innerHTML = response.text.replace(/\n/g, '<br>');
@@ -440,7 +430,6 @@ window.createAssumptionControls = (data) => {
         const subContainer = document.getElementById(`assumptions-${groupName}`);
         configs.forEach(({ id, label, min, max, step, isCurrency }) => {
             let val = data.assumptions?.[id] ?? assumptions.defaults[id];
-            
             const div = document.createElement('div');
             div.className = 'space-y-2 mb-6';
             const displayVal = isCurrency ? math.toCurrency(val) : val;
