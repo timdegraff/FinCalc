@@ -115,7 +115,7 @@ function scrapeDataFromUI() {
     const filingStatusEl = document.querySelector('[data-id="filingStatus"]');
     if (filingStatusEl) data.assumptions.filingStatus = filingStatusEl.value;
 
-    document.querySelectorAll('#assumptions-container [data-id]').forEach(i => {
+    document.querySelectorAll('#assumptions-container [data-id], #burndown-live-sliders [data-id]').forEach(i => {
         if (i.tagName !== 'SELECT') data.assumptions[i.dataset.id] = parseFloat(i.value) || 0;
     });
 

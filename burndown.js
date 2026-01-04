@@ -38,17 +38,24 @@ export const burndown = {
 
                             <div class="h-8 w-[1px] bg-slate-700 mx-2"></div>
 
-                            <!-- Rule 72t Toggle -->
-                            <label class="flex items-center gap-3 px-4 py-2 bg-slate-900/50 rounded-xl border border-slate-700 cursor-pointer group">
-                                <input type="checkbox" id="toggle-rule-72t" class="w-4 h-4 accent-purple-500">
-                                <div class="flex flex-col">
-                                    <div class="flex items-center gap-2">
-                                        <span class="label-std text-slate-300 group-hover:text-purple-400 transition-colors">72(t) SEPP Bridge</span>
-                                        <span id="sepp-amount-badge" class="hidden px-1.5 py-0.5 rounded bg-purple-500 text-white text-[9px] font-black">CALCULATING...</span>
+                            <!-- ADVANCED FIRE TOGGLES -->
+                            <div class="flex gap-4">
+                                <label class="flex items-center gap-3 px-4 py-2 bg-slate-900/50 rounded-xl border border-slate-700 cursor-pointer group">
+                                    <input type="checkbox" id="toggle-roth-ladder" class="w-4 h-4 accent-teal-500">
+                                    <div class="flex flex-col">
+                                        <span class="label-std text-slate-300 group-hover:text-teal-400 transition-colors">Roth Conversion Ladder</span>
+                                        <span class="text-[8px] text-slate-600 uppercase font-black">Top-off to Benefit Cliff</span>
                                     </div>
-                                    <span class="text-[8px] text-slate-600 uppercase font-black">Maximize 401k Bridge • 5% Interest Cap</span>
-                                </div>
-                            </label>
+                                </label>
+
+                                <label class="flex items-center gap-3 px-4 py-2 bg-slate-900/50 rounded-xl border border-slate-700 cursor-pointer group">
+                                    <input type="checkbox" id="toggle-die-with-zero" class="w-4 h-4 accent-rose-500">
+                                    <div class="flex flex-col">
+                                        <span class="label-std text-slate-300 group-hover:text-rose-400 transition-colors">Die With Zero</span>
+                                        <span class="text-[8px] text-slate-600 uppercase font-black">Amortize Assets to Age 100</span>
+                                    </div>
+                                </label>
+                            </div>
 
                             <button id="toggle-burndown-real" class="px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-xl label-std font-black text-slate-400 hover:text-white transition-all flex items-center gap-2">
                                 <i class="fas fa-sync"></i> Real Dollars
@@ -74,8 +81,9 @@ export const burndown = {
                         </div>
                     </div>
 
-                    <div id="burndown-live-sliders" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
-                        <!-- Sliders populated by JS -->
+                    <!-- Spending Phases & SS Years -->
+                    <div id="burndown-live-sliders" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-6 border-t border-slate-700 pt-6">
+                        <!-- Populated by JS -->
                     </div>
                 </div>
 
@@ -86,7 +94,7 @@ export const burndown = {
                         <div id="draw-priority-list" class="flex flex-wrap gap-2">
                             <!-- Draggable items -->
                         </div>
-                        <span class="text-[9px] text-slate-600 italic ml-auto">* Drag to reorder</span>
+                        <span class="text-[9px] text-slate-600 italic ml-auto">* HSA forced to bottom internally</span>
                     </div>
                 </div>
 
@@ -100,28 +108,23 @@ export const burndown = {
     },
 
     attachListeners: () => {
-        const strategySelect = document.getElementById('burndown-strategy');
-        if (strategySelect) {
-            strategySelect.onchange = () => { 
-                const swrInd = document.getElementById('swr-indicator');
-                if (swrInd) swrInd.classList.toggle('hidden', strategySelect.value !== 'perpetual');
-                burndown.run(); 
-                window.debouncedAutoSave(); 
+        const triggers = ['burndown-strategy', 'toggle-rule-72t', 'toggle-budget-sync', 'toggle-roth-ladder', 'toggle-die-with-zero'];
+        triggers.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.onchange = () => {
+                if (id === 'burndown-strategy') {
+                    const swrInd = document.getElementById('swr-indicator');
+                    if (swrInd) swrInd.classList.toggle('hidden', el.value !== 'perpetual');
+                }
+                if (id === 'toggle-budget-sync') {
+                    const manualContainer = document.getElementById('manual-budget-container');
+                    if (manualContainer) manualContainer.classList.toggle('hidden', el.checked);
+                }
+                burndown.run();
+                window.debouncedAutoSave();
             };
-        }
-        const seppToggle = document.getElementById('toggle-rule-72t');
-        if (seppToggle) {
-            seppToggle.onchange = () => { burndown.run(); window.debouncedAutoSave(); };
-        }
-        const syncToggle = document.getElementById('toggle-budget-sync');
-        const manualContainer = document.getElementById('manual-budget-container');
-        if (syncToggle) {
-            syncToggle.onchange = (e) => { 
-                if (manualContainer) manualContainer.classList.toggle('hidden', syncToggle.checked);
-                burndown.run(); 
-                window.debouncedAutoSave(); 
-            };
-        }
+        });
+
         const manualInput = document.getElementById('input-manual-budget');
         if (manualInput) {
             manualInput.oninput = () => { burndown.run(); window.debouncedAutoSave(); };
@@ -149,27 +152,30 @@ export const burndown = {
     load: (data) => {
         if (data?.priority) burndown.priorityOrder = data.priority;
         isRealDollars = !!data?.isRealDollars;
-        const strategySelect = document.getElementById('burndown-strategy');
-        if (strategySelect && data?.strategy) {
-            strategySelect.value = data.strategy;
-            const swrInd = document.getElementById('swr-indicator');
-            if (swrInd) swrInd.classList.toggle('hidden', data.strategy !== 'perpetual');
-        }
+        const config = [
+            {id: 'burndown-strategy', key: 'strategy', type: 'val'},
+            {id: 'toggle-rule-72t', key: 'useSEPP', type: 'check'},
+            {id: 'toggle-roth-ladder', key: 'useRothLadder', type: 'check'},
+            {id: 'toggle-die-with-zero', key: 'dieWithZero', type: 'check'},
+            {id: 'toggle-budget-sync', key: 'useSync', type: 'check'},
+        ];
+        config.forEach(c => {
+            const el = document.getElementById(c.id);
+            if (el && data?.[c.key] !== undefined) {
+                if (c.type === 'check') el.checked = data[c.key];
+                else el.value = data[c.key];
+            }
+        });
         
-        const seppToggle = document.getElementById('toggle-rule-72t');
-        if (seppToggle) seppToggle.checked = !!data?.useSEPP;
-        
+        const swrInd = document.getElementById('swr-indicator');
+        if (swrInd) swrInd.classList.toggle('hidden', (data?.strategy !== 'perpetual'));
+
         const realBtn = document.getElementById('toggle-burndown-real');
         if (realBtn) {
             realBtn.classList.toggle('text-blue-400', isRealDollars);
             realBtn.classList.toggle('border-blue-500', isRealDollars);
         }
-        const syncToggle = document.getElementById('toggle-budget-sync');
-        const manualContainer = document.getElementById('manual-budget-container');
-        if (syncToggle && data?.useSync !== undefined) {
-            syncToggle.checked = data.useSync;
-            if (manualContainer) manualContainer.classList.toggle('hidden', data.useSync);
-        }
+        
         const manualInput = document.getElementById('input-manual-budget');
         if (manualInput && data?.manualBudget !== undefined) {
             manualInput.value = math.toCurrency(data.manualBudget);
@@ -177,16 +183,14 @@ export const burndown = {
     },
 
     scrape: () => {
-        const strategySelect = document.getElementById('burndown-strategy');
-        const syncToggle = document.getElementById('toggle-budget-sync');
-        const seppToggle = document.getElementById('toggle-rule-72t');
-        const manualInput = document.getElementById('input-manual-budget');
         return { 
             priority: burndown.priorityOrder,
-            strategy: strategySelect?.value || 'standard',
-            useSync: syncToggle?.checked ?? true,
-            useSEPP: seppToggle?.checked ?? false,
-            manualBudget: math.fromCurrency(manualInput?.value || "$100,000"),
+            strategy: document.getElementById('burndown-strategy')?.value || 'standard',
+            useSync: document.getElementById('toggle-budget-sync')?.checked ?? true,
+            useSEPP: document.getElementById('toggle-rule-72t')?.checked ?? false,
+            useRothLadder: document.getElementById('toggle-roth-ladder')?.checked ?? false,
+            dieWithZero: document.getElementById('toggle-die-with-zero')?.checked ?? false,
+            manualBudget: math.fromCurrency(document.getElementById('input-manual-budget')?.value || "$100,000"),
             isRealDollars
         };
     },
@@ -210,19 +214,22 @@ export const burndown = {
         const sliderContainer = document.getElementById('burndown-live-sliders');
         if (sliderContainer && sliderContainer.innerHTML.trim() === '') {
             const sliderConfigs = [
-                { key: 'currentAge', label: 'Current Age', min: 18, max: 100, step: 1 },
-                { key: 'retirementAge', label: 'Retire Age', min: 18, max: 100, step: 1 },
+                { key: 'workYearsAtRetirement', label: 'SS Work Years', min: 10, max: 45, step: 1 },
+                { key: 'slowGoFactor', label: 'Age 62 Budget %', min: 0.1, max: 1.5, step: 0.05, isPct: true },
+                { key: 'noGoFactor', label: 'Age 80 Budget %', min: 0.1, max: 1.5, step: 0.05, isPct: true },
                 { key: 'stockGrowth', label: 'Stocks APY %', min: 0, max: 15, step: 0.5 },
                 { key: 'cryptoGrowth', label: 'Bitcoin %', min: 0, max: 50, step: 1 },
                 { key: 'metalsGrowth', label: 'Metals %', min: 0, max: 15, step: 1 },
                 { key: 'inflation', label: 'Inflation %', min: 0, max: 10, step: 0.1 }
             ];
-            sliderConfigs.forEach(({ key, label, min, max, step }) => {
-                let val = data.assumptions[key] || 0;
+            sliderConfigs.forEach(({ key, label, min, max, step, isPct }) => {
+                let val = data.assumptions[key] || (isPct ? 0.8 : 0);
+                if (key === 'workYearsAtRetirement' && val === 0) val = 35;
                 const div = document.createElement('div');
                 div.className = 'space-y-1';
+                const displayVal = isPct ? `${Math.round(val * 100)}%` : (key.includes('Growth') || key === 'inflation' ? `${val}%` : val);
                 div.innerHTML = `
-                    <label class="flex justify-between label-std text-slate-500">${label} <span class="text-blue-400 font-black mono-numbers">${val}%</span></label>
+                    <label class="flex justify-between label-std text-slate-500 text-[9px]">${label} <span class="text-blue-400 font-black mono-numbers">${displayVal}</span></label>
                     <input type="range" data-live-id="${key}" data-id="${key}" value="${val}" min="${min}" max="${max}" step="${step}" class="input-range">
                 `;
                 sliderContainer.appendChild(div);
@@ -286,12 +293,12 @@ export const burndown = {
         const fixedOtherAssets = otherAssets.reduce((s, o) => s + (math.fromCurrency(o.value) - math.fromCurrency(o.loan)), 0);
         const helocLimit = helocs.reduce((s, h) => s + math.fromCurrency(h.limit), 0);
         const fpl2026Base = filingStatus === 'Single' ? 16060 : 32120;
-        const ssBenefitBase = (assumptions.ssMonthly || 0) * 12;
         
         const results = [];
-        const endAge = parseFloat(document.getElementById('input-projection-end')?.value) || 75;
+        const endAge = 100; // Fixed calculation horizon for Die With Zero
         const duration = endAge - assumptions.currentAge;
 
+        // Pre-calculate SEPP eligibility
         let temp401k = bal['401k'];
         for (let i = 0; i < (assumptions.retirementAge - assumptions.currentAge); i++) {
              const summaries = engine.calculateSummaries(data);
@@ -301,24 +308,13 @@ export const burndown = {
              });
              temp401k *= (1 + stockGrowth);
         }
-        
         const seppFixedAmount = state.useSEPP ? engine.calculateMaxSepp(temp401k, assumptions.retirementAge) : 0;
-        
-        const badge = document.getElementById('sepp-amount-badge');
-        if (badge) {
-            if (state.useSEPP) {
-                badge.classList.remove('hidden');
-                badge.textContent = `${math.toCurrency(seppFixedAmount, true)} / YR`;
-            } else {
-                badge.classList.add('hidden');
-            }
-        }
 
         for (let i = 0; i <= duration; i++) {
             const age = assumptions.currentAge + i;
             const currentYearIter = currentYear + i;
             const isRetired = age >= assumptions.retirementAge;
-            const yearResult = { age, year: currentYearIter, draws: {}, totalDraw: 0, seppAmount: 0, penalty: 0 };
+            const yearResult = { age, year: currentYearIter, draws: {}, rothConversion: 0, penalty: 0 };
             const inflationFactor = Math.pow(1 + inflationRate, i);
             const fpl = fpl2026Base * inflationFactor;
 
@@ -340,12 +336,27 @@ export const burndown = {
             const currentRE = realEstate.reduce((s, r) => s + (math.fromCurrency(r.value) * Math.pow(1 + realEstateGrowth, i) - math.fromCurrency(r.mortgage)), 0);
             const currentNW = (bal['cash'] + bal['taxable'] + bal['roth-basis'] + bal['roth-earnings'] + bal['401k'] + bal['crypto'] + bal['metals'] + bal['hsa'] + hidden529 + fixedOtherAssets + currentRE) - bal['heloc'];
 
+            // Budget sourcing logic with PHASES
             let baseAnnualBudget = state.useSync ? 
                 (budget.expenses || []).reduce((sum, exp) => (isRetired && exp.removedInRetirement) ? sum : sum + math.fromCurrency(exp.annual), 0) : 
                 (state.manualBudget || 100000);
             
-            let currentYearBudget = baseAnnualBudget * inflationFactor;
+            // Apply Multipliers for FIRE Phases
+            let phaseMultiplier = 1.0;
+            if (age >= 80) phaseMultiplier = (assumptions.noGoFactor || 0.7);
+            else if (age >= 62) phaseMultiplier = (assumptions.slowGoFactor || 0.8);
+            
+            let currentYearBudget = baseAnnualBudget * inflationFactor * phaseMultiplier;
 
+            // Die With Zero override
+            if (state.dieWithZero && isRetired) {
+                const yearsLeft = 100 - age;
+                if (yearsLeft > 0) {
+                    currentYearBudget = Math.max(currentYearBudget, currentNW / yearsLeft);
+                }
+            }
+
+            // Draw Strategy overrides
             if (isRetired) {
                 if (state.strategy === 'medicaid') currentYearBudget = fpl * 1.38;
                 else if (state.strategy === 'silver') currentYearBudget = fpl * 2.50;
@@ -364,17 +375,19 @@ export const burndown = {
                 let amt = math.fromCurrency(inc.amount) * (inc.isMonthly ? 12 : 1);
                 amt -= (math.fromCurrency(inc.incomeExpenses) * (inc.incomeExpensesMonthly ? 12 : 1));
                 amt *= Math.pow(1 + (inc.increase / 100 || 0), i);
-                
                 if (isRetired) persistentIncomeTotal += Math.max(0, amt);
-                
                 const isNonTaxableYear = inc.nonTaxableUntil && parseInt(inc.nonTaxableUntil) >= currentYearIter;
                 if (isNonTaxableYear) nonTaxableIncome += Math.max(0, amt);
                 else taxableIncome += Math.max(0, amt);
             });
 
-            const ssYearly = (age >= assumptions.ssStartAge) ? ssBenefitBase * inflationFactor : 0;
+            // Social Security with FIRE De-rating
+            const ssWorkYears = assumptions.workYearsAtRetirement || 35;
+            const ssYearly = (age >= assumptions.ssStartAge) ? 
+                engine.calculateSocialSecurity(assumptions.ssMonthly || 0, ssWorkYears, inflationFactor) : 0;
             taxableIncome += ssYearly; 
 
+            // SEPP Logic
             if (isRetired && age < 60 && state.useSEPP) {
                 const canDrawSEPP = Math.min(bal['401k'], seppFixedAmount);
                 bal['401k'] -= canDrawSEPP;
@@ -395,18 +408,13 @@ export const burndown = {
             yearResult.isMedicare = age >= 65;
             yearResult.isMedicaid = yearResult.magi < fpl * 1.38;
             yearResult.isSilver = yearResult.magi < fpl * 2.5 && !yearResult.isMedicaid;
-            
-            if (!yearResult.isMedicare && !yearResult.isMedicaid && bal['hsa'] > 0) {
-                const medicalSpend = currentYearBudget * 0.05;
-                const hsaMedicalDraw = Math.min(bal['hsa'], medicalSpend);
-                bal['hsa'] -= hsaMedicalDraw;
-                yearResult.draws['hsa'] = (yearResult.draws['hsa'] || 0) + hsaMedicalDraw;
-                netBudgetNeeded = Math.max(0, netBudgetNeeded - hsaMedicalDraw);
-            }
 
             let remainingNeed = Math.max(0, netBudgetNeeded - (taxableIncome + nonTaxableIncome - tax));
 
-            burndown.priorityOrder.forEach(pk => {
+            // Force HSA to absolute end of priority list for FIRE health preservation
+            const effectivePriority = burndown.priorityOrder.filter(k => k !== 'hsa').concat(['hsa']);
+
+            effectivePriority.forEach(pk => {
                 if (remainingNeed <= 0) return;
                 const limit = pk === 'heloc' ? (helocLimit - bal['heloc']) : bal[pk];
                 const canDraw = Math.min(limit, remainingNeed);
@@ -423,15 +431,32 @@ export const burndown = {
                     }
                 }
                 if (pk === 'taxable') {
-                    const gainRatio = taxValue > 0 ? Math.max(0, (taxValue - taxBasis) / taxValue) : 1;
+                    const gainRatio = taxValue > 0 ? Math.max(0, (taxValue - taxBasis) / taxValue) : 0.5;
                     taxableIncome += (canDraw * gainRatio);
                 }
             });
+
+            // ROTH LADDER TOP-OFF (Optimization for Medicaid/Tax efficiency)
+            if (isRetired && state.useRothLadder) {
+                const medicaidLimit = fpl * 1.38;
+                if (taxableIncome < medicaidLimit) {
+                    const topOffAmt = Math.min(bal['401k'], medicaidLimit - taxableIncome);
+                    if (topOffAmt > 0) {
+                        bal['401k'] -= topOffAmt;
+                        bal['roth-earnings'] += topOffAmt; // Moving to Roth
+                        taxableIncome += topOffAmt; // Counts as MAGI
+                        yearResult.rothConversion = topOffAmt;
+                    }
+                }
+            }
 
             yearResult.magi = Math.max(0, taxableIncome);
             yearResult.balances = { ...bal };
             yearResult.budget = currentYearBudget;
             yearResult.netWorth = currentNW - yearResult.penalty;
+            yearResult.isMedicaid = yearResult.magi < fpl * 1.38;
+            yearResult.isSilver = yearResult.magi < fpl * 2.5 && !yearResult.isMedicaid;
+
             results.push(yearResult);
 
             bal['taxable'] *= (1 + stockGrowth);
@@ -467,24 +492,26 @@ export const burndown = {
             }).join('');
             
             let benefitBadge = '';
-            if (r.isMedicaid) benefitBadge += `<span class="px-1.5 py-0.5 rounded bg-blue-600 text-white text-[8px] font-black uppercase">Medicaid</span>`;
-            else if (r.isSilver) benefitBadge += `<span class="px-1.5 py-0.5 rounded bg-slate-400 text-slate-900 text-[8px] font-black uppercase">Silver</span>`;
+            if (r.isMedicaid) benefitBadge = `<span class="px-2 py-1 rounded-lg bg-emerald-500 text-white text-[9px] font-black uppercase shadow-lg shadow-emerald-900/40">Medicaid</span>`;
+            else if (r.isSilver) benefitBadge = `<span class="px-2 py-1 rounded-lg bg-blue-500 text-white text-[9px] font-black uppercase shadow-lg shadow-blue-900/40">Silver ACA</span>`;
+            else benefitBadge = `<span class="px-2 py-1 rounded-lg bg-slate-700 text-slate-400 text-[9px] font-black uppercase">Standard</span>`;
             
             if (r.snapBenefit > 0) {
                 benefitBadge += `<div class="text-[8px] text-emerald-400 font-bold uppercase mt-1">SNAP: ${formatter.formatCurrency(r.snapBenefit / inf, 0)}</div>`;
             }
 
             const penaltyDisplay = r.penalty > 0 ? `<div class="text-[8px] text-red-500 font-bold uppercase">Penalty: ${formatter.formatCurrency(r.penalty / inf, 0)}</div>` : '';
+            const rothLadderDisplay = r.rothConversion > 0 ? `<div class="text-[8px] text-purple-400 font-bold uppercase mt-1">Ladder: ${formatter.formatCurrency(r.rothConversion / inf, 0)}</div>` : '';
             
             return `<tr class="border-b border-slate-800/50 hover:bg-slate-800/10 text-[10px]">
-                <td class="p-2 text-center font-bold border-r border-slate-700">${r.age}</td>
-                <td class="p-2 text-right text-slate-500">${formatter.formatCurrency(r.budget / inf, 0)}</td>
-                <td class="p-2 text-right font-black text-emerald-400">${formatter.formatCurrency(r.magi / inf, 0)}</td>
+                <td class="p-2 text-center font-bold border-r border-slate-700 bg-slate-800/20">${r.age}</td>
+                <td class="p-2 text-right text-slate-400">${formatter.formatCurrency(r.budget / inf, 0)}</td>
+                <td class="p-2 text-right font-black text-white">${formatter.formatCurrency(r.magi / inf, 0)}</td>
                 <td class="p-2 text-right text-blue-300">${r.persistentIncome > 0 ? formatter.formatCurrency(r.persistentIncome / inf, 0) : '—'}</td>
-                <td class="p-2 text-center border-x border-slate-800/50">${benefitBadge || '—'}</td>
-                <td class="p-2 text-center">${penaltyDisplay || '—'}</td>
+                <td class="p-2 text-center border-x border-slate-800/50">${benefitBadge}</td>
+                <td class="p-2 text-center">${penaltyDisplay || rothLadderDisplay || '—'}</td>
                 ${draws}
-                <td class="p-2 text-right font-black border-l border-slate-700 text-teal-400">${formatter.formatCurrency(r.netWorth / inf, 0)}</td>
+                <td class="p-2 text-right font-black border-l border-slate-700 text-teal-400 bg-slate-800/20">${formatter.formatCurrency(r.netWorth / inf, 0)}</td>
             </tr>`;
         }).join('');
         
@@ -492,11 +519,11 @@ export const burndown = {
             <thead class="sticky top-0 bg-slate-800 text-slate-500 label-std z-20">
                 <tr>
                     <th class="p-2 border-r border-slate-700 w-10">Age</th>
-                    <th class="p-2 text-right">Budget</th>
+                    <th class="p-2 text-right">Target</th>
                     <th class="p-2 text-right">MAGI</th>
-                    <th class="p-2 text-right">Inc</th>
-                    <th class="p-2 text-center border-x border-slate-800/50">Benefits</th>
-                    <th class="p-2 text-center">Tax Info</th>
+                    <th class="p-2 text-right">Fixed</th>
+                    <th class="p-2 text-center border-x border-slate-800/50">FIRE Status</th>
+                    <th class="p-2 text-center">Efficiency</th>
                     ${headerCells}
                     <th class="p-2 text-right border-l border-slate-700">Net Worth</th>
                 </tr>

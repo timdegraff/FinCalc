@@ -71,7 +71,8 @@ export const assumptions = {
         filingStatus: 'Married Filing Jointly', 
         benefitCeiling: 1.38, 
         helocRate: 7,
-        state: 'Michigan'
+        state: 'Michigan',
+        workYearsAtRetirement: 35 // FIRE users likely work fewer
     }
 };
 
@@ -97,6 +98,16 @@ export const engine = {
         const denominator = Math.pow(1 + r, n) - 1;
         const annualPayment = balance * (numerator / denominator);
         return Math.floor(annualPayment);
+    },
+
+    /**
+     * Calculates Social Security with a de-rating penalty for FIRE (fewer than 35 work years).
+     */
+    calculateSocialSecurity: (baseMonthly, workYears, inflationFactor) => {
+        const fullBenefit = baseMonthly * 12 * inflationFactor;
+        // SS uses highest 35 years. If you only work 15, 20 years are $0.
+        const multiplier = Math.min(1, Math.max(0.1, workYears / 35));
+        return fullBenefit * multiplier;
     },
 
     calculateTax: (taxableIncome, status = 'Single', state = 'Michigan') => {
