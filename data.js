@@ -27,6 +27,7 @@ async function loadData() {
     loadUserDataIntoUI(window.currentData);
     benefits.load(window.currentData.benefits);
     burndown.load(window.currentData.burndown);
+    projection.load(window.currentData.projectionSettings);
 }
 
 export function loadUserDataIntoUI(data) {
@@ -45,6 +46,15 @@ export function loadUserDataIntoUI(data) {
     window.addRow('budget-savings-rows', 'budget-savings', { name: '401k Contributions', annual: summaries.total401kContribution, monthly: summaries.total401kContribution / 12, isLocked: true });
     populate(data.budget?.savings?.filter(s => s.name !== '401k Contributions'), 'budget-savings-rows', 'budget-savings');
     populate(data.budget?.expenses, 'budget-expenses-rows', 'budget-expense');
+    
+    // Load Projection End Age
+    const projEndInput = document.getElementById('input-projection-end');
+    const projEndLabel = document.getElementById('label-projection-end');
+    if (projEndInput && data.projectionEndAge) {
+        projEndInput.value = data.projectionEndAge;
+        if (projEndLabel) projEndLabel.textContent = data.projectionEndAge;
+    }
+
     window.createAssumptionControls(data);
     updateSummaries(data);
 }
@@ -71,7 +81,11 @@ function scrapeDataFromUI() {
     const data = { 
         assumptions: { ...prevData.assumptions }, 
         investments: [], realEstate: [], otherAssets: [], helocs: [], debts: [], income: [], 
-        budget: { savings: [], expenses: [] }, benefits: benefits.scrape(), burndown: burndown.scrape() 
+        budget: { savings: [], expenses: [] }, 
+        benefits: benefits.scrape(), 
+        burndown: burndown.scrape(),
+        projectionSettings: projection.scrape(),
+        projectionEndAge: parseFloat(document.getElementById('input-projection-end')?.value) || 100
     };
 
     const filingStatusEl = document.querySelector('[data-id="filingStatus"]');
@@ -116,7 +130,7 @@ function scrapeRow(row) {
 }
 
 function getInitialData() {
-    return { assumptions: { ...assumptions.defaults }, investments: [], realEstate: [], otherAssets: [], helocs: [], debts: [], income: [], budget: { savings: [], expenses: [] }, benefits: {}, burndown: {} };
+    return { assumptions: { ...assumptions.defaults }, investments: [], realEstate: [], otherAssets: [], helocs: [], debts: [], income: [], budget: { savings: [], expenses: [] }, benefits: {}, burndown: {}, projectionSettings: {}, projectionEndAge: 100 };
 }
 
 export function updateSummaries(data) {

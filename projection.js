@@ -5,6 +5,20 @@ let chartInstance = null;
 let isRealDollars = false;
 
 export const projection = {
+    load: (settings) => {
+        if (!settings) return;
+        isRealDollars = !!settings.isRealDollars;
+        const realBtn = document.getElementById('toggle-projection-real');
+        if (realBtn) {
+            realBtn.classList.toggle('text-blue-400', isRealDollars);
+            realBtn.classList.toggle('border-blue-500', isRealDollars);
+        }
+    },
+
+    scrape: () => {
+        return { isRealDollars };
+    },
+
     run: (data) => {
         const { assumptions, investments = [], realEstate = [], otherAssets = [], budget = {} } = data;
         const currentYear = new Date().getFullYear();
@@ -19,6 +33,7 @@ export const projection = {
                 realBtn.classList.toggle('text-blue-400', isRealDollars);
                 realBtn.classList.toggle('border-blue-500', isRealDollars);
                 projection.run(window.currentData);
+                window.debouncedAutoSave(); // Save state change
             };
         }
         
@@ -59,10 +74,6 @@ export const projection = {
             labels.push(`${age} (${currentYear + i})`);
             
             const inflationFactor = Math.pow(1 + inflationRate, i);
-            const fpl = (assumptions.filingStatus === 'Single' ? 16060 : 21710) * inflationFactor;
-            
-            // Note: Simple Medicaid check for HSA logic projection
-            const currentYearBudget = (budget.expenses?.reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 50000) * inflationFactor;
             
             Object.keys(buckets).forEach((key, idx) => {
                 let nominalValue = buckets[key];
@@ -84,10 +95,6 @@ export const projection = {
                 const summaries = engine.calculateSummaries(data);
                 buckets['Pre-Tax'] += summaries.total401kContribution;
                 buckets['Brokerage'] += (budget.savings?.reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0);
-            } else {
-                // Retirement draws (simplified for projection visualization)
-                // In a real burndown, we'd subtract the budget here. 
-                // For the "Projection" chart, we usually just show growth or a flat line.
             }
         }
         

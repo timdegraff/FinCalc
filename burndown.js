@@ -79,11 +79,15 @@ export const burndown = {
                 const manualContainer = document.getElementById('manual-budget-input-container');
                 if (manualContainer) manualContainer.classList.toggle('hidden', e.target.checked);
                 burndown.run();
+                window.debouncedAutoSave();
             };
         }
         const manualInput = document.getElementById('input-manual-budget');
         if (manualInput) {
-            manualInput.oninput = () => burndown.run();
+            manualInput.oninput = () => {
+                burndown.run();
+                window.debouncedAutoSave();
+            };
             formatter.bindCurrencyEventListeners(manualInput);
         }
         const optBtn = document.getElementById('btn-optimize-draw');
@@ -91,6 +95,7 @@ export const burndown = {
             optBtn.onclick = () => {
                 burndown.optimize();
                 burndown.run();
+                window.debouncedAutoSave();
             };
         }
         const realBtn = document.getElementById('toggle-burndown-real');
@@ -100,6 +105,7 @@ export const burndown = {
                 realBtn.classList.toggle('text-blue-400', isRealDollars);
                 realBtn.classList.toggle('border-blue-500', isRealDollars);
                 burndown.run();
+                window.debouncedAutoSave();
             };
         }
         const topRetireInput = document.getElementById('input-top-retire-age');
@@ -119,8 +125,25 @@ export const burndown = {
     },
 
     load: (data) => {
-        // Default priority excludes 529 per user request
         burndown.priorityOrder = data?.priority || ['cash', 'taxable', 'roth-basis', 'heloc', '401k', 'roth-earnings', 'crypto', 'metals', 'hsa'];
+        isRealDollars = !!data?.isRealDollars;
+        
+        // Sync UI for loaded state
+        const realBtn = document.getElementById('toggle-burndown-real');
+        if (realBtn) {
+            realBtn.classList.toggle('text-blue-400', isRealDollars);
+            realBtn.classList.toggle('border-blue-500', isRealDollars);
+        }
+        const syncToggle = document.getElementById('toggle-budget-sync');
+        if (syncToggle && data?.useSync !== undefined) {
+            syncToggle.checked = data.useSync;
+            const manualContainer = document.getElementById('manual-budget-input-container');
+            if (manualContainer) manualContainer.classList.toggle('hidden', data.useSync);
+        }
+        const manualInput = document.getElementById('input-manual-budget');
+        if (manualInput && data?.manualBudget) {
+            manualInput.value = math.toCurrency(data.manualBudget);
+        }
     },
 
     scrape: () => {
@@ -129,7 +152,8 @@ export const burndown = {
         return { 
             priority: burndown.priorityOrder,
             manualBudget: math.fromCurrency(manualBudgetEl?.value || 0),
-            useSync: syncToggle?.checked ?? true
+            useSync: syncToggle?.checked ?? true,
+            isRealDollars
         };
     },
 
@@ -217,7 +241,7 @@ export const burndown = {
                 return `<div data-pk="${k}" class="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-[10px] font-bold cursor-move flex items-center gap-2 uppercase tracking-widest" style="color: ${meta.color}"><i class="fas fa-grip-vertical opacity-30"></i> ${meta.label}</div>`;
             }).join('');
             if (!burndown.sortable) {
-                burndown.sortable = new Sortable(priorityList, { animation: 150, onEnd: () => { burndown.priorityOrder = Array.from(priorityList.children).map(el => el.dataset.pk); burndown.run(); } });
+                burndown.sortable = new Sortable(priorityList, { animation: 150, onEnd: () => { burndown.priorityOrder = Array.from(priorityList.children).map(el => el.dataset.pk); burndown.run(); window.debouncedAutoSave(); } });
             }
         }
 
@@ -251,7 +275,6 @@ export const burndown = {
             'heloc': 0 
         };
 
-        // 529 Plan bucket - kept only for Net Worth calculation
         let hidden529 = investments.filter(i => i.type === '529 Plan').reduce((s, i) => s + math.fromCurrency(i.value), 0);
 
         const fixedOtherAssets = otherAssets.reduce((s, o) => s + (math.fromCurrency(o.value) - math.fromCurrency(o.loan)), 0);
@@ -288,7 +311,6 @@ export const burndown = {
             const ssYearly = (age >= assumptions.ssStartAge) ? ssBenefitBase * inflationFactor : 0;
             taxableIncome += ssYearly; 
 
-            // Benefits Logic
             const snapBenefit = engine.calculateSnapBenefit(taxableIncome, benefits.hhSize || 1, (benefits.shelterCosts || 0) * inflationFactor, benefits.hasSUA, benefits.isDisabled, inflationFactor);
             const snapYearly = snapBenefit * 12;
             yearResult.snapBenefit = snapYearly;
@@ -296,7 +318,6 @@ export const burndown = {
             let netBudgetNeeded = Math.max(0, currentYearBudget - snapYearly);
             const tax = engine.calculateTax(taxableIncome, filingStatus);
             
-            // HSA Spending Logic: 10% of budget if not on Medicaid
             yearResult.magi = Math.max(0, taxableIncome);
             yearResult.isMedicaid = yearResult.magi < fpl * 1.38;
             yearResult.isSilver = yearResult.magi < fpl * 2.5 && !yearResult.isMedicaid;
@@ -328,14 +349,12 @@ export const burndown = {
                 }
             });
 
-            // Re-calc MAGI after potential taxable draws
             yearResult.magi = Math.max(0, taxableIncome);
             yearResult.balances = { ...bal };
             yearResult.budget = currentYearBudget;
             
             const currentRE = realEstate.reduce((s, r) => s + (math.fromCurrency(r.value) * Math.pow(1 + (assumptions.realEstateGrowth / 100), i) - math.fromCurrency(r.mortgage)), 0);
             
-            // Net Worth includes hidden 529
             yearResult.netWorth = (bal['cash'] + bal['taxable'] + bal['roth-basis'] + bal['roth-earnings'] + bal['401k'] + bal['crypto'] + bal['metals'] + bal['hsa'] + hidden529 + fixedOtherAssets + currentRE) - bal['heloc'];
             results.push(yearResult);
 
