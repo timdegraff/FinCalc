@@ -142,15 +142,15 @@ export const burndown = {
     },
 
     assetMeta: {
-        'cash': { label: 'Cash', color: assetColors['Cash'] },
-        'taxable': { label: 'Taxable Brokerage', color: assetColors['Taxable'] },
-        'roth-basis': { label: 'Roth Basis', color: assetColors['Post-Tax (Roth)'] },
-        'heloc': { label: 'HELOC', color: assetColors['HELOC'] },
-        '401k': { label: '401k/IRA', color: assetColors['Pre-Tax (401k/IRA)'] },
-        'roth-earnings': { label: 'Roth Gains', color: assetColors['Roth Gains'] },
-        'crypto': { label: 'Bitcoin', color: assetColors['Crypto'] },
-        'metals': { label: 'Metals', color: assetColors['Metals'] },
-        'hsa': { label: 'HSA', color: assetColors['HSA'] }
+        'cash': { label: 'Cash', short: 'Cash', color: assetColors['Cash'] },
+        'taxable': { label: 'Taxable Brokerage', short: 'Brokerage', color: assetColors['Taxable'] },
+        'roth-basis': { label: 'Roth Basis', short: 'Roth Basis', color: assetColors['Post-Tax (Roth)'] },
+        'heloc': { label: 'HELOC', short: 'HELOC', color: assetColors['HELOC'] },
+        '401k': { label: '401k/IRA', short: '401k/IRA', color: assetColors['Pre-Tax (401k/IRA)'] },
+        'roth-earnings': { label: 'Roth Gains', short: 'Roth Gains', color: assetColors['Roth Gains'] },
+        'crypto': { label: 'Bitcoin', short: 'Bitcoin', color: assetColors['Crypto'] },
+        'metals': { label: 'Metals', short: 'Metals', color: assetColors['Metals'] },
+        'hsa': { label: 'HSA', short: 'HSA', color: assetColors['HSA'] }
     },
 
     optimize: () => {
@@ -249,12 +249,12 @@ export const burndown = {
 
         const fixedOtherAssets = otherAssets.reduce((s, o) => s + (math.fromCurrency(o.value) - math.fromCurrency(o.loan)), 0);
         const helocLimit = helocs.reduce((s, h) => s + math.fromCurrency(h.limit), 0);
-        const fpl2026Base = filingStatus === 'Single' ? 16060 : 21710;
+        const fpl2026Base = filingStatus === 'Single' ? 16060 : 32120; // Corrected MFJ base FPL
         const baseAnnualBudget = state.useSync ? (budget.expenses?.reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0) : state.manualBudget;
         const ssBenefitBase = (assumptions.ssMonthly || 0) * 12;
         
         const results = [];
-        const endAge = parseFloat(document.getElementById('input-projection-end')?.value) || 100;
+        const endAge = parseFloat(document.getElementById('input-projection-end')?.value) || 75;
         const duration = endAge - assumptions.currentAge;
 
         for (let i = 0; i <= duration; i++) {
@@ -273,13 +273,18 @@ export const burndown = {
 
             let taxableIncome = 0;
             let nonTaxableIncome = 0;
-            const activeIncomes = isRetired ? income.filter(i => i.remainsInRetirement) : income;
+            let persistentIncomeTotal = 0;
+
+            const activeIncomes = isRetired ? income.filter(inc => inc.remainsInRetirement) : income;
             activeIncomes.forEach(inc => {
                 let amt = math.fromCurrency(inc.amount);
                 if (inc.isMonthly) amt *= 12;
                 amt -= (math.fromCurrency(inc.writeOffs) * (inc.writeOffsMonthly ? 12 : 1));
                 amt *= Math.pow(1 + (inc.increase / 100 || 0), i);
                 amt = Math.max(0, amt); 
+                
+                if (isRetired) persistentIncomeTotal += amt;
+
                 if (inc.nonTaxable || (inc.taxFreeUntil && yearResult.year <= inc.taxFreeUntil)) nonTaxableIncome += amt;
                 else taxableIncome += amt;
             });
@@ -290,6 +295,7 @@ export const burndown = {
             const snapBenefit = engine.calculateSnapBenefit(taxableIncome, benefits.hhSize || 1, (benefits.shelterCosts || 0) * inflationFactor, benefits.hasSUA, benefits.isDisabled, inflationFactor);
             const snapYearly = snapBenefit * 12;
             yearResult.snapBenefit = snapYearly;
+            yearResult.persistentIncome = persistentIncomeTotal;
 
             let netBudgetNeeded = Math.max(0, currentYearBudget - snapYearly);
             const tax = engine.calculateTax(taxableIncome, filingStatus);
@@ -309,6 +315,7 @@ export const burndown = {
                 netBudgetNeeded = Math.max(0, netBudgetNeeded - hsaMedicalDraw);
             }
 
+            // Shortfall after taking all forms of recurring income into account
             const shortfall = Math.max(0, netBudgetNeeded - (taxableIncome + nonTaxableIncome - tax));
             let remainingNeed = shortfall;
 
@@ -362,7 +369,7 @@ export const burndown = {
         const headerCells = keys.map(k => {
             const meta = burndown.assetMeta[k];
             if (!meta) return '';
-            return `<th class="p-3 text-right" style="color: ${meta.color}">${meta.label}</th>`;
+            return `<th class="p-3 text-right min-w-[85px] max-w-[100px]" style="color: ${meta.color}">${meta.short}</th>`;
         }).join('');
         
         const rows = results.map((r, i) => {
@@ -375,38 +382,53 @@ export const burndown = {
                 const activeColorStyle = amt > 0 ? `style="color: ${meta.color}"` : '';
                 const activeClass = amt > 0 ? 'font-black' : 'text-slate-600';
 
-                return `<td class="p-2 text-right border-l border-slate-800/50">
+                return `<td class="p-2 text-right border-l border-slate-800/50 min-w-[85px] max-w-[100px]">
                     <div class="${activeClass}" ${activeColorStyle}>${formatter.formatCurrency(amt, 0)}</div>
-                    <div class="text-[8px] ${k === 'heloc' && balance > 0 ? 'text-red-400' : 'opacity-40'}">${formatter.formatCurrency(balance, 0)}</div>
+                    <div class="text-[9px] ${k === 'heloc' && balance > 0 ? 'text-red-400' : 'opacity-40'}">${formatter.formatCurrency(balance, 0)}</div>
                 </td>`;
             }).join('');
             
             let badge = '';
-            if (r.age >= 65) {
-                if (r.isMedicaid) {
-                    badge = `<span class="px-2 py-0.5 rounded bg-emerald-900/40 text-emerald-400 text-[9px] font-black" title="Dual Eligible: Medicare + Medicaid">DUAL (MC/MA)</span>`;
-                } else {
-                    badge = `<span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 text-[9px] font-bold">MEDICARE</span>`;
-                }
+            const benefitCeiling = window.currentData.assumptions.benefitCeiling;
+            
+            if (benefitCeiling == 999) {
+                badge = r.age >= 65 ? `<span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 text-[10px] font-bold">MEDICARE</span>` : `<span class="text-[10px] text-slate-700 font-bold">PRIVATE</span>`;
             } else {
-                badge = r.isMedicaid ? `<span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 text-[9px] font-bold">MEDICAID</span>` : (r.isSilver ? `<span class="px-2 py-0.5 rounded bg-purple-900/40 text-purple-400 text-[9px] font-bold">SILVER</span>` : `<span class="text-[9px] text-slate-700">PRIVATE</span>`);
+                if (r.age >= 65) {
+                    if (r.isMedicaid) {
+                        badge = `<span class="px-2 py-0.5 rounded bg-emerald-900/40 text-emerald-400 text-[10px] font-black" title="Dual Eligible: Medicare + Medicaid">DUAL (MC/MA)</span>`;
+                    } else {
+                        badge = `<span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 text-[10px] font-bold">MEDICARE</span>`;
+                    }
+                } else {
+                    badge = r.isMedicaid ? `<span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 text-[10px] font-bold">MEDICAID</span>` : (r.isSilver ? `<span class="px-2 py-0.5 rounded bg-purple-900/40 text-purple-400 text-[10px] font-bold">SILVER</span>` : `<span class="text-[10px] text-slate-700">PRIVATE</span>`);
+                }
             }
             
-            const snapDisplay = r.snapBenefit > 0 ? `<div class="text-[8px] text-emerald-500 font-bold tracking-tight">+${formatter.formatCurrency(r.snapBenefit / inflationFactor, 0)} SNAP</div>` : '';
+            const snapDisplay = r.snapBenefit > 0 ? `<div class="text-[9px] text-emerald-500 font-bold tracking-tight">+${formatter.formatCurrency(r.snapBenefit / inflationFactor, 0)} SNAP</div>` : '';
             
-            return `<tr class="border-b border-slate-800/50 hover:bg-slate-800/20 text-[10px]">
+            return `<tr class="border-b border-slate-800/50 hover:bg-slate-800/20 text-[11px] leading-tight">
                 <td class="p-2 text-center font-bold border-r border-slate-700">${r.age}</td>
-                <td class="p-2 text-right text-slate-500">${formatter.formatCurrency(r.budget / inflationFactor, 0)}</td>
+                <td class="p-2 text-right text-slate-500 font-medium">${formatter.formatCurrency(r.budget / inflationFactor, 0)}</td>
                 <td class="p-2 text-right font-black text-emerald-400">${formatter.formatCurrency(r.magi / inflationFactor, 0)}</td>
-                <td class="p-2 text-center space-y-1 w-20">${badge}${snapDisplay}</td>
+                <td class="p-2 text-right text-blue-300 font-bold">${r.persistentIncome > 0 ? formatter.formatCurrency(r.persistentIncome / inflationFactor, 0) : '—'}</td>
+                <td class="p-2 text-center space-y-1 w-24">${badge}${snapDisplay}</td>
                 ${draws}
-                <td class="p-2 text-right font-black border-l border-slate-700 text-teal-400">${formatter.formatCurrency(r.netWorth / inflationFactor, 0)}</td>
+                <td class="p-2 text-right font-black border-l border-slate-700 text-teal-400 min-w-[90px]">${formatter.formatCurrency(r.netWorth / inflationFactor, 0)}</td>
             </tr>`;
         }).join('');
         
-        return `<table class="w-full text-left border-collapse">
-            <thead class="sticky top-0 bg-slate-800 text-slate-500 uppercase text-[9px] z-20">
-                <tr><th class="p-3 border-r border-slate-700">Age</th><th class="p-3 text-right">Budget</th><th class="p-3 text-right">MAGI</th><th class="p-3 text-center">Plan</th>${headerCells}<th class="p-3 text-right border-l border-slate-700">Net Worth</th></tr>
+        return `<table class="w-full text-left border-collapse table-auto">
+            <thead class="sticky top-0 bg-slate-800 text-slate-500 uppercase text-[10px] z-20">
+                <tr>
+                    <th class="p-3 border-r border-slate-700 w-12">Age</th>
+                    <th class="p-3 text-right">Budget</th>
+                    <th class="p-3 text-right">MAGI</th>
+                    <th class="p-3 text-right">Inc</th>
+                    <th class="p-3 text-center">Plan</th>
+                    ${headerCells}
+                    <th class="p-3 text-right border-l border-slate-700">Net Worth</th>
+                </tr>
             </thead>
             <tbody class="bg-slate-900/30">${rows}</tbody>
         </table>`;

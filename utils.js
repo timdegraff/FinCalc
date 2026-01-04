@@ -40,9 +40,18 @@ export const math = {
 
 export const assumptions = {
     defaults: { 
-        currentAge: 40, retirementAge: 65, ssStartAge: 67, ssMonthly: 2500, 
-        stockGrowth: 7, cryptoGrowth: 15, metalsGrowth: 4, realEstateGrowth: 3, inflation: 3, 
-        filingStatus: 'Single', benefitCeiling: 1.38, helocRate: 8.5
+        currentAge: 40, 
+        retirementAge: 65, 
+        ssStartAge: 67, 
+        ssMonthly: 3000, 
+        stockGrowth: 8, 
+        cryptoGrowth: 15, 
+        metalsGrowth: 6, 
+        realEstateGrowth: 3, 
+        inflation: 3, 
+        filingStatus: 'Married Filing Jointly', 
+        benefitCeiling: 1.38, 
+        helocRate: 7
     }
 };
 
@@ -120,7 +129,7 @@ export const engine = {
             const personal401k = base * (parseFloat(x.contribution) / 100 || 0);
             const match401k = base * (parseFloat(x.match) / 100 || 0);
             total401kContribution += (personal401k + match401k);
-            return s + Math.max(0, base + bonus - writes); // Clamp base item to 0
+            return s + Math.max(0, base + bonus - writes);
         }, 0);
 
         const totalAnnualSavings = (budget.savings?.reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0) + total401kContribution;

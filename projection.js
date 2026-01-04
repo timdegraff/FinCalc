@@ -22,7 +22,7 @@ export const projection = {
     run: (data) => {
         const { assumptions, investments = [], realEstate = [], otherAssets = [], budget = {} } = data;
         const currentYear = new Date().getFullYear();
-        const endAge = parseFloat(document.getElementById('input-projection-end')?.value) || 100;
+        const endAge = parseFloat(document.getElementById('input-projection-end')?.value) || 75;
         const duration = endAge - assumptions.currentAge;
 
         const realBtn = document.getElementById('toggle-projection-real');

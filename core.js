@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from '@google/genai';
 import { signInWithGoogle, logoutUser } from './auth.js';
 import { templates } from './templates.js';
@@ -177,10 +178,8 @@ function attachCoPilotListeners() {
             modal.classList.remove('hidden');
             container.innerHTML = `<div class="flex flex-col items-center justify-center py-20 gap-4"><div class="animate-spin text-teal-400 text-4xl"><i class="fas fa-circle-notch"></i></div><p class="font-bold text-slate-500">Reviewing strategy...</p></div>`;
             try {
-                // Safer access to process.env in browser environments that may lack it globally
                 const env = (typeof process !== 'undefined') ? process.env : {};
                 const apiKey = env.API_KEY || '';
-                
                 const ai = new GoogleGenAI({ apiKey });
                 const prompt = `Financial data summary: ${JSON.stringify(window.currentData)}. Give 3 short optimization tips for 2026 Michigan benefits/taxes.`;
                 const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
@@ -388,7 +387,11 @@ window.createAssumptionControls = (data) => {
         </div>
         <div class="space-y-6 lg:border-r lg:border-slate-700/30 lg:pr-8">
             <label class="block"><span class="text-[10px] text-slate-500 font-black uppercase tracking-widest">Filing Status</span><select data-id="filingStatus" class="input-base w-full mt-1"><option>Single</option><option>Married Filing Jointly</option></select></label>
-            <label class="block"><span class="text-[10px] text-slate-500 font-black uppercase tracking-widest">Benefit Target Threshold</span><select data-id="benefitCeiling" class="input-base w-full mt-1"><option value="1.38">138% FPL (Medicaid)</option><option value="2.5">250% FPL (Silver)</option><option value="999">No Ceiling</option></select></label>
+            <label class="block"><span class="text-[10px] text-slate-500 font-black uppercase tracking-widest">Benefit Target Threshold</span><select data-id="benefitCeiling" class="input-base w-full mt-1">
+                <option value="1.38">138% FPL (Medicaid)</option>
+                <option value="2.5">250% FPL (Silver)</option>
+                <option value="999">Wealth Preservation / No Subsidies</option>
+            </select></label>
             <div id="assumptions-life"></div>
         </div>
         <div class="space-y-6 lg:border-r lg:border-slate-700/30 lg:px-8">

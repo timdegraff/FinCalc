@@ -50,9 +50,10 @@ export function loadUserDataIntoUI(data) {
     // Load Projection End Age
     const projEndInput = document.getElementById('input-projection-end');
     const projEndLabel = document.getElementById('label-projection-end');
-    if (projEndInput && data.projectionEndAge) {
-        projEndInput.value = data.projectionEndAge;
-        if (projEndLabel) projEndLabel.textContent = data.projectionEndAge;
+    if (projEndInput) {
+        const val = data.projectionEndAge || 75;
+        projEndInput.value = val;
+        if (projEndLabel) projEndLabel.textContent = val;
     }
 
     window.createAssumptionControls(data);
@@ -85,7 +86,7 @@ function scrapeDataFromUI() {
         benefits: benefits.scrape(), 
         burndown: burndown.scrape(),
         projectionSettings: projection.scrape(),
-        projectionEndAge: parseFloat(document.getElementById('input-projection-end')?.value) || 100
+        projectionEndAge: parseFloat(document.getElementById('input-projection-end')?.value) || 75
     };
 
     const filingStatusEl = document.querySelector('[data-id="filingStatus"]');
@@ -130,7 +131,7 @@ function scrapeRow(row) {
 }
 
 function getInitialData() {
-    return { assumptions: { ...assumptions.defaults }, investments: [], realEstate: [], otherAssets: [], helocs: [], debts: [], income: [], budget: { savings: [], expenses: [] }, benefits: {}, burndown: {}, projectionSettings: {}, projectionEndAge: 100 };
+    return { assumptions: { ...assumptions.defaults }, investments: [], realEstate: [], otherAssets: [], helocs: [], debts: [], income: [], budget: { savings: [], expenses: [] }, benefits: {}, burndown: {}, projectionSettings: {}, projectionEndAge: 75 };
 }
 
 export function updateSummaries(data) {
