@@ -1,19 +1,8 @@
 
-import { math, engine } from './utils.js';
+import { math, engine, assetColors } from './utils.js';
 
 let chartInstance = null;
-let isLogScale = false;
-
-const assetColors = {
-    'Cash': '#f472b6',
-    'Brokerage': '#34d399',
-    'Pre-Tax': '#60a5fa',
-    'Post-Tax': '#fbbf24',
-    'Crypto': '#f59e0b',
-    'Metals': '#94a3b8',
-    'Real Estate': '#8b5cf6',
-    'Other': '#64748b'
-};
+let isRealDollars = false;
 
 export const projection = {
     run: (data) => {
@@ -22,17 +11,18 @@ export const projection = {
         const endAge = parseFloat(document.getElementById('input-projection-end')?.value) || 100;
         const duration = endAge - assumptions.currentAge;
 
-        const logBtn = document.getElementById('toggle-log-scale');
-        if (logBtn && !logBtn.dataset.init) {
-            logBtn.dataset.init = "true";
-            logBtn.onclick = () => {
-                isLogScale = !isLogScale;
-                logBtn.classList.toggle('text-blue-400', isLogScale);
-                logBtn.classList.toggle('border-blue-500', isLogScale);
+        const realBtn = document.getElementById('toggle-projection-real');
+        if (realBtn && !realBtn.dataset.init) {
+            realBtn.dataset.init = "true";
+            realBtn.onclick = () => {
+                isRealDollars = !isRealDollars;
+                realBtn.classList.toggle('text-blue-400', isRealDollars);
+                realBtn.classList.toggle('border-blue-500', isRealDollars);
                 projection.run(window.currentData);
             };
         }
         
+        // Buckets for Chart Display (Spendable Assets) - 529 removed per request
         let buckets = {
             'Cash': investments.filter(i => i.type === 'Cash').reduce((s, i) => s + math.fromCurrency(i.value), 0),
             'Brokerage': investments.filter(i => i.type === 'Taxable').reduce((s, i) => s + math.fromCurrency(i.value), 0),
@@ -40,9 +30,13 @@ export const projection = {
             'Post-Tax': investments.filter(i => i.type === 'Post-Tax (Roth)').reduce((s, i) => s + math.fromCurrency(i.value), 0),
             'Crypto': investments.filter(i => i.type === 'Crypto').reduce((s, i) => s + math.fromCurrency(i.value), 0),
             'Metals': investments.filter(i => i.type === 'Metals').reduce((s, i) => s + math.fromCurrency(i.value), 0),
-            'Real Estate': realEstate.reduce((s, r) => s + math.fromCurrency(r.value), 0),
-            'Other': otherAssets.reduce((s, o) => s + math.fromCurrency(o.value), 0)
+            'HSA': investments.filter(i => i.type === 'HSA').reduce((s, i) => s + math.fromCurrency(i.value), 0),
+            'Real Estate': realEstate.reduce((s, r) => s + (math.fromCurrency(r.value) - math.fromCurrency(r.mortgage)), 0),
+            'Other': otherAssets.reduce((s, o) => s + (math.fromCurrency(o.value) - math.fromCurrency(o.loan)), 0)
         };
+
+        // 529 handled as a "hidden" background asset for Net Worth only
+        let hidden529 = investments.filter(i => i.type === '529 Plan').reduce((s, i) => s + math.fromCurrency(i.value), 0);
 
         const stockGrowth = (assumptions.stockGrowth || 7) / 100;
         const cryptoGrowth = (assumptions.cryptoGrowth || 15) / 100;
@@ -64,22 +58,36 @@ export const projection = {
             const age = assumptions.currentAge + i;
             labels.push(`${age} (${currentYear + i})`);
             
+            const inflationFactor = Math.pow(1 + inflationRate, i);
+            const fpl = (assumptions.filingStatus === 'Single' ? 16060 : 21710) * inflationFactor;
+            
+            // Note: Simple Medicaid check for HSA logic projection
+            const currentYearBudget = (budget.expenses?.reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 50000) * inflationFactor;
+            
             Object.keys(buckets).forEach((key, idx) => {
-                datasets[idx].data.push(buckets[key]);
+                let nominalValue = buckets[key];
+                let displayValue = isRealDollars ? (nominalValue / inflationFactor) : nominalValue;
+                datasets[idx].data.push(displayValue);
                 
-                // Growth mapping
-                if (key === 'Brokerage' || key === 'Pre-Tax' || key === 'Post-Tax') buckets[key] *= (1 + stockGrowth);
+                // Growth logic
+                if (key === 'Brokerage' || key === 'Pre-Tax' || key === 'Post-Tax' || key === 'HSA') buckets[key] *= (1 + stockGrowth);
                 else if (key === 'Crypto') buckets[key] *= (1 + cryptoGrowth);
                 else if (key === 'Metals') buckets[key] *= (1 + metalsGrowth);
                 else if (key === 'Real Estate') buckets[key] *= (1 + realEstateGrowth);
                 else if (key === 'Cash') buckets[key] *= (1 + (inflationRate * 0.5));
-                else if (key === 'Other') { /* 0% Growth */ }
             });
+
+            // Growth for hidden 529
+            hidden529 *= (1 + stockGrowth);
 
             if (age < assumptions.retirementAge) {
                 const summaries = engine.calculateSummaries(data);
                 buckets['Pre-Tax'] += summaries.total401kContribution;
                 buckets['Brokerage'] += (budget.savings?.reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0);
+            } else {
+                // Retirement draws (simplified for projection visualization)
+                // In a real burndown, we'd subtract the budget here. 
+                // For the "Projection" chart, we usually just show growth or a flat line.
             }
         }
         
@@ -108,8 +116,7 @@ function renderChart(labels, datasets) {
             },
             scales: {
                 y: { 
-                    stacked: !isLogScale, 
-                    type: isLogScale ? 'logarithmic' : 'linear',
+                    stacked: true, 
                     ticks: { 
                         color: '#64748b', 
                         font: { size: 10 }, 

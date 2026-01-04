@@ -2,6 +2,8 @@
 import { formatter } from './formatter.js';
 import { math, engine, assetColors } from './utils.js';
 
+let isRealDollars = false;
+
 export const burndown = {
     init: () => {
         const container = document.getElementById('tab-burndown');
@@ -17,6 +19,16 @@ export const burndown = {
                             <div class="h-8 w-[1px] bg-slate-700"></div>
                             <button id="btn-optimize-draw" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-black shadow-lg shadow-purple-900/20 transition-all flex items-center gap-2">
                                 <i class="fas fa-magic"></i> OPTIMIZE FOR BENEFITS
+                            </button>
+                            
+                            <!-- New Quick Access Slider -->
+                            <div class="flex items-center gap-4 bg-slate-900/50 p-2 rounded-xl border border-slate-700">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase whitespace-nowrap">Retire Age: <span id="label-top-retire-age" class="text-purple-400">65</span></span>
+                                <input type="range" id="input-top-retire-age" min="18" max="100" value="65" class="w-24 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500">
+                            </div>
+
+                            <button id="toggle-burndown-real" class="px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-xl text-[10px] font-bold text-slate-400 hover:text-white transition-all uppercase tracking-widest flex items-center gap-2">
+                                <i class="fas fa-sync"></i> 2026 Dollars (Real)
                             </button>
                         </div>
                         
@@ -81,10 +93,34 @@ export const burndown = {
                 burndown.run();
             };
         }
+        const realBtn = document.getElementById('toggle-burndown-real');
+        if (realBtn) {
+            realBtn.onclick = () => {
+                isRealDollars = !isRealDollars;
+                realBtn.classList.toggle('text-blue-400', isRealDollars);
+                realBtn.classList.toggle('border-blue-500', isRealDollars);
+                burndown.run();
+            };
+        }
+        const topRetireInput = document.getElementById('input-top-retire-age');
+        if (topRetireInput) {
+            topRetireInput.oninput = (e) => {
+                const newVal = parseFloat(e.target.value);
+                if (newVal < window.currentData.assumptions.currentAge) {
+                    e.target.value = window.currentData.assumptions.currentAge;
+                    return;
+                }
+                window.currentData.assumptions.retirementAge = newVal;
+                const label = document.getElementById('label-top-retire-age');
+                if (label) label.textContent = newVal;
+                window.debouncedAutoSave();
+            };
+        }
     },
 
     load: (data) => {
-        burndown.priorityOrder = data?.priority || ['cash', 'taxable', 'roth-basis', 'heloc', '401k', 'roth-earnings', 'crypto', 'metals', 'hsa', '529'];
+        // Default priority excludes 529 per user request
+        burndown.priorityOrder = data?.priority || ['cash', 'taxable', 'roth-basis', 'heloc', '401k', 'roth-earnings', 'crypto', 'metals', 'hsa'];
     },
 
     scrape: () => {
@@ -106,18 +142,24 @@ export const burndown = {
         'roth-earnings': { label: 'Roth Gains', color: assetColors['Roth Gains'] },
         'crypto': { label: 'Bitcoin', color: assetColors['Crypto'] },
         'metals': { label: 'Metals', color: assetColors['Metals'] },
-        'hsa': { label: 'HSA', color: assetColors['HSA'] },
-        '529': { label: '529 Plan', color: assetColors['529 Plan'] }
+        'hsa': { label: 'HSA', color: assetColors['HSA'] }
     },
 
     optimize: () => {
-        burndown.priorityOrder = ['cash', 'taxable', 'roth-basis', 'heloc', '401k', 'roth-earnings', 'crypto', 'metals', 'hsa', '529'];
+        burndown.priorityOrder = ['cash', 'taxable', 'roth-basis', 'heloc', '401k', 'roth-earnings', 'crypto', 'metals', 'hsa'];
     },
 
     run: () => {
         const data = window.currentData;
         if (!data || !data.assumptions) return;
         
+        const topRetireInput = document.getElementById('input-top-retire-age');
+        const topRetireLabel = document.getElementById('label-top-retire-age');
+        if (topRetireInput) {
+            topRetireInput.value = data.assumptions.retirementAge;
+            if (topRetireLabel) topRetireLabel.textContent = data.assumptions.retirementAge;
+        }
+
         const sliderContainer = document.getElementById('burndown-live-sliders');
         if (sliderContainer && sliderContainer.innerHTML.trim() === '') {
             const sliderConfigs = [
@@ -131,9 +173,7 @@ export const burndown = {
 
             sliderConfigs.forEach(({ key, label, min, max, step }) => {
                 let val = data.assumptions[key] || 0;
-                if (key === 'retirementAge') {
-                    if (val < data.assumptions.currentAge) val = data.assumptions.currentAge;
-                }
+                if (key === 'retirementAge' && val < data.assumptions.currentAge) val = data.assumptions.currentAge;
 
                 const div = document.createElement('div');
                 div.className = 'space-y-2';
@@ -143,26 +183,29 @@ export const burndown = {
                 `;
                 div.querySelector('input').oninput = (e) => {
                     let newVal = parseFloat(e.target.value);
-                    if (key === 'retirementAge') {
-                        if (newVal < data.assumptions.currentAge) {
-                            newVal = data.assumptions.currentAge;
-                            e.target.value = newVal;
-                        }
-                    } else if (key === 'currentAge') {
-                        if (newVal > data.assumptions.retirementAge) {
-                            data.assumptions.retirementAge = newVal;
-                            const rSlider = sliderContainer.querySelector('[data-live-id="retirementAge"]');
-                            if (rSlider) {
-                                rSlider.value = newVal;
-                                rSlider.previousElementSibling.querySelector('span').textContent = newVal;
-                            }
-                        }
+                    if (key === 'retirementAge' && newVal < data.assumptions.currentAge) {
+                        newVal = data.assumptions.currentAge;
+                        e.target.value = newVal;
+                    } else if (key === 'currentAge' && newVal > data.assumptions.retirementAge) {
+                        data.assumptions.retirementAge = newVal;
+                        const rSlider = sliderContainer.querySelector('[data-live-id="retirementAge"]');
+                        if (rSlider) { rSlider.value = newVal; rSlider.previousElementSibling.querySelector('span').textContent = newVal; }
                     }
                     div.querySelector('span').textContent = newVal;
                     data.assumptions[key] = newVal;
                     window.debouncedAutoSave();
                 };
                 sliderContainer.appendChild(div);
+            });
+        } else if (sliderContainer) {
+            sliderContainer.querySelectorAll('input[data-live-id]').forEach(input => {
+                const key = input.dataset.liveId;
+                const val = data.assumptions[key];
+                if (val !== undefined) {
+                    input.value = val;
+                    const label = input.previousElementSibling?.querySelector('span');
+                    if (label) label.textContent = val;
+                }
             });
         }
 
@@ -171,21 +214,10 @@ export const burndown = {
             priorityList.innerHTML = burndown.priorityOrder.map(k => {
                 const meta = burndown.assetMeta[k];
                 if (!meta) return ''; 
-                return `
-                    <div data-pk="${k}" class="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-[10px] font-bold cursor-move flex items-center gap-2 uppercase tracking-widest" style="color: ${meta.color}">
-                        <i class="fas fa-grip-vertical opacity-30"></i> ${meta.label}
-                    </div>
-                `;
+                return `<div data-pk="${k}" class="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-[10px] font-bold cursor-move flex items-center gap-2 uppercase tracking-widest" style="color: ${meta.color}"><i class="fas fa-grip-vertical opacity-30"></i> ${meta.label}</div>`;
             }).join('');
-
             if (!burndown.sortable) {
-                burndown.sortable = new Sortable(priorityList, {
-                    animation: 150,
-                    onEnd: () => {
-                        burndown.priorityOrder = Array.from(priorityList.children).map(el => el.dataset.pk);
-                        burndown.run();
-                    }
-                });
+                burndown.sortable = new Sortable(priorityList, { animation: 150, onEnd: () => { burndown.priorityOrder = Array.from(priorityList.children).map(el => el.dataset.pk); burndown.run(); } });
             }
         }
 
@@ -216,11 +248,13 @@ export const burndown = {
             'crypto': investments.filter(i => i.type === 'Crypto').reduce((s, i) => s + math.fromCurrency(i.value), 0),
             'metals': investments.filter(i => i.type === 'Metals').reduce((s, i) => s + math.fromCurrency(i.value), 0),
             'hsa': investments.filter(i => i.type === 'HSA').reduce((s, i) => s + math.fromCurrency(i.value), 0),
-            '529': investments.filter(i => i.type === '529 Plan').reduce((s, i) => s + math.fromCurrency(i.value), 0),
             'heloc': 0 
         };
 
-        const fixedOtherAssets = otherAssets.reduce((s, o) => s + math.fromCurrency(o.value), 0) - otherAssets.reduce((s, o) => s + math.fromCurrency(o.loan), 0);
+        // 529 Plan bucket - kept only for Net Worth calculation
+        let hidden529 = investments.filter(i => i.type === '529 Plan').reduce((s, i) => s + math.fromCurrency(i.value), 0);
+
+        const fixedOtherAssets = otherAssets.reduce((s, o) => s + (math.fromCurrency(o.value) - math.fromCurrency(o.loan)), 0);
         const helocLimit = helocs.reduce((s, h) => s + math.fromCurrency(h.limit), 0);
         const fpl2026Base = filingStatus === 'Single' ? 16060 : 21710;
         let baseAnnualBudget = state.useSync ? (budget.expenses?.reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0) : state.manualBudget;
@@ -254,17 +288,27 @@ export const burndown = {
             const ssYearly = (age >= assumptions.ssStartAge) ? ssBenefitBase * inflationFactor : 0;
             taxableIncome += ssYearly; 
 
-            // Calculate SNAP for this year using inflated thresholds
-            const snapHHSize = benefits.hhSize || 1;
-            const snapShelter = (benefits.shelterCosts || 0) * inflationFactor;
-            const snapBenefitMonthly = engine.calculateSnapBenefit(taxableIncome, snapHHSize, snapShelter, benefits.hasSUA, benefits.isDisabled, inflationFactor);
-            const snapYearly = snapBenefitMonthly * 12;
+            // Benefits Logic
+            const snapBenefit = engine.calculateSnapBenefit(taxableIncome, benefits.hhSize || 1, (benefits.shelterCosts || 0) * inflationFactor, benefits.hasSUA, benefits.isDisabled, inflationFactor);
+            const snapYearly = snapBenefit * 12;
             yearResult.snapBenefit = snapYearly;
 
-            // SNAP reduces budget need dollar-for-dollar
             let netBudgetNeeded = Math.max(0, currentYearBudget - snapYearly);
-
             const tax = engine.calculateTax(taxableIncome, filingStatus);
+            
+            // HSA Spending Logic: 10% of budget if not on Medicaid
+            yearResult.magi = Math.max(0, taxableIncome);
+            yearResult.isMedicaid = yearResult.magi < fpl * 1.38;
+            yearResult.isSilver = yearResult.magi < fpl * 2.5 && !yearResult.isMedicaid;
+            
+            if (!yearResult.isMedicaid && bal['hsa'] > 0) {
+                const medicalSpend = currentYearBudget * 0.10;
+                const hsaMedicalDraw = Math.min(bal['hsa'], medicalSpend);
+                bal['hsa'] -= hsaMedicalDraw;
+                yearResult.draws['hsa'] = (yearResult.draws['hsa'] || 0) + hsaMedicalDraw;
+                netBudgetNeeded = Math.max(0, netBudgetNeeded - hsaMedicalDraw);
+            }
+
             const shortfall = Math.max(0, netBudgetNeeded - (taxableIncome + nonTaxableIncome - tax));
             let remainingNeed = shortfall;
 
@@ -275,7 +319,7 @@ export const burndown = {
                 const canDraw = Math.min(limit, remainingNeed);
                 if (isHeloc) bal['heloc'] += canDraw;
                 else bal[pk] -= canDraw;
-                yearResult.draws[pk] = canDraw;
+                yearResult.draws[pk] = (yearResult.draws[pk] || 0) + canDraw;
                 remainingNeed -= canDraw;
                 if (pk === '401k') taxableIncome += canDraw;
                 if (pk === 'taxable') {
@@ -284,16 +328,15 @@ export const burndown = {
                 }
             });
 
+            // Re-calc MAGI after potential taxable draws
             yearResult.magi = Math.max(0, taxableIncome);
-            yearResult.isMedicaid = yearResult.magi < fpl * 1.38;
-            yearResult.isSilver = yearResult.magi < fpl * 2.5 && !yearResult.isMedicaid;
             yearResult.balances = { ...bal };
             yearResult.budget = currentYearBudget;
             
-            const currentRE = realEstate.reduce((s, r) => s + math.fromCurrency(r.value), 0) * Math.pow(1 + (assumptions.realEstateGrowth / 100), i);
-            const currentMortgages = realEstate.reduce((s, r) => s + math.fromCurrency(r.mortgage), 0); 
+            const currentRE = realEstate.reduce((s, r) => s + (math.fromCurrency(r.value) * Math.pow(1 + (assumptions.realEstateGrowth / 100), i) - math.fromCurrency(r.mortgage)), 0);
             
-            yearResult.netWorth = (bal['cash'] + bal['taxable'] + bal['roth-basis'] + bal['roth-earnings'] + bal['401k'] + bal['crypto'] + bal['metals'] + bal['hsa'] + bal['529'] + fixedOtherAssets + currentRE - currentMortgages) - bal['heloc'];
+            // Net Worth includes hidden 529
+            yearResult.netWorth = (bal['cash'] + bal['taxable'] + bal['roth-basis'] + bal['roth-earnings'] + bal['401k'] + bal['crypto'] + bal['metals'] + bal['hsa'] + hidden529 + fixedOtherAssets + currentRE) - bal['heloc'];
             results.push(yearResult);
 
             const stockG = (1 + (assumptions.stockGrowth / 100));
@@ -306,38 +349,45 @@ export const burndown = {
             bal['crypto'] *= cryptoG;
             bal['metals'] *= metalsG;
             bal['hsa'] *= stockG;
-            bal['529'] *= stockG;
+            hidden529 *= stockG;
         }
         return results;
     },
 
     renderTable: (results) => {
         const keys = burndown.priorityOrder;
+        const inflationRate = (window.currentData.assumptions.inflation || 3) / 100;
+        
         const headerCells = keys.map(k => {
             const meta = burndown.assetMeta[k];
             if (!meta) return '';
             return `<th class="p-3 text-right" style="color: ${meta.color}">${meta.label}</th>`;
         }).join('');
-        const rows = results.map(r => {
+        
+        const rows = results.map((r, i) => {
+            const inflationFactor = isRealDollars ? Math.pow(1 + inflationRate, i) : 1;
             const draws = keys.map(k => {
-                const amt = r.draws[k] || 0;
-                const balance = r.balances[k];
+                const amt = (r.draws[k] || 0) / inflationFactor;
+                const balance = r.balances[k] / inflationFactor;
                 return `<td class="p-2 text-right border-l border-slate-800/50">
                     <div class="${amt > 0 ? (k === 'heloc' ? 'text-red-400' : 'text-white') + ' font-bold' : 'text-slate-600'}">${formatter.formatCurrency(amt, 0)}</div>
                     <div class="text-[8px] ${k === 'heloc' && balance > 0 ? 'text-red-400' : 'opacity-40'}">${formatter.formatCurrency(balance, 0)}</div>
                 </td>`;
             }).join('');
+            
             let badge = r.isMedicaid ? `<span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 text-[9px] font-bold">MEDICAID</span>` : (r.isSilver ? `<span class="px-2 py-0.5 rounded bg-purple-900/40 text-purple-400 text-[9px] font-bold">SILVER</span>` : `<span class="text-[9px] text-slate-700">PRIVATE</span>`);
-            const snapDisplay = r.snapBenefit > 0 ? `<div class="text-[8px] text-emerald-500 font-bold tracking-tight">+${formatter.formatCurrency(r.snapBenefit, 0)} SNAP</div>` : '';
+            const snapDisplay = r.snapBenefit > 0 ? `<div class="text-[8px] text-emerald-500 font-bold tracking-tight">+${formatter.formatCurrency(r.snapBenefit / inflationFactor, 0)} SNAP</div>` : '';
+            
             return `<tr class="border-b border-slate-800/50 hover:bg-slate-800/20 text-[10px]">
                 <td class="p-2 text-center font-bold border-r border-slate-700">${r.age}</td>
-                <td class="p-2 text-right text-slate-500">${formatter.formatCurrency(r.budget, 0)}</td>
-                <td class="p-2 text-right font-black text-emerald-400">${formatter.formatCurrency(r.magi, 0)}</td>
+                <td class="p-2 text-right text-slate-500">${formatter.formatCurrency(r.budget / inflationFactor, 0)}</td>
+                <td class="p-2 text-right font-black text-emerald-400">${formatter.formatCurrency(r.magi / inflationFactor, 0)}</td>
                 <td class="p-2 text-center space-y-1 w-20">${badge}${snapDisplay}</td>
                 ${draws}
-                <td class="p-2 text-right font-black border-l border-slate-700 text-teal-400">${formatter.formatCurrency(r.netWorth, 0)}</td>
+                <td class="p-2 text-right font-black border-l border-slate-700 text-teal-400">${formatter.formatCurrency(r.netWorth / inflationFactor, 0)}</td>
             </tr>`;
         }).join('');
+        
         return `<table class="w-full text-left border-collapse">
             <thead class="sticky top-0 bg-slate-800 text-slate-500 uppercase text-[9px] z-20">
                 <tr><th class="p-3 border-r border-slate-700">Age</th><th class="p-3 text-right">Budget</th><th class="p-3 text-right">MAGI</th><th class="p-3 text-center">Plan</th>${headerCells}<th class="p-3 text-right border-l border-slate-700">Net Worth</th></tr>
