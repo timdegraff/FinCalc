@@ -44,6 +44,29 @@ function attachDynamicRowListeners() {
             window.debouncedAutoSave();
         }
     });
+
+    // Handle conditional cost basis visibility for investments
+    document.body.addEventListener('change', (e) => {
+        if (e.target.dataset.id === 'type' && e.target.closest('#investment-rows')) {
+            updateCostBasisVisibility(e.target.closest('tr'));
+        }
+    });
+}
+
+function updateCostBasisVisibility(row) {
+    const typeSelect = row.querySelector('[data-id="type"]');
+    const costBasisInput = row.querySelector('[data-id="costBasis"]');
+    if (!typeSelect || !costBasisInput) return;
+
+    if (typeSelect.value === 'Post-Tax (Roth)') {
+        costBasisInput.style.visibility = 'visible';
+        costBasisInput.disabled = false;
+    } else {
+        costBasisInput.style.visibility = 'hidden';
+        costBasisInput.disabled = true;
+        // Optionally clear the value if not Roth, though we'll keep the data for now 
+        // to avoid accidental data loss if the user clicks back and forth.
+    }
 }
 
 export function showTab(tabId) {
@@ -76,6 +99,11 @@ window.addRow = (containerId, type, data = {}) => {
             else input.value = data[key];
         }
     });
+
+    // Specialized initialization for investment rows
+    if (type === 'investment') {
+        updateCostBasisVisibility(row);
+    }
 
     row.querySelectorAll('[data-type="currency"]').forEach(formatter.bindCurrencyEventListeners);
 };

@@ -11,10 +11,14 @@ export const templates = {
                 <option>Cash</option>
                 <option>Crypto</option>
                 <option>Metals</option>
+                <option>HSA</option>
+                <option>529 Plan</option>
             </select>
         </td>
         <td class="px-4 py-2"><input data-id="value" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400"></td>
-        <td class="px-4 py-2"><input data-id="costBasis" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-blue-400"></td>
+        <td class="px-4 py-2">
+            <input data-id="costBasis" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-blue-400">
+        </td>
         <td class="px-4 py-2 text-center"><button data-action="remove" class="text-slate-500 hover:text-red-400"><i class="fas fa-times"></i></button></td>
     `,
     realEstate: () => `
