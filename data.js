@@ -3,6 +3,7 @@ import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/fireb
 import { math, engine, assumptions } from './utils.js';
 import { benefits } from './benefits.js';
 import { burndown } from './burndown.js';
+import { projection } from './projection.js';
 
 let db;
 let user;
@@ -61,7 +62,7 @@ export async function autoSave(scrape = true) {
     updateSummaries(window.currentData);
 
     if (document.getElementById('tab-projection')?.classList.contains('hidden') === false) {
-        engine.runProjection(window.currentData);
+        projection.run(window.currentData);
     }
     if (document.getElementById('tab-burndown')?.classList.contains('hidden') === false) {
         burndown.run();
@@ -85,7 +86,7 @@ function scrapeDataFromUI() {
     document.querySelectorAll('#other-assets-rows tr').forEach(r => data.otherAssets.push(scrapeRow(r)));
     document.querySelectorAll('#heloc-rows tr').forEach(r => data.helocs.push(scrapeRow(r)));
     document.querySelectorAll('#debt-rows tr').forEach(r => data.debts.push(scrapeRow(r)));
-    document.querySelectorAll('#income-rows .income-card').forEach(c => data.income.push(scrapeRow(c)));
+    document.querySelectorAll('#income-rows tr').forEach(r => data.income.push(scrapeRow(r)));
     document.querySelectorAll('#budget-savings-rows tr').forEach(r => {
         if (r.querySelector('[data-id="name"]')?.value !== '401k / 403b') data.budget.savings.push(scrapeRow(r));
     });
