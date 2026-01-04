@@ -15,7 +15,10 @@ body {
 }
 
 .mono-numbers {
-    font-family: 'JetBrains Mono', monospace !important;
+    /* We keep the class name but change the behavior to use Inter's Tabular Numerals */
+    font-family: 'Inter', sans-serif !important;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
 }
 
 .label-std {

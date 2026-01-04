@@ -130,10 +130,10 @@ function renderChart(labels, datasets) {
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
             plugins: { 
-                legend: { display: true, position: 'bottom', labels: { usePointStyle: true, font: { weight: 'bold' } } },
+                legend: { display: true, position: 'bottom', labels: { usePointStyle: true, font: { family: "'Inter', sans-serif", weight: 'bold' } } },
                 tooltip: {
                     backgroundColor: '#0f172a',
-                    bodyFont: { family: "'JetBrains Mono', monospace", size: 10 },
+                    bodyFont: { family: "'Inter', sans-serif", size: 10 },
                     callbacks: { label: (c) => `${c.dataset.label}: ${math.toCurrency(c.parsed.y)}` }
                 }
             },
@@ -141,12 +141,12 @@ function renderChart(labels, datasets) {
                 y: { 
                     stacked: true, 
                     ticks: { 
-                        font: { family: "'JetBrains Mono', monospace" }, 
+                        font: { family: "'Inter', sans-serif" }, 
                         callback: (v) => math.toCurrency(v, true) 
                     }, 
                     grid: { color: 'rgba(51, 65, 85, 0.2)' } 
                 },
-                x: { ticks: { maxTicksLimit: 12 }, grid: { display: false } }
+                x: { ticks: { font: { family: "'Inter', sans-serif" }, maxTicksLimit: 12 }, grid: { display: false } }
             }
         }
     });
