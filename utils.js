@@ -171,7 +171,7 @@ export const engine = {
 
         let total401kContribution = 0;
         let totalGrossIncome = 0;
-        const grossIncome = inc.reduce((s, x) => {
+        inc.forEach(x => {
             let base = math.fromCurrency(x.amount);
             if (x.isMonthly) base *= 12;
             let writes = math.fromCurrency(x.incomeExpenses);
@@ -180,15 +180,18 @@ export const engine = {
             const personal401k = base * (parseFloat(x.contribution) / 100 || 0);
             total401kContribution += personal401k;
             totalGrossIncome += (base + bonus);
-            return s + Math.max(0, base + bonus - writes);
-        }, 0);
+        });
 
-        const totalAnnualSavings = (budget.savings?.reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0) + total401kContribution;
+        // FIX: Sum only non-locked savings to avoid double-counting the auto-calculated 401k row
+        const manualSavingsSum = budget.savings?.filter(x => !x.isLocked).reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0;
+        const totalAnnualSavings = manualSavingsSum + total401kContribution;
+        
         const totalAnnualBudget = budget.expenses?.reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0;
 
         return {
             netWorth: totalAssets - totalLiabilities,
-            totalAssets, totalLiabilities, grossIncome, totalGrossIncome,
+            totalAssets, totalLiabilities, totalGrossIncome,
+            grossIncome: totalGrossIncome, // Keeping field name for compatibility
             total401kContribution, totalAnnualSavings, totalAnnualBudget
         };
     }

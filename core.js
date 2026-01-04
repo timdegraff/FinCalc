@@ -8,6 +8,7 @@ import { formatter } from './formatter.js';
 
 let assetChart = null;
 let lastChartSum = 0;
+let investmentSortable = null;
 
 export function initializeUI() {
     attachGlobalListeners();
@@ -16,7 +17,22 @@ export function initializeUI() {
     attachSortingListeners();
     attachCoPilotListeners();
     attachPasteListeners();
+    initializeDragAndDrop();
     showTab('assets-debts');
+}
+
+function initializeDragAndDrop() {
+    const invRows = document.getElementById('investment-rows');
+    if (invRows && !investmentSortable) {
+        investmentSortable = new Sortable(invRows, {
+            animation: 150,
+            handle: '.drag-handle',
+            ghostClass: 'bg-slate-700/30',
+            onEnd: () => {
+                window.debouncedAutoSave();
+            }
+        });
+    }
 }
 
 function refreshEfficiencyBadges() {

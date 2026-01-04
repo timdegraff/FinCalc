@@ -169,29 +169,32 @@ export const templates = {
     "budget-savings": (data) => {
         const type = data.type || 'Taxable';
         return `
-            <td>
-                <select data-id="type" class="input-base w-full font-bold ${templates.helpers.getTypeClass(type)}">
-                    <option value="Taxable" ${type === 'Taxable' ? 'selected' : ''}>Taxable</option>
-                    <option value="Pre-Tax (401k/IRA)" ${type === 'Pre-Tax (401k/IRA)' ? 'selected' : ''}>Pre-Tax (401k/IRA)</option>
-                    <option value="Post-Tax (Roth)" ${type === 'Post-Tax (Roth)' ? 'selected' : ''}>Post-Tax (Roth)</option>
-                    <option value="Cash" ${type === 'Cash' ? 'selected' : ''}>Cash</option>
-                    <option value="Crypto" ${type === 'Crypto' ? 'selected' : ''}>Crypto</option>
-                    <option value="Metals" ${type === 'Metals' ? 'selected' : ''}>Metals</option>
-                    <option value="HSA" ${type === 'HSA' ? 'selected' : ''}>HSA</option>
-                    <option value="529 Plan" ${type === '529 Plan' ? 'selected' : ''}>529 Plan</option>
-                </select>
+            <td class="px-6 py-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-1.5 h-6 rounded-full ${templates.helpers.getTypeClass(type).replace('text-', 'bg-')}"></div>
+                    <select data-id="type" class="input-base bg-transparent border-none w-full font-black uppercase tracking-widest text-[11px] ${templates.helpers.getTypeClass(type)} cursor-pointer outline-none">
+                        <option value="Taxable" ${type === 'Taxable' ? 'selected' : ''}>Taxable</option>
+                        <option value="Pre-Tax (401k/IRA)" ${type === 'Pre-Tax (401k/IRA)' ? 'selected' : ''}>Pre-Tax (401k/IRA)</option>
+                        <option value="Post-Tax (Roth)" ${type === 'Post-Tax (Roth)' ? 'selected' : ''}>Post-Tax (Roth)</option>
+                        <option value="Cash" ${type === 'Cash' ? 'selected' : ''}>Cash</option>
+                        <option value="Crypto" ${type === 'Crypto' ? 'selected' : ''}>Crypto</option>
+                        <option value="Metals" ${type === 'Metals' ? 'selected' : ''}>Metals</option>
+                        <option value="HSA" ${type === 'HSA' ? 'selected' : ''}>HSA</option>
+                        <option value="529 Plan" ${type === '529 Plan' ? 'selected' : ''}>529 Plan</option>
+                    </select>
+                </div>
             </td>
-            <td><input data-id="monthly" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-bold mono-numbers" ${data.isLocked ? 'readonly' : ''}></td>
-            <td><input data-id="annual" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-black mono-numbers" ${data.isLocked ? 'readonly' : ''}></td>
-            <td class="text-center">${data.isLocked ? '' : '<button data-action="remove" class="text-slate-700 hover:text-red-400"><i class="fas fa-times"></i></button>'}</td>
+            <td class="px-6 py-3"><input data-id="monthly" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400/80 font-bold mono-numbers outline-none" ${data.isLocked ? 'readonly' : ''}></td>
+            <td class="px-6 py-3"><input data-id="annual" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-black mono-numbers outline-none" ${data.isLocked ? 'readonly' : ''}></td>
+            <td class="px-6 py-3 text-right">${data.isLocked ? '' : '<button data-action="remove" class="text-slate-700 hover:text-red-400 transition-colors"><i class="fas fa-times"></i></button>'}</td>
         `;
     },
     "budget-expense": () => `
-        <td><input data-id="name" type="text" placeholder="Expense Item" class="input-base w-full font-bold text-white"></td>
-        <td class="text-center"><input data-id="removedInRetirement" type="checkbox" class="w-4 h-4 accent-pink-500 rounded bg-slate-900 mx-auto"></td>
-        <td><input data-id="monthly" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-400 font-bold mono-numbers"></td>
-        <td><input data-id="annual" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-500 font-black mono-numbers"></td>
-        <td class="text-center"><button data-action="remove" class="text-slate-700 hover:text-red-400"><i class="fas fa-times"></i></button></td>
+        <td class="px-6 py-3"><input data-id="name" type="text" placeholder="Expense Item" class="input-base bg-transparent border-none w-full font-bold text-white outline-none"></td>
+        <td class="px-6 py-3 text-center"><input data-id="removedInRetirement" type="checkbox" class="w-4 h-4 accent-pink-500 rounded bg-slate-900 border-slate-700"></td>
+        <td class="px-6 py-3"><input data-id="monthly" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-400/80 font-bold mono-numbers outline-none"></td>
+        <td class="px-6 py-3"><input data-id="annual" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-500 font-black mono-numbers outline-none"></td>
+        <td class="px-6 py-3 text-right"><button data-action="remove" class="text-slate-700 hover:text-red-400 transition-colors"><i class="fas fa-times"></i></button></td>
     `,
     realEstate: () => `
         <td><input data-id="name" type="text" placeholder="Property" class="input-base w-full font-bold text-white"></td>
