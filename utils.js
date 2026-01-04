@@ -72,7 +72,7 @@ export const assumptions = {
         benefitCeiling: 1.38, 
         helocRate: 7,
         state: 'Michigan',
-        workYearsAtRetirement: 35 // FIRE users likely work fewer
+        workYearsAtRetirement: 35
     }
 };
 
@@ -100,12 +100,8 @@ export const engine = {
         return Math.floor(annualPayment);
     },
 
-    /**
-     * Calculates Social Security with a de-rating penalty for FIRE (fewer than 35 work years).
-     */
     calculateSocialSecurity: (baseMonthly, workYears, inflationFactor) => {
         const fullBenefit = baseMonthly * 12 * inflationFactor;
-        // SS uses highest 35 years. If you only work 15, 20 years are $0.
         const multiplier = Math.min(1, Math.max(0.1, workYears / 35));
         return fullBenefit * multiplier;
     },
@@ -129,7 +125,6 @@ export const engine = {
         }
         if (taxable > 0) tax += taxable * 0.32;
 
-        // Add State Tax
         const stateRate = stateTaxRates[state] || 0;
         tax += (taxableIncome * stateRate);
 
@@ -138,7 +133,8 @@ export const engine = {
 
     calculateSnapBenefit: (income, hhSize, shelterCosts, hasSUA, isDisabled, inflationFactor = 1) => {
         const monthlyGross = income / 12;
-        const snapFpl = (16060 + (hhSize - 1) * 5650) * inflationFactor;
+        const baseFpl = 16060 + (hhSize - 1) * 5650;
+        const snapFpl = baseFpl * inflationFactor;
         const snapGrossLimit = snapFpl * 2.0; 
         if (monthlyGross > (snapGrossLimit / 12)) return 0;
         const stdDed = (hhSize <= 3 ? 205 : (hhSize === 4 ? 220 : (hhSize === 5 ? 255 : 295))) * inflationFactor;
@@ -152,7 +148,7 @@ export const engine = {
         const netIncome = Math.max(0, adjIncome - finalShelterDeduction);
         const maxBenefit = (295 + (hhSize - 1) * 215) * inflationFactor;
         const estimatedBenefit = Math.max(0, maxBenefit - (netIncome * 0.3));
-        return estimatedBenefit;
+        return Math.floor(estimatedBenefit);
     },
 
     calculateSummaries: (data) => {

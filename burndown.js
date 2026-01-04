@@ -13,17 +13,21 @@ export const burndown = {
         container.innerHTML = `
             <div class="flex flex-col gap-6">
                 <!-- Strategy Control Bar -->
-                <div class="card-container p-6 bg-slate-800 rounded-2xl border border-slate-700">
-                    <div class="flex flex-wrap items-center justify-between gap-6 mb-6">
-                        <div class="flex items-center gap-4">
-                            <h3 class="text-xl font-black text-white flex items-center gap-2 uppercase tracking-tighter">
-                                <i class="fas fa-microchip text-purple-400"></i> Strategy Engine
-                            </h3>
-                            <div class="h-8 w-[1px] bg-slate-700 mx-2"></div>
+                <div class="card-container p-6 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl">
+                    <div class="flex flex-wrap items-center justify-between gap-8 mb-8">
+                        <div class="flex items-center gap-6">
+                            <div class="flex flex-col">
+                                <h3 class="text-2xl font-black text-white flex items-center gap-3 uppercase tracking-tighter">
+                                    <i class="fas fa-microchip text-purple-400"></i> Strategy Engine
+                                </h3>
+                                <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">Decumulation Logic Orchestrator</span>
+                            </div>
                             
-                            <div class="flex flex-col gap-1">
+                            <div class="h-10 w-[1px] bg-slate-700 mx-2"></div>
+                            
+                            <div class="flex flex-col gap-1.5">
                                 <label class="label-std text-slate-500">Draw Strategy</label>
-                                <select id="burndown-strategy" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-black text-blue-400 outline-none focus:border-blue-500 transition-all">
+                                <select id="burndown-strategy" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-xs font-black text-blue-400 outline-none focus:border-blue-500 transition-all cursor-pointer">
                                     <option value="standard">Meet Target Budget</option>
                                     <option value="medicaid">Target 138% FPL (Medicaid)</option>
                                     <option value="silver">Target 250% FPL (Silver)</option>
@@ -31,50 +35,59 @@ export const burndown = {
                                 </select>
                             </div>
 
-                            <div id="swr-indicator" class="hidden flex flex-col items-center justify-center px-4 border-l border-slate-700">
+                            <div id="swr-indicator" class="hidden flex flex-col items-center justify-center px-6 border-l border-slate-700">
                                 <span class="label-std text-slate-500">Safe Draw (SWR)</span>
-                                <span id="swr-value" class="text-teal-400 font-black mono-numbers text-lg">0%</span>
+                                <span id="swr-value" class="text-teal-400 font-black mono-numbers text-xl">0%</span>
                             </div>
+                        </div>
 
-                            <div class="h-8 w-[1px] bg-slate-700 mx-2"></div>
+                        <!-- ADVANCED FIRE TOGGLES -->
+                        <div class="flex flex-wrap items-center gap-4">
+                            <label class="flex items-center gap-4 px-5 py-3 bg-slate-900/50 rounded-2xl border border-slate-700 cursor-pointer group transition-all hover:bg-slate-900">
+                                <input type="checkbox" id="toggle-rule-72t" class="w-5 h-5 accent-blue-500">
+                                <div class="flex flex-col">
+                                    <span class="label-std text-slate-300 group-hover:text-blue-400 transition-colors">SEPP (72t) Bridge</span>
+                                    <span class="text-[8px] text-slate-600 uppercase font-black">Penalty-Free Early Draw</span>
+                                </div>
+                            </label>
 
-                            <!-- ADVANCED FIRE TOGGLES -->
-                            <div class="flex gap-4">
-                                <label class="flex items-center gap-3 px-4 py-2 bg-slate-900/50 rounded-xl border border-slate-700 cursor-pointer group">
-                                    <input type="checkbox" id="toggle-roth-ladder" class="w-4 h-4 accent-teal-500">
-                                    <div class="flex flex-col">
-                                        <span class="label-std text-slate-300 group-hover:text-teal-400 transition-colors">Roth Conversion Ladder</span>
-                                        <span class="text-[8px] text-slate-600 uppercase font-black">Top-off to Benefit Cliff</span>
-                                    </div>
-                                </label>
+                            <label class="flex items-center gap-4 px-5 py-3 bg-slate-900/50 rounded-2xl border border-slate-700 cursor-pointer group transition-all hover:bg-slate-900">
+                                <input type="checkbox" id="toggle-roth-ladder" class="w-5 h-5 accent-teal-500">
+                                <div class="flex flex-col">
+                                    <span class="label-std text-slate-300 group-hover:text-teal-400 transition-colors">Roth Conversion Ladder</span>
+                                    <span class="text-[8px] text-slate-600 uppercase font-black">Top-off to Benefit Cliff</span>
+                                </div>
+                            </label>
 
-                                <label class="flex items-center gap-3 px-4 py-2 bg-slate-900/50 rounded-xl border border-slate-700 cursor-pointer group">
-                                    <input type="checkbox" id="toggle-die-with-zero" class="w-4 h-4 accent-rose-500">
-                                    <div class="flex flex-col">
-                                        <span class="label-std text-slate-300 group-hover:text-rose-400 transition-colors">Die With Zero</span>
-                                        <span class="text-[8px] text-slate-600 uppercase font-black">Amortize Assets to Age 100</span>
-                                    </div>
-                                </label>
-                            </div>
-
-                            <button id="toggle-burndown-real" class="px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-xl label-std font-black text-slate-400 hover:text-white transition-all flex items-center gap-2">
+                            <button id="btn-dwz-toggle" class="px-5 py-3 bg-slate-900/50 rounded-2xl border border-slate-700 text-left transition-all hover:bg-slate-900 flex items-center gap-4 group min-w-[180px]">
+                                <div class="w-5 h-5 rounded-full border-2 border-slate-700 flex items-center justify-center group-[.active]:border-rose-500 group-[.active]:bg-rose-500/20">
+                                    <div class="w-2 h-2 rounded-full bg-slate-700 group-[.active]:bg-rose-500"></div>
+                                </div>
+                                <div class="flex flex-col">
+                                    <span id="dwz-label" class="label-std text-slate-500 group-[.active]:text-rose-400 transition-colors">Generational Wealth</span>
+                                    <span id="dwz-sub" class="text-[8px] text-slate-600 uppercase font-black">Hold Assets for Heirs</span>
+                                </div>
+                            </button>
+                            
+                            <button id="toggle-burndown-real" class="px-5 py-3 bg-slate-900/50 border border-slate-700 rounded-2xl label-std font-black text-slate-400 hover:text-white transition-all flex items-center gap-3">
                                 <i class="fas fa-calendar-alt"></i> Nominal Dollars
                             </button>
                         </div>
-                        
-                        <div class="flex items-center gap-6 bg-slate-900/50 p-3 rounded-xl border border-slate-700">
-                            <div class="flex items-center gap-4">
-                                <div class="flex flex-col gap-1">
-                                    <label class="label-std text-slate-500">Budget Source</label>
-                                    <div class="flex items-center gap-2">
-                                        <label class="flex items-center gap-2 cursor-pointer bg-slate-800 px-2 py-1 rounded border border-slate-700">
-                                            <input type="checkbox" id="toggle-budget-sync" checked class="w-3 h-3 accent-blue-500">
-                                            <span class="text-[9px] text-slate-300 font-bold uppercase tracking-widest">Sync</span>
-                                        </label>
-                                        <div id="manual-budget-container" class="hidden flex items-center gap-2">
-                                            <span class="text-[9px] text-slate-500 font-bold uppercase">Manual:</span>
-                                            <input type="text" id="input-manual-budget" data-type="currency" value="$100,000" class="bg-slate-900 border border-slate-700 rounded px-2 py-0.5 text-[10px] text-teal-400 font-black outline-none w-24 mono-numbers">
-                                        </div>
+                    </div>
+
+                    <!-- Budget Source Section -->
+                    <div class="flex items-center justify-between gap-6 bg-slate-900/30 p-5 rounded-[1.5rem] border border-slate-700/50">
+                        <div class="flex items-center gap-4">
+                            <div class="flex flex-col gap-1">
+                                <label class="label-std text-slate-500">Budget Source Logic</label>
+                                <div class="flex items-center gap-4">
+                                    <label class="flex items-center gap-3 cursor-pointer bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-700 hover:border-blue-500 transition-all">
+                                        <input type="checkbox" id="toggle-budget-sync" checked class="w-4 h-4 accent-blue-500">
+                                        <span class="text-[10px] text-slate-300 font-bold uppercase tracking-widest">Sync from Budget Tab</span>
+                                    </label>
+                                    <div id="manual-budget-container" class="hidden flex items-center gap-3">
+                                        <span class="text-[10px] text-slate-500 font-black uppercase">Manual Annual:</span>
+                                        <input type="text" id="input-manual-budget" data-type="currency" value="$100,000" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-teal-400 font-black outline-none w-32 mono-numbers">
                                     </div>
                                 </div>
                             </div>
@@ -82,25 +95,25 @@ export const burndown = {
                     </div>
 
                     <!-- Spending Phases & SS Years -->
-                    <div id="burndown-live-sliders" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-6 border-t border-slate-700 pt-6">
+                    <div id="burndown-live-sliders" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-6 border-t border-slate-700/50 mt-8 pt-8">
                         <!-- Populated by JS -->
                     </div>
                 </div>
 
                 <!-- Priority Reordering -->
-                <div class="card-container p-4 bg-slate-800 rounded-2xl border border-slate-700">
-                    <div class="flex items-center gap-4">
-                        <span class="label-std text-slate-500">Draw Priority:</span>
-                        <div id="draw-priority-list" class="flex flex-wrap gap-2">
+                <div class="card-container p-5 bg-slate-800/80 rounded-2xl border border-slate-700 backdrop-blur-sm">
+                    <div class="flex items-center gap-6">
+                        <span class="label-std text-slate-500 font-black">Draw Order Priority:</span>
+                        <div id="draw-priority-list" class="flex flex-wrap gap-3">
                             <!-- Draggable items -->
                         </div>
-                        <span class="text-[9px] text-slate-600 italic ml-auto">* HSA forced to bottom internally</span>
+                        <span class="text-[9px] text-slate-600 italic ml-auto font-bold uppercase tracking-widest"><i class="fas fa-shield-alt mr-1"></i> HSA forced to bottom internally</span>
                     </div>
                 </div>
 
                 <!-- Main Table -->
-                <div class="card-container p-6 bg-slate-900/50 rounded-2xl border border-slate-800 overflow-hidden">
-                    <div id="burndown-table-container" class="max-h-[70vh] overflow-auto rounded-xl border border-slate-800 mono-numbers"></div>
+                <div class="card-container p-6 bg-slate-900/50 rounded-3xl border border-slate-800 overflow-hidden shadow-inner">
+                    <div id="burndown-table-container" class="max-h-[75vh] overflow-auto rounded-2xl border border-slate-800 mono-numbers"></div>
                 </div>
             </div>
         `;
@@ -118,7 +131,7 @@ export const burndown = {
     },
 
     attachListeners: () => {
-        const triggers = ['burndown-strategy', 'toggle-rule-72t', 'toggle-budget-sync', 'toggle-roth-ladder', 'toggle-die-with-zero'];
+        const triggers = ['burndown-strategy', 'toggle-rule-72t', 'toggle-budget-sync', 'toggle-roth-ladder'];
         triggers.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.onchange = () => {
@@ -134,6 +147,18 @@ export const burndown = {
                 window.debouncedAutoSave();
             };
         });
+
+        const dwzBtn = document.getElementById('btn-dwz-toggle');
+        if (dwzBtn) {
+            dwzBtn.onclick = () => {
+                dwzBtn.classList.toggle('active');
+                const active = dwzBtn.classList.contains('active');
+                document.getElementById('dwz-label').textContent = active ? 'Die With Zero' : 'Generational Wealth';
+                document.getElementById('dwz-sub').textContent = active ? 'Amortize Assets to 100' : 'Hold Assets for Heirs';
+                burndown.run();
+                window.debouncedAutoSave();
+            };
+        }
 
         const manualInput = document.getElementById('input-manual-budget');
         if (manualInput) {
@@ -165,7 +190,6 @@ export const burndown = {
             {id: 'burndown-strategy', key: 'strategy', type: 'val'},
             {id: 'toggle-rule-72t', key: 'useSEPP', type: 'check'},
             {id: 'toggle-roth-ladder', key: 'useRothLadder', type: 'check'},
-            {id: 'toggle-die-with-zero', key: 'dieWithZero', type: 'check'},
             {id: 'toggle-budget-sync', key: 'useSync', type: 'check'},
         ];
         config.forEach(c => {
@@ -175,6 +199,15 @@ export const burndown = {
                 else el.value = data[c.key];
             }
         });
+
+        const dwzBtn = document.getElementById('btn-dwz-toggle');
+        if (dwzBtn && data?.dieWithZero !== undefined) {
+            if (data.dieWithZero) dwzBtn.classList.add('active');
+            else dwzBtn.classList.remove('active');
+            const active = dwzBtn.classList.contains('active');
+            document.getElementById('dwz-label').textContent = active ? 'Die With Zero' : 'Generational Wealth';
+            document.getElementById('dwz-sub').textContent = active ? 'Amortize Assets to 100' : 'Hold Assets for Heirs';
+        }
         
         const swrInd = document.getElementById('swr-indicator');
         if (swrInd) swrInd.classList.toggle('hidden', (data?.strategy !== 'perpetual'));
@@ -197,7 +230,7 @@ export const burndown = {
             useSync: document.getElementById('toggle-budget-sync')?.checked ?? true,
             useSEPP: document.getElementById('toggle-rule-72t')?.checked ?? false,
             useRothLadder: document.getElementById('toggle-roth-ladder')?.checked ?? false,
-            dieWithZero: document.getElementById('toggle-die-with-zero')?.checked ?? false,
+            dieWithZero: document.getElementById('btn-dwz-toggle')?.classList.contains('active') ?? false,
             manualBudget: math.fromCurrency(document.getElementById('input-manual-budget')?.value || "$100,000"),
             isRealDollars
         };
@@ -234,7 +267,7 @@ export const burndown = {
                 let val = data.assumptions[key] || (isPct ? 0.8 : 0);
                 if (key === 'workYearsAtRetirement' && val === 0) val = 35;
                 const div = document.createElement('div');
-                div.className = 'space-y-1';
+                div.className = 'space-y-1.5';
                 const displayVal = isPct ? `${Math.round(val * 100)}%` : (key.includes('Growth') || key === 'inflation' ? `${val}%` : val);
                 div.innerHTML = `
                     <label class="flex justify-between label-std text-slate-500 text-[9px]">${label} <span class="text-blue-400 font-black mono-numbers">${displayVal}</span></label>
@@ -249,7 +282,7 @@ export const burndown = {
             priorityList.innerHTML = burndown.priorityOrder.map(k => {
                 const meta = burndown.assetMeta[k];
                 if (!meta) return ''; 
-                return `<div data-pk="${k}" class="px-3 py-1 bg-slate-900 border border-slate-700 rounded-lg label-std cursor-move flex items-center gap-2" style="color: ${meta.color}"><i class="fas fa-grip-vertical opacity-30"></i> ${meta.label}</div>`;
+                return `<div data-pk="${k}" class="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-xl label-std cursor-move flex items-center gap-2 group hover:border-slate-500 transition-all shadow-lg" style="color: ${meta.color}"><i class="fas fa-grip-vertical opacity-30 group-hover:opacity-100 transition-opacity"></i> ${meta.label}</div>`;
             }).join('');
             if (!burndown.sortable) {
                 burndown.sortable = new Sortable(priorityList, { animation: 150, onEnd: () => { burndown.priorityOrder = Array.from(priorityList.children).map(el => el.dataset.pk); burndown.run(); window.debouncedAutoSave(); } });
@@ -272,9 +305,9 @@ export const burndown = {
         const state = burndown.scrape();
         const inflationRate = (assumptions.inflation || 3) / 100;
         const stockGrowth = (assumptions.stockGrowth || 8) / 100;
-        const cryptoGrowth = (assumptions.cryptoGrowth || 15) / 100;
-        const metalsGrowth = (assumptions.metalsGrowth || 15) / 100;
-        const realEstateGrowth = (assumptions.realEstateGrowth || 15) / 100;
+        const cryptoGrowth = (assumptions.cryptoGrowth || 10) / 100;
+        const metalsGrowth = (assumptions.metalsGrowth || 6) / 100;
+        const realEstateGrowth = (assumptions.realEstateGrowth || 3) / 100;
         
         const filingStatus = assumptions.filingStatus || 'Single';
         const currentYear = new Date().getFullYear();
@@ -303,10 +336,8 @@ export const burndown = {
         const fpl2026Base = filingStatus === 'Single' ? 16060 : 32120;
         
         const results = [];
-        const endAge = 100; // Fixed calculation horizon for Die With Zero
-        const duration = endAge - assumptions.currentAge;
+        const duration = 100 - assumptions.currentAge;
 
-        // Pre-calculate SEPP eligibility
         let temp401k = bal['401k'];
         for (let i = 0; i < (assumptions.retirementAge - assumptions.currentAge); i++) {
              const summaries = engine.calculateSummaries(data);
@@ -333,40 +364,34 @@ export const burndown = {
                     const amt = math.fromCurrency(s.annual);
                     if (s.type === 'Taxable') bal['taxable'] += amt;
                     else if (s.type === 'Post-Tax (Roth)') bal['roth-basis'] += amt;
-                    else if (s.type === 'Cash') bal['cash'] += amt;
-                    else if (s.type === 'HSA') bal['hsa'] += amt;
-                    else if (s.type === 'Crypto') bal['crypto'] += amt;
-                    else if (s.type === 'Metals') bal['metals'] += amt;
-                    else if (s.type === 'Pre-Tax (401k/IRA)') bal['401k'] += amt;
+                    else if (type === 'Cash') bal['cash'] += amt;
+                    else if (type === 'HSA') bal['hsa'] += amt;
+                    else if (type === 'Crypto') bal['crypto'] += amt;
+                    else if (type === 'Metals') bal['metals'] += amt;
+                    else if (type === 'Pre-Tax (401k/IRA)') bal['401k'] += amt;
                 });
             }
 
             const currentRE = realEstate.reduce((s, r) => s + (math.fromCurrency(r.value) * Math.pow(1 + realEstateGrowth, i) - math.fromCurrency(r.mortgage)), 0);
             const currentNW = (bal['cash'] + bal['taxable'] + bal['roth-basis'] + bal['roth-earnings'] + bal['401k'] + bal['crypto'] + bal['metals'] + bal['hsa'] + hidden529 + fixedOtherAssets + currentRE) - bal['heloc'];
 
-            // Budget sourcing logic with PHASES
             let baseAnnualBudget = state.useSync ? 
                 (budget.expenses || []).reduce((sum, exp) => (isRetired && exp.removedInRetirement) ? sum : sum + math.fromCurrency(exp.annual), 0) : 
                 (state.manualBudget || 100000);
             
-            // Apply Multipliers for FIRE Phases
             let phaseMultiplier = 1.0;
             if (age >= 80) phaseMultiplier = (assumptions.noGoFactor || 0.7);
             else if (age >= 62) phaseMultiplier = (assumptions.slowGoFactor || 0.8);
             
             let currentYearBudget = baseAnnualBudget * inflationFactor * phaseMultiplier;
 
-            // Die With Zero override
             if (state.dieWithZero && isRetired) {
                 const yearsLeft = 100 - age;
-                if (yearsLeft > 0) {
-                    currentYearBudget = Math.max(currentYearBudget, currentNW / yearsLeft);
-                }
+                if (yearsLeft > 0) currentYearBudget = Math.max(currentYearBudget, currentNW / yearsLeft);
             }
 
-            // Draw Strategy overrides
             if (isRetired) {
-                if (state.strategy === 'medicaid') currentYearBudget = (fpl * 1.38) - 100; // Aim slightly below to ensure eligibility
+                if (state.strategy === 'medicaid') currentYearBudget = (fpl * 1.38) - 100; 
                 else if (state.strategy === 'silver') currentYearBudget = (fpl * 2.50) - 100;
                 else if (state.strategy === 'perpetual') {
                     const safeRate = Math.max(0, stockGrowth - inflationRate);
@@ -389,13 +414,11 @@ export const burndown = {
                 else taxableIncome += Math.max(0, amt);
             });
 
-            // Social Security with FIRE De-rating
             const ssWorkYears = assumptions.workYearsAtRetirement || 35;
             const ssYearly = (age >= assumptions.ssStartAge) ? 
                 engine.calculateSocialSecurity(assumptions.ssMonthly || 0, ssWorkYears, inflationFactor) : 0;
             taxableIncome += ssYearly; 
 
-            // SEPP Logic
             if (isRetired && age < 60 && state.useSEPP) {
                 const canDrawSEPP = Math.min(bal['401k'], seppFixedAmount);
                 bal['401k'] -= canDrawSEPP;
@@ -404,22 +427,10 @@ export const burndown = {
                 yearResult.draws['401k'] = (yearResult.draws['401k'] || 0) + canDrawSEPP;
             }
 
-            const snapBenefit = engine.calculateSnapBenefit(taxableIncome, benefits.hhSize || 1, (benefits.shelterCosts || 0) * inflationFactor, benefits.hasSUA, benefits.isDisabled, inflationFactor);
-            const snapYearly = snapBenefit * 12;
-            yearResult.snapBenefit = snapYearly;
-            yearResult.persistentIncome = persistentIncomeTotal;
-
-            let netBudgetNeeded = Math.max(0, currentYearBudget - snapYearly);
             const tax = engine.calculateTax(taxableIncome, filingStatus);
-            yearResult.magi = Math.max(0, taxableIncome);
-            
-            yearResult.isMedicare = age >= 65;
-            yearResult.isMedicaid = yearResult.magi <= fpl * 1.38;
-            yearResult.isSilver = yearResult.magi <= fpl * 2.5 && !yearResult.isMedicaid;
-
+            let netBudgetNeeded = currentYearBudget;
             let remainingNeed = Math.max(0, netBudgetNeeded - (taxableIncome + nonTaxableIncome - tax));
 
-            // Force HSA to absolute end of priority list for FIRE health preservation
             const effectivePriority = burndown.priorityOrder.filter(k => k !== 'hsa').concat(['hsa']);
 
             effectivePriority.forEach(pk => {
@@ -434,8 +445,8 @@ export const burndown = {
                 if (pk === '401k') {
                     taxableIncome += canDraw;
                     if (age < 59.5) {
-                        const penalizedAmt = state.useSEPP ? Math.max(0, canDraw - yearResult.seppAmount) : canDraw;
-                        yearResult.penalty += penalizedAmt * 0.10;
+                        const penalizedAmt = state.useSEPP ? Math.max(0, canDraw - (yearResult.seppAmount || 0)) : canDraw;
+                        yearResult.penalty += Math.max(0, penalizedAmt * 0.10);
                     }
                 }
                 if (pk === 'taxable') {
@@ -444,21 +455,26 @@ export const burndown = {
                 }
             });
 
-            // ROTH LADDER TOP-OFF (Optimization for Medicaid/Tax efficiency)
             if (isRetired && state.useRothLadder) {
-                const medicaidLimit = (fpl * 1.38) - 1; // Buffer by $1 to stay in status
+                const medicaidLimit = (fpl * 1.38) - 1; 
                 if (taxableIncome < medicaidLimit) {
                     const topOffAmt = Math.min(bal['401k'], medicaidLimit - taxableIncome);
                     if (topOffAmt > 0) {
                         bal['401k'] -= topOffAmt;
-                        bal['roth-earnings'] += topOffAmt; // Moving to Roth
-                        taxableIncome += topOffAmt; // Counts as MAGI
+                        bal['roth-earnings'] += topOffAmt; 
+                        taxableIncome += topOffAmt; 
                         yearResult.rothConversion = topOffAmt;
                     }
                 }
             }
 
+            // SNAP Benefit is calculated based on taxable + nonTaxable income (Final MAGI)
+            const snapBenefit = engine.calculateSnapBenefit(taxableIncome + nonTaxableIncome, benefits.hhSize || 1, (benefits.shelterCosts || 0) * inflationFactor, benefits.hasSUA, benefits.isDisabled, inflationFactor);
+            const snapYearly = snapBenefit * 12;
+            yearResult.snapBenefit = snapYearly;
+
             yearResult.magi = Math.max(0, taxableIncome);
+            yearResult.persistentIncome = persistentIncomeTotal;
             yearResult.balances = { ...bal };
             yearResult.budget = currentYearBudget;
             yearResult.netWorth = currentNW - yearResult.penalty;
@@ -489,7 +505,7 @@ export const burndown = {
                 const amt = (r.draws[k] || 0) / inf;
                 const bal = r.balances[k] / inf;
                 const meta = burndown.assetMeta[k];
-                const isSEPPYear = k === '401k' && r.seppAmount > 0;
+                const isSEPPYear = k === '401k' && (r.seppAmount || 0) > 0;
                 return `<td class="p-1.5 text-right border-l border-slate-800/50">
                     <div class="${amt > 0 ? 'font-bold' : 'text-slate-700'}" ${amt > 0 ? `style="color: ${meta.color}"` : ''}>
                         ${formatter.formatCurrency(amt, 0)}
