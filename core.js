@@ -18,8 +18,11 @@ export function initializeUI() {
 }
 
 function attachGlobalListeners() {
-    document.getElementById('login-btn')?.addEventListener('click', signInWithGoogle);
-    document.getElementById('logout-btn')?.addEventListener('click', logoutUser);
+    const loginBtn = document.getElementById('login-btn');
+    if (loginBtn) loginBtn.onclick = signInWithGoogle;
+    
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) logoutBtn.onclick = logoutUser;
 
     document.body.addEventListener('input', (e) => {
         if (e.target.closest('.input-base, .input-range')) {
@@ -37,40 +40,43 @@ function attachGlobalListeners() {
 
 function checkIrsLimits(row) {
     const amount = math.fromCurrency(row.querySelector('[data-id="amount"]').value);
-    const bonusPct = parseFloat(row.querySelector('[data-id="bonusPct"]').value) || 0;
     const isMonthly = row.querySelector('[data-id="isMonthly"]').textContent.trim().toLowerCase() === 'monthly';
     const baseAnnual = isMonthly ? amount * 12 : amount;
-    
     const personalPct = parseFloat(row.querySelector('[data-id="contribution"]').value) || 0;
     const matchPct = parseFloat(row.querySelector('[data-id="match"]').value) || 0;
-    
     const total401k = baseAnnual * ((personalPct + matchPct) / 100);
-    const limit = 23500; // 2026 est base
-    
+    const limit = 23500; 
     const warning = row.querySelector('[data-id="capWarning"]');
     if (warning) warning.classList.toggle('hidden', total401k <= limit);
 }
 
 function attachCoPilotListeners() {
-    document.getElementById('ai-pilot-btn')?.onclick = async () => {
-        const modal = document.getElementById('ai-modal');
-        const container = document.getElementById('ai-response-container');
-        modal.classList.remove('hidden');
-        container.innerHTML = `<div class="flex flex-col items-center justify-center py-20 gap-4"><div class="animate-spin text-teal-400 text-4xl"><i class="fas fa-circle-notch"></i></div><p class="font-bold text-slate-500">Co-pilot is reviewing your data...</p></div>`;
-        
-        try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            const prompt = `Review this financial data and provide 3 key strategic tips to optimize drawdown, taxes, and government benefits for 2026 Michigan. Keep it concise. Data: ${JSON.stringify(window.currentData)}`;
-            const response = await ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
-                contents: prompt
-            });
-            container.innerHTML = `<div class="prose prose-invert max-w-none">${response.text.replace(/\n/g, '<br>')}</div>`;
-        } catch (e) {
-            container.innerHTML = `<p class="text-red-400">Error connecting to AI: ${e.message}</p>`;
-        }
-    };
-    document.getElementById('close-ai-modal')?.onclick = () => document.getElementById('ai-modal').classList.add('hidden');
+    const pilotBtn = document.getElementById('ai-pilot-btn');
+    if (pilotBtn) {
+        pilotBtn.onclick = async () => {
+            const modal = document.getElementById('ai-modal');
+            const container = document.getElementById('ai-response-container');
+            modal.classList.remove('hidden');
+            container.innerHTML = `<div class="flex flex-col items-center justify-center py-20 gap-4"><div class="animate-spin text-teal-400 text-4xl"><i class="fas fa-circle-notch"></i></div><p class="font-bold text-slate-500">Co-pilot is reviewing your data...</p></div>`;
+            
+            try {
+                const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+                const prompt = `Review this financial data and provide 3 key strategic tips to optimize drawdown, taxes, and government benefits for 2026 Michigan. Data: ${JSON.stringify(window.currentData)}`;
+                const response = await ai.models.generateContent({
+                    model: 'gemini-3-flash-preview',
+                    contents: prompt
+                });
+                container.innerHTML = `<div class="prose prose-invert max-w-none">${response.text.replace(/\n/g, '<br>')}</div>`;
+            } catch (e) {
+                container.innerHTML = `<p class="text-red-400">Error connecting to AI: ${e.message}</p>`;
+            }
+        };
+    }
+
+    const closeModal = document.getElementById('close-ai-modal');
+    if (closeModal) {
+        closeModal.onclick = () => document.getElementById('ai-modal').classList.add('hidden');
+    }
 }
 
 function handleLinkedBudgetValues(target) {
@@ -248,7 +254,6 @@ window.createAssumptionControls = (data) => {
         <input type="range" data-id="${key}" value="${val}" min="0" max="100" step="0.5" class="input-range">`;
         container.appendChild(div);
     });
-    // Set initial values for selects
     container.querySelectorAll('select').forEach(s => s.value = data.assumptions?.[s.dataset.id] || 'Single');
 };
 

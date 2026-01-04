@@ -62,28 +62,42 @@ export const burndown = {
 
     attachListeners: () => {
         const syncToggle = document.getElementById('toggle-budget-sync');
-        syncToggle.onchange = (e) => {
-            document.getElementById('manual-budget-input-container').classList.toggle('hidden', e.target.checked);
-            burndown.run();
-        };
+        if (syncToggle) {
+            syncToggle.onchange = (e) => {
+                const manualContainer = document.getElementById('manual-budget-input-container');
+                if (manualContainer) manualContainer.classList.toggle('hidden', e.target.checked);
+                burndown.run();
+            };
+        }
 
-        document.getElementById('input-manual-budget').oninput = () => burndown.run();
+        const manualInput = document.getElementById('input-manual-budget');
+        if (manualInput) {
+            manualInput.oninput = () => burndown.run();
+            formatter.bindCurrencyEventListeners(manualInput);
+        }
 
-        document.getElementById('btn-optimize-draw').onclick = () => {
-            burndown.optimize();
-            burndown.run();
-        };
+        const optBtn = document.getElementById('btn-optimize-draw');
+        if (optBtn) {
+            optBtn.onclick = () => {
+                burndown.optimize();
+                burndown.run();
+            };
+        }
     },
 
     load: (data) => {
         burndown.priorityOrder = data?.priority || ['cash', 'roth-basis', 'heloc', 'taxable', '401k', 'roth-earnings'];
     },
 
-    scrape: () => ({ 
-        priority: burndown.priorityOrder,
-        manualBudget: math.fromCurrency(document.getElementById('input-manual-budget')?.value || 0),
-        useSync: document.getElementById('toggle-budget-sync')?.checked ?? true
-    }),
+    scrape: () => {
+        const manualBudgetEl = document.getElementById('input-manual-budget');
+        const syncToggle = document.getElementById('toggle-budget-sync');
+        return { 
+            priority: burndown.priorityOrder,
+            manualBudget: math.fromCurrency(manualBudgetEl?.value || 0),
+            useSync: syncToggle?.checked ?? true
+        };
+    },
 
     assetMeta: {
         'cash': { label: 'Checking', color: '#f472b6', growthKey: null, taxable: false },
@@ -95,12 +109,8 @@ export const burndown = {
     },
 
     optimize: () => {
-        // Benefit Optimization Logic: 
-        // 1. We want to fill the "Taxable Headroom" (Standard Deduction + Medicaid Ceiling) using taxable assets.
-        // 2. We then want to fill the "Shortfall" using non-taxable assets.
-        // So we keep 401k/Taxable at the end of the order, BUT the engine logic handles the ceiling 
-        // if we flag them as "ceiling-restricted".
-        // Simplest heuristic: Non-taxable assets should be used SECOND if ceiling is hit.
+        // Strategic sequence to minimize tax drag while using welfare benefits.
+        // Once the "headroom" is hit, we pivot to these non-taxable pools in this order.
         burndown.priorityOrder = ['cash', 'roth-basis', 'heloc', 'taxable', '401k', 'roth-earnings'];
     },
 
@@ -108,17 +118,18 @@ export const burndown = {
         const data = window.currentData;
         if (!data || !data.assumptions) return;
         
-        // Populate local sliders if empty
         const sliderContainer = document.getElementById('burndown-live-sliders');
         if (sliderContainer && sliderContainer.innerHTML.trim() === '') {
             const controls = { 
-                retirementAge: 'Retirement Age', 
-                stockGrowth: 'Stock Growth (%)', 
-                inflation: 'Inflation (%)',
-                helocRate: 'HELOC Rate (%)'
+                retirementAge: 'Retire Age', 
+                stockGrowth: 'Stock %', 
+                cryptoGrowth: 'Crypto %',
+                metalsGrowth: 'Metals %',
+                inflation: 'Inflat %',
+                helocRate: 'HELOC %'
             };
             Object.entries(controls).forEach(([key, label]) => {
-                const val = data.assumptions[key];
+                const val = data.assumptions[key] || 0;
                 const div = document.createElement('div');
                 div.className = 'space-y-2';
                 div.innerHTML = `
@@ -128,33 +139,35 @@ export const burndown = {
                 div.querySelector('input').oninput = (e) => {
                     const newVal = parseFloat(e.target.value);
                     div.querySelector('span').textContent = newVal;
-                    data.assumptions[key] = newVal; // Update live
+                    data.assumptions[key] = newVal;
                     burndown.run();
                 };
                 sliderContainer.appendChild(div);
             });
         }
 
-        // Render Priority Badges
         const priorityList = document.getElementById('draw-priority-list');
-        priorityList.innerHTML = burndown.priorityOrder.map(k => `
-            <div data-pk="${k}" class="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-[10px] font-bold cursor-move flex items-center gap-2" style="color: ${burndown.assetMeta[k].color}">
-                <i class="fas fa-grip-vertical opacity-30"></i> ${burndown.assetMeta[k].label}
-            </div>
-        `).join('');
+        if (priorityList) {
+            priorityList.innerHTML = burndown.priorityOrder.map(k => `
+                <div data-pk="${k}" class="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-[10px] font-bold cursor-move flex items-center gap-2" style="color: ${burndown.assetMeta[k].color}">
+                    <i class="fas fa-grip-vertical opacity-30"></i> ${burndown.assetMeta[k].label}
+                </div>
+            `).join('');
 
-        if (!burndown.sortable) {
-            burndown.sortable = new Sortable(priorityList, {
-                animation: 150,
-                onEnd: () => {
-                    burndown.priorityOrder = Array.from(priorityList.children).map(el => el.dataset.pk);
-                    burndown.run();
-                }
-            });
+            if (!burndown.sortable) {
+                burndown.sortable = new Sortable(priorityList, {
+                    animation: 150,
+                    onEnd: () => {
+                        burndown.priorityOrder = Array.from(priorityList.children).map(el => el.dataset.pk);
+                        burndown.run();
+                    }
+                });
+            }
         }
 
         const results = burndown.calculate(data);
-        document.getElementById('burndown-table-container').innerHTML = burndown.renderTable(results);
+        const tableContainer = document.getElementById('burndown-table-container');
+        if (tableContainer) tableContainer.innerHTML = burndown.renderTable(results);
     },
 
     calculate: (data) => {
@@ -167,9 +180,14 @@ export const burndown = {
         const helocInterestRate = (parseFloat(assumptions.helocRate) || 8.5) / 100;
         const currentYear = new Date().getFullYear();
 
-        // Initial Balances & Gain Ratios
+        // Specific APYs mapping
+        const getGrowth = (type) => {
+            if (type === 'Crypto') return (assumptions.cryptoGrowth || 15) / 100;
+            if (type === 'Metals') return (assumptions.metalsGrowth || 4) / 100;
+            return (assumptions.stockGrowth || 7) / 100;
+        };
+
         let taxValue = investments.filter(i => i.type === 'Taxable').reduce((s, i) => s + math.fromCurrency(i.value), 0);
-        // Cost Basis Fallback: If 0, assume today's value is basis.
         let taxBasis = investments.filter(i => i.type === 'Taxable').reduce((s, i) => {
             const b = math.fromCurrency(i.costBasis);
             return s + (b === 0 ? math.fromCurrency(i.value) : b);
@@ -190,7 +208,8 @@ export const burndown = {
         let ssBenefit = (assumptions.ssMonthly || 0) * 12;
         
         const results = [];
-        const duration = (parseFloat(document.getElementById('input-projection-end')?.value) || 100) - assumptions.currentAge;
+        const endAge = parseFloat(document.getElementById('input-projection-end')?.value) || 100;
+        const duration = endAge - assumptions.currentAge;
 
         for (let i = 0; i <= duration; i++) {
             const age = assumptions.currentAge + i;
@@ -224,17 +243,15 @@ export const burndown = {
             const shortfall = Math.max(0, currentYearBudget - netCashIn);
             let remainingNeed = shortfall;
 
-            // STRATEGIC PASS: Fill up to ceiling with MAGI-impacting assets
+            // STRATEGIC PASS: Use taxable/401k only up to Ceiling
             const headroom = Math.max(0, magiLimit - taxableIncome);
             if (headroom > 0 && remainingNeed > 0) {
-                // Try 401k first (100% impact)
                 let draw401k = Math.min(bal['401k'], headroom, remainingNeed);
                 bal['401k'] -= draw401k;
                 yearResult.draws['401k'] = draw401k;
                 remainingNeed -= draw401k;
                 taxableIncome += draw401k;
                 
-                // Try Taxable (Partial impact based on growth)
                 if (remainingNeed > 0 && taxableIncome < magiLimit) {
                     const gainRatio = taxValue > 0 ? (taxValue - taxBasis) / taxValue : 1;
                     const rHeadroom = magiLimit - taxableIncome;
@@ -251,7 +268,7 @@ export const burndown = {
                 }
             }
 
-            // PRIORITY PASS: Spend remaining need based on user priority list
+            // PRIORITY PASS: Remainder
             burndown.priorityOrder.forEach(pk => {
                 if (remainingNeed <= 0) return;
                 const isHeloc = pk === 'heloc';
@@ -264,7 +281,6 @@ export const burndown = {
                 yearResult.draws[pk] = (yearResult.draws[pk] || 0) + canDraw;
                 remainingNeed -= canDraw;
 
-                // Handle MAGI for assets not used in strategic pass but appearing in priority list
                 if (pk === '401k') taxableIncome += canDraw;
                 if (pk === 'taxable') {
                     const gainRatio = taxValue > 0 ? (taxValue - taxBasis) / taxValue : 1;
@@ -280,13 +296,18 @@ export const burndown = {
             yearResult.netWorth = (bal['cash'] + bal['taxable'] + bal['roth-basis'] + bal['roth-earnings'] + bal['401k']) - bal['heloc'];
             results.push(yearResult);
 
-            // Annual Growth
-            const growthFactor = (1 + (assumptions.stockGrowth / 100));
-            bal['taxable'] *= growthFactor;
+            // APY Driven Growth
+            const stockGrowth = (1 + (assumptions.stockGrowth / 100));
+            const cryptoGrowth = (1 + (assumptions.cryptoGrowth / 100));
+            const metalsGrowth = (1 + (assumptions.metalsGrowth / 100));
+            const reGrowth = (1 + (inflationRate + 0.01)); // Inflation + 1%
+
+            // Taxable Brokerage simplified growth (blended)
+            bal['taxable'] *= stockGrowth;
             taxValue = bal['taxable']; 
-            bal['401k'] *= growthFactor;
-            bal['roth-basis'] *= growthFactor;
-            bal['roth-earnings'] *= growthFactor;
+            bal['401k'] *= stockGrowth;
+            bal['roth-basis'] *= stockGrowth;
+            bal['roth-earnings'] *= stockGrowth;
         }
         return results;
     },
@@ -294,51 +315,37 @@ export const burndown = {
     renderTable: (results) => {
         const keys = burndown.priorityOrder;
         const headerCells = keys.map(k => `<th class="p-3 text-right" style="color: ${burndown.assetMeta[k].color}">${burndown.assetMeta[k].label}</th>`).join('');
-        
         const rows = results.map(r => {
             const draws = keys.map(k => {
-                const isHeloc = k === 'heloc';
                 const amt = r.draws[k] || 0;
-                const balance = r.balances[k];
-                const balColor = isHeloc && balance > 0 ? 'text-red-400' : 'opacity-40';
+                const bal = r.balances[k];
                 return `
                     <td class="p-2 text-right border-l border-slate-800/50">
-                        <div class="${amt > 0 ? (isHeloc ? 'text-red-400' : 'text-white') + ' font-bold' : 'text-slate-600'}">${formatter.formatCurrency(amt, 0)}</div>
-                        <div class="text-[8px] ${balColor}">${formatter.formatCurrency(balance, 0)}</div>
+                        <div class="${amt > 0 ? (k === 'heloc' ? 'text-red-400' : 'text-white') + ' font-bold' : 'text-slate-600'}">${formatter.formatCurrency(amt, 0)}</div>
+                        <div class="text-[8px] ${k === 'heloc' && bal > 0 ? 'text-red-400' : 'opacity-40'}">${formatter.formatCurrency(bal, 0)}</div>
                     </td>
                 `;
             }).join('');
 
-            let benefitBadge = `<span class="text-[9px] text-slate-700">PRIVATE</span>`;
-            if (r.isMedicaid) benefitBadge = `<span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 text-[9px] font-bold tracking-tighter">MEDICAID</span>`;
-            else if (r.isSilver) benefitBadge = `<span class="px-2 py-0.5 rounded bg-purple-900/40 text-purple-400 text-[9px] font-bold tracking-tighter">SILVER</span>`;
+            let badge = `<span class="text-[9px] text-slate-700">PRIVATE</span>`;
+            if (r.isMedicaid) badge = `<span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 text-[9px] font-bold">MEDICAID</span>`;
+            else if (r.isSilver) badge = `<span class="px-2 py-0.5 rounded bg-purple-900/40 text-purple-400 text-[9px] font-bold">SILVER</span>`;
 
-            return `
-                <tr class="border-b border-slate-800/50 hover:bg-slate-800/20 text-[10px]">
-                    <td class="p-2 text-center font-bold border-r border-slate-700">${r.age}</td>
-                    <td class="p-2 text-right text-slate-500">${formatter.formatCurrency(r.budget, 0)}</td>
-                    <td class="p-2 text-right font-black text-emerald-400">${formatter.formatCurrency(r.magi, 0)}</td>
-                    <td class="p-2 text-center">${benefitBadge}</td>
-                    ${draws}
-                    <td class="p-2 text-right font-black border-l border-slate-700 text-teal-400">${formatter.formatCurrency(r.netWorth, 0)}</td>
-                </tr>
-            `;
+            return `<tr class="border-b border-slate-800/50 hover:bg-slate-800/20 text-[10px]">
+                <td class="p-2 text-center font-bold border-r border-slate-700">${r.age}</td>
+                <td class="p-2 text-right text-slate-500">${formatter.formatCurrency(r.budget, 0)}</td>
+                <td class="p-2 text-right font-black text-emerald-400">${formatter.formatCurrency(r.magi, 0)}</td>
+                <td class="p-2 text-center">${badge}</td>
+                ${draws}
+                <td class="p-2 text-right font-black border-l border-slate-700 text-teal-400">${formatter.formatCurrency(r.netWorth, 0)}</td>
+            </tr>`;
         }).join('');
 
-        return `
-            <table class="w-full text-left border-collapse">
-                <thead class="sticky top-0 bg-slate-800 text-slate-500 uppercase text-[9px] tracking-wider z-20">
-                    <tr>
-                        <th class="p-3 border-r border-slate-700">Age</th>
-                        <th class="p-3 text-right">Budget</th>
-                        <th class="p-3 text-right">MAGI</th>
-                        <th class="p-3 text-center">Plan</th>
-                        ${headerCells}
-                        <th class="p-3 text-right border-l border-slate-700">Net Worth</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-slate-900/30">${rows}</tbody>
-            </table>
-        `;
+        return `<table class="w-full text-left border-collapse">
+            <thead class="sticky top-0 bg-slate-800 text-slate-500 uppercase text-[9px] z-20">
+                <tr><th class="p-3 border-r border-slate-700">Age</th><th class="p-3 text-right">Budget</th><th class="p-3 text-right">MAGI</th><th class="p-3 text-center">Plan</th>${headerCells}<th class="p-3 text-right border-l border-slate-700">Net Worth</th></tr>
+            </thead>
+            <tbody class="bg-slate-900/30">${rows}</tbody>
+        </table>`;
     }
 };
