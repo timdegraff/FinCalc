@@ -14,6 +14,17 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
+.mono-numbers {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.label-std {
+    font-size: 10px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
 .tab-btn {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     color: #94a3b8;
@@ -34,7 +45,7 @@ body {
 
 .input-base {
     background: transparent; border: 1px solid transparent; border-bottom-color: #334155;
-    padding: 4px 8px; outline: none; transition: all 0.2s;
+    padding: 8px 12px; outline: none; transition: all 0.2s;
 }
 .input-base:focus { border-bottom-color: var(--accent-blue); background: rgba(255, 255, 255, 0.02); }
 

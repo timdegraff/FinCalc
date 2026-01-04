@@ -13,7 +13,7 @@ export const burndown = {
                 <div class="card-container p-6 bg-slate-800 rounded-2xl border border-slate-700">
                     <div class="flex flex-wrap items-center justify-between gap-6 mb-6">
                         <div class="flex items-center gap-4">
-                            <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                            <h3 class="text-xl font-black text-white flex items-center gap-2 uppercase tracking-tighter">
                                 <i class="fas fa-microchip text-purple-400"></i> Strategy Engine
                             </h3>
                             <div class="h-8 w-[1px] bg-slate-700"></div>
@@ -23,26 +23,26 @@ export const burndown = {
                             
                             <!-- Quick Access Slider -->
                             <div class="flex items-center gap-4 bg-slate-900/50 p-2 rounded-xl border border-slate-700">
-                                <span class="text-[10px] font-bold text-slate-500 uppercase whitespace-nowrap">Retire Age: <span id="label-top-retire-age" class="text-purple-400">65</span></span>
+                                <span class="label-std text-slate-500 whitespace-nowrap">Retire Age: <span id="label-top-retire-age" class="text-purple-400 mono-numbers">65</span></span>
                                 <input type="range" id="input-top-retire-age" data-id="retirementAge" min="18" max="100" value="65" class="w-24 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500">
                             </div>
 
-                            <button id="toggle-burndown-real" class="px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-xl text-[10px] font-bold text-slate-400 hover:text-white transition-all uppercase tracking-widest flex items-center gap-2">
+                            <button id="toggle-burndown-real" class="px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-xl label-std font-black text-slate-400 hover:text-white transition-all flex items-center gap-2">
                                 <i class="fas fa-sync"></i> 2026 Dollars (Real)
                             </button>
                         </div>
                         
                         <div class="flex items-center gap-6 bg-slate-900/50 p-2 rounded-xl border border-slate-700">
                             <div class="flex items-center gap-3 px-2">
-                                <span class="text-[10px] font-bold text-slate-500 uppercase">Budget Source:</span>
+                                <span class="label-std text-slate-500">Budget Source:</span>
                                 <label class="flex items-center gap-2 cursor-pointer">
                                     <input type="checkbox" id="toggle-budget-sync" checked class="w-4 h-4 accent-blue-500">
-                                    <span class="text-xs text-slate-300">Sync from Tab</span>
+                                    <span class="text-xs text-slate-300 font-bold">Sync from Tab</span>
                                 </label>
                             </div>
                             <div id="manual-budget-input-container" class="hidden flex items-center gap-2 border-l border-slate-700 pl-4">
-                                <span class="text-[10px] font-bold text-slate-500 uppercase">Fixed Spend:</span>
-                                <input type="text" id="input-manual-budget" placeholder="$50,000" class="bg-transparent border-b border-slate-600 outline-none text-teal-400 font-bold text-xs w-24 text-right">
+                                <span class="label-std text-slate-500">Fixed Spend:</span>
+                                <input type="text" id="input-manual-budget" placeholder="$50,000" class="mono-numbers bg-transparent border-b border-slate-600 outline-none text-teal-400 font-black text-xs w-24 text-right">
                             </div>
                         </div>
                     </div>
@@ -55,7 +55,7 @@ export const burndown = {
                 <!-- Priority Reordering -->
                 <div class="card-container p-4 bg-slate-800 rounded-2xl border border-slate-700">
                     <div class="flex items-center gap-4">
-                        <span class="text-[10px] font-bold text-slate-500 uppercase">Draw Priority:</span>
+                        <span class="label-std text-slate-500">Draw Priority:</span>
                         <div id="draw-priority-list" class="flex flex-wrap gap-2">
                             <!-- Draggable items -->
                         </div>
@@ -65,7 +65,7 @@ export const burndown = {
 
                 <!-- Main Table -->
                 <div class="card-container p-6 bg-slate-900/50 rounded-2xl border border-slate-800">
-                    <div id="burndown-table-container" class="max-h-[70vh] overflow-auto rounded-xl border border-slate-800"></div>
+                    <div id="burndown-table-container" class="max-h-[70vh] overflow-auto rounded-xl border border-slate-800 mono-numbers"></div>
                 </div>
             </div>
         `;
@@ -187,7 +187,7 @@ export const burndown = {
                 const div = document.createElement('div');
                 div.className = 'space-y-2';
                 div.innerHTML = `
-                    <label class="flex justify-between font-bold text-[10px] uppercase text-slate-500">${label} <span class="text-blue-400 font-black">${val}</span></label>
+                    <label class="flex justify-between label-std text-slate-500">${label} <span class="text-blue-400 font-black mono-numbers">${val}</span></label>
                     <input type="range" data-live-id="${key}" data-id="${key}" value="${val}" min="${min}" max="${max}" step="${step}" class="input-range">
                 `;
                 sliderContainer.appendChild(div);
@@ -209,7 +209,7 @@ export const burndown = {
             priorityList.innerHTML = burndown.priorityOrder.map(k => {
                 const meta = burndown.assetMeta[k];
                 if (!meta) return ''; 
-                return `<div data-pk="${k}" class="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-[10px] font-bold cursor-move flex items-center gap-2 uppercase tracking-widest" style="color: ${meta.color}"><i class="fas fa-grip-vertical opacity-30"></i> ${meta.label}</div>`;
+                return `<div data-pk="${k}" class="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg label-std cursor-move flex items-center gap-2" style="color: ${meta.color}"><i class="fas fa-grip-vertical opacity-30"></i> ${meta.label}</div>`;
             }).join('');
             if (!burndown.sortable) {
                 burndown.sortable = new Sortable(priorityList, { animation: 150, onEnd: () => { burndown.priorityOrder = Array.from(priorityList.children).map(el => el.dataset.pk); burndown.run(); window.debouncedAutoSave(); } });
@@ -293,7 +293,7 @@ export const burndown = {
             activeIncomes.forEach(inc => {
                 let amt = math.fromCurrency(inc.amount);
                 if (inc.isMonthly) amt *= 12;
-                amt -= (math.fromCurrency(inc.writeOffs) * (inc.writeOffsMonthly ? 12 : 1));
+                amt -= (math.fromCurrency(inc.incomeExpenses) * (inc.incomeExpensesMonthly ? 12 : 1));
                 amt *= Math.pow(1 + (inc.increase / 100 || 0), i);
                 amt = Math.max(0, amt); 
                 
@@ -406,20 +406,20 @@ export const burndown = {
             const benefitCeiling = window.currentData.assumptions.benefitCeiling;
             
             if (benefitCeiling == 999) {
-                badge = r.age >= 65 ? `<span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 text-[10px] font-bold">MEDICARE</span>` : `<span class="text-[10px] text-slate-700 font-bold">PRIVATE</span>`;
+                badge = r.age >= 65 ? `<span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 label-std font-black">MEDICARE</span>` : `<span class="label-std text-slate-700 font-black">PRIVATE</span>`;
             } else {
                 if (r.age >= 65) {
                     if (r.isMedicaid) {
-                        badge = `<span class="px-2 py-0.5 rounded bg-emerald-900/40 text-emerald-400 text-[10px] font-black" title="Dual Eligible: Medicare + Medicaid">DUAL (MC/MA)</span>`;
+                        badge = `<span class="px-2 py-0.5 rounded bg-emerald-900/40 text-emerald-400 label-std font-black" title="Dual Eligible: Medicare + Medicaid">DUAL</span>`;
                     } else {
-                        badge = `<span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 text-[10px] font-bold">MEDICARE</span>`;
+                        badge = `<span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 label-std font-black">MEDICARE</span>`;
                     }
                 } else {
-                    badge = r.isMedicaid ? `<span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 text-[10px] font-bold">MEDICAID</span>` : (r.isSilver ? `<span class="px-2 py-0.5 rounded bg-purple-900/40 text-purple-400 text-[10px] font-bold">SILVER</span>` : `<span class="text-[10px] text-slate-700">PRIVATE</span>`);
+                    badge = r.isMedicaid ? `<span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 label-std font-black">MEDICAID</span>` : (r.isSilver ? `<span class="px-2 py-0.5 rounded bg-purple-900/40 text-purple-400 label-std font-black">SILVER</span>` : `<span class="label-std text-slate-700 font-black">PRIVATE</span>`);
                 }
             }
             
-            const snapDisplay = r.snapBenefit > 0 ? `<div class="text-[9px] text-emerald-500 font-bold tracking-tight">+${formatter.formatCurrency(r.snapBenefit / inflationFactor, 0)} SNAP</div>` : '';
+            const snapDisplay = r.snapBenefit > 0 ? `<div class="text-[9px] text-emerald-500 font-black tracking-tight">+${formatter.formatCurrency(r.snapBenefit / inflationFactor, 0)} SNAP</div>` : '';
             
             return `<tr class="border-b border-slate-800/50 hover:bg-slate-800/20 text-[11px] leading-tight">
                 <td class="p-2 text-center font-bold border-r border-slate-700">${r.age}</td>
@@ -433,7 +433,7 @@ export const burndown = {
         }).join('');
         
         return `<table class="w-full text-left border-collapse table-auto">
-            <thead class="sticky top-0 bg-slate-800 text-slate-500 uppercase text-[10px] z-20">
+            <thead class="sticky top-0 bg-slate-800 text-slate-500 label-std z-20">
                 <tr>
                     <th class="p-3 border-r border-slate-700 w-12">Age</th>
                     <th class="p-3 text-right">Budget</th>

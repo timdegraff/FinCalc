@@ -107,7 +107,7 @@ function scrapeDataFromUI() {
     document.querySelectorAll('#income-cards > div').forEach(r => {
         const d = scrapeRow(r);
         d.isMonthly = r.querySelector('[data-id="isMonthly"]')?.textContent.trim().toLowerCase() === 'monthly';
-        d.writeOffsMonthly = r.querySelector('[data-id="writeOffsMonthly"]')?.textContent.trim().toLowerCase() === 'monthly';
+        d.incomeExpensesMonthly = r.querySelector('[data-id="incomeExpensesMonthly"]')?.textContent.trim().toLowerCase() === 'monthly';
         data.income.push(d);
     });
     document.querySelectorAll('#budget-savings-rows tr').forEach(r => {

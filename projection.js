@@ -4,6 +4,11 @@ import { math, engine, assetColors } from './utils.js';
 let chartInstance = null;
 let isRealDollars = false;
 
+// SYNC GLOBAL TYPOGRAPHY
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.font.size = 10;
+Chart.defaults.color = "#64748b";
+
 export const projection = {
     load: (settings) => {
         if (!settings) return;
@@ -115,9 +120,10 @@ function renderChart(labels, datasets) {
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
             plugins: { 
-                legend: { display: true, position: 'bottom', labels: { color: '#64748b', font: { size: 10 } } },
+                legend: { display: true, position: 'bottom', labels: { usePointStyle: true, font: { weight: 'bold' } } },
                 tooltip: {
                     backgroundColor: '#0f172a',
+                    bodyFont: { family: "'JetBrains Mono', monospace", size: 12 },
                     callbacks: { label: (c) => `${c.dataset.label}: ${math.toCurrency(c.parsed.y)}` }
                 }
             },
@@ -125,13 +131,12 @@ function renderChart(labels, datasets) {
                 y: { 
                     stacked: true, 
                     ticks: { 
-                        color: '#64748b', 
-                        font: { size: 10 }, 
+                        font: { family: "'JetBrains Mono', monospace" }, 
                         callback: (v) => math.toCurrency(v, true) 
                     }, 
                     grid: { color: 'rgba(51, 65, 85, 0.2)' } 
                 },
-                x: { ticks: { color: '#64748b', font: { size: 10 }, maxTicksLimit: 12 }, grid: { display: false } }
+                x: { ticks: { maxTicksLimit: 12 }, grid: { display: false } }
             }
         }
     });

@@ -311,8 +311,8 @@ window.addRow = (containerId, type, data = {}) => {
     if (type === 'income') {
         const amtBtn = element.querySelector('[data-id="isMonthly"]');
         if (amtBtn) amtBtn.textContent = data.isMonthly ? 'Monthly' : 'Annual';
-        const offBtn = element.querySelector('[data-id="writeOffsMonthly"]');
-        if (offBtn) offBtn.textContent = data.writeOffsMonthly ? 'Monthly' : 'Annual';
+        const offBtn = element.querySelector('[data-id="incomeExpensesMonthly"]');
+        if (offBtn) offBtn.textContent = data.incomeExpensesMonthly ? 'Monthly' : 'Annual';
         checkIrsLimits(element);
     }
     if (type === 'investment') updateCostBasisVisibility(element);
@@ -365,6 +365,7 @@ window.updateSidebarChart = (data) => {
             plugins: { 
                 legend: { display: false },
                 tooltip: {
+                    bodyFont: { family: "'JetBrains Mono', monospace" },
                     callbacks: {
                         label: (c) => {
                             const p = ((c.parsed / totalSum) * 100).toFixed(1);
@@ -387,11 +388,11 @@ window.createAssumptionControls = (data) => {
     const settingsHTML = `
         <div class="col-span-full mb-4 pb-2 border-b border-slate-700/50 flex items-center gap-2">
             <i class="fas fa-user-circle text-blue-400"></i>
-            <h3 class="text-xs uppercase font-black text-slate-400 tracking-widest">Personal & Strategy</h3>
+            <h3 class="label-std text-slate-400">Personal & Strategy</h3>
         </div>
         <div class="space-y-6 lg:border-r lg:border-slate-700/30 lg:pr-8">
-            <label class="block"><span class="text-[10px] text-slate-500 font-black uppercase tracking-widest">Filing Status</span><select data-id="filingStatus" class="input-base w-full mt-1"><option>Single</option><option>Married Filing Jointly</option></select></label>
-            <label class="block"><span class="text-[10px] text-slate-500 font-black uppercase tracking-widest">Benefit Target Threshold</span><select data-id="benefitCeiling" class="input-base w-full mt-1">
+            <label class="block"><span class="label-std text-slate-500">Filing Status</span><select data-id="filingStatus" class="input-base w-full mt-1 font-bold"><option>Single</option><option>Married Filing Jointly</option></select></label>
+            <label class="block"><span class="label-std text-slate-500">Benefit Target Threshold</span><select data-id="benefitCeiling" class="input-base w-full mt-1 font-bold">
                 <option value="1.38">138% FPL (Medicaid)</option>
                 <option value="2.5">250% FPL (Silver)</option>
                 <option value="999">Wealth Preservation / No Subsidies</option>
@@ -401,14 +402,14 @@ window.createAssumptionControls = (data) => {
         <div class="space-y-6 lg:border-r lg:border-slate-700/30 lg:px-8">
             <div class="mb-4 pb-2 border-b border-slate-700/50 flex items-center gap-2">
                 <i class="fas fa-university text-emerald-400"></i>
-                <h3 class="text-xs uppercase font-black text-slate-400 tracking-widest">Retirement & Social Security</h3>
+                <h3 class="label-std text-slate-400">Retirement & Social Security</h3>
             </div>
             <div id="assumptions-retirement"></div>
         </div>
         <div class="space-y-6 lg:pl-8">
             <div class="mb-4 pb-2 border-b border-slate-700/50 flex items-center gap-2">
                 <i class="fas fa-chart-area text-amber-400"></i>
-                <h3 class="text-xs uppercase font-black text-slate-400 tracking-widest">Market & Growth</h3>
+                <h3 class="label-std text-slate-400">Market & Growth</h3>
             </div>
             <div id="assumptions-market"></div>
         </div>
@@ -440,7 +441,7 @@ window.createAssumptionControls = (data) => {
             const div = document.createElement('div');
             div.className = 'space-y-2 mb-6';
             const displayVal = isCurrency ? math.toCurrency(val) : val;
-            div.innerHTML = `<label class="flex justify-between font-bold text-[10px] uppercase text-slate-500 tracking-widest">${label} <span class="text-emerald-400 font-black">${displayVal}</span></label>
+            div.innerHTML = `<label class="flex justify-between label-std text-slate-500">${label} <span class="text-emerald-400 font-black mono-numbers">${displayVal}</span></label>
             <input type="range" data-id="${id}" value="${val}" min="${min}" max="${max}" step="${step}" class="input-range">`;
             subContainer.appendChild(div);
         });

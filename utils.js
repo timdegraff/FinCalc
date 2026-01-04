@@ -123,8 +123,8 @@ export const engine = {
         const grossIncome = inc.reduce((s, x) => {
             let base = math.fromCurrency(x.amount);
             if (x.isMonthly) base *= 12;
-            let writes = math.fromCurrency(x.writeOffs);
-            if (x.writeOffsMonthly) writes *= 12;
+            let writes = math.fromCurrency(x.incomeExpenses);
+            if (x.incomeExpensesMonthly) writes *= 12;
             const bonus = base * (parseFloat(x.bonusPct) / 100 || 0);
             const personal401k = base * (parseFloat(x.contribution) / 100 || 0);
             const match401k = base * (parseFloat(x.match) / 100 || 0);
