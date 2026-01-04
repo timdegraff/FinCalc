@@ -35,7 +35,7 @@ export const burndown = {
                         </div>
                     </div>
 
-                    <div id="burndown-live-sliders" class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                    <div id="burndown-live-sliders" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
                         <!-- Sliders populated by JS -->
                     </div>
                 </div>
@@ -118,21 +118,27 @@ export const burndown = {
         
         const sliderContainer = document.getElementById('burndown-live-sliders');
         if (sliderContainer && sliderContainer.innerHTML.trim() === '') {
-            const controls = { 
-                retirementAge: 'Retire Age', 
-                stockGrowth: 'Stock %', 
-                cryptoGrowth: 'Bitcoin %',
-                metalsGrowth: 'Metals %',
-                inflation: 'Inflat %',
-                helocRate: 'HELOC %'
-            };
-            Object.entries(controls).forEach(([key, label]) => {
-                const val = data.assumptions[key] || 0;
+            const sliderConfigs = [
+                { key: 'currentAge', label: 'Current Age', min: 18, max: 100, step: 1 },
+                { key: 'retirementAge', label: 'Retire Age', min: 18, max: 100, step: 1 },
+                { key: 'stockGrowth', label: 'Stock %', min: 0, max: 15, step: 0.5 },
+                { key: 'cryptoGrowth', label: 'Bitcoin %', min: 0, max: 50, step: 1 },
+                { key: 'metalsGrowth', label: 'Metals %', min: 0, max: 15, step: 1 },
+                { key: 'inflation', label: 'Inflat %', min: 0, max: 10, step: 0.1 }
+            ];
+
+            sliderConfigs.forEach(({ key, label, min, max, step }) => {
+                let val = data.assumptions[key] || 0;
+                // Age Constraint Check for initial render
+                if (key === 'retirementAge') {
+                    if (val < data.assumptions.currentAge) val = data.assumptions.currentAge;
+                }
+
                 const div = document.createElement('div');
                 div.className = 'space-y-2';
                 div.innerHTML = `
                     <label class="flex justify-between font-bold text-[10px] uppercase text-slate-500">${label} <span class="text-blue-400 font-black">${val}</span></label>
-                    <input type="range" data-live-id="${key}" value="${val}" min="0" max="100" step="0.5" class="input-range">
+                    <input type="range" data-live-id="${key}" value="${val}" min="${min}" max="${max}" step="${step}" class="input-range">
                 `;
                 div.querySelector('input').oninput = (e) => {
                     const newVal = parseFloat(e.target.value);
@@ -148,7 +154,7 @@ export const burndown = {
         if (priorityList) {
             priorityList.innerHTML = burndown.priorityOrder.map(k => {
                 const meta = burndown.assetMeta[k];
-                if (!meta) return ''; // Skip if not defined
+                if (!meta) return ''; 
                 return `
                     <div data-pk="${k}" class="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-[10px] font-bold cursor-move flex items-center gap-2 uppercase tracking-widest" style="color: ${meta.color}">
                         <i class="fas fa-grip-vertical opacity-30"></i> ${meta.label}
@@ -178,7 +184,6 @@ export const burndown = {
         const inflationRate = (assumptions.inflation || 3) / 100;
         const filingStatus = assumptions.filingStatus || 'Single';
         const magiCeilingMult = parseFloat(assumptions.benefitCeiling) || 1.38;
-        const helocInterestRate = (parseFloat(assumptions.helocRate) || 8.5) / 100;
         const currentYear = new Date().getFullYear();
 
         let taxValue = investments.filter(i => i.type === 'Taxable').reduce((s, i) => s + math.fromCurrency(i.value), 0);
@@ -188,7 +193,7 @@ export const burndown = {
         }, 0);
         
         let bal = {
-            'cash': investments.filter(i => i.type === 'Cash').reduce((s, i) => s + math.fromCurrency(i.value), 0),
+            'cash': investments.filter(i => i.type === 'Cash' || i.type === 'HSA' || i.type === '529 Plan').reduce((s, i) => s + math.fromCurrency(i.value), 0),
             'taxable': taxValue,
             'roth-basis': investments.filter(i => i.type === 'Post-Tax (Roth)').reduce((s, i) => s + (math.fromCurrency(i.costBasis) || 0), 0),
             'roth-earnings': investments.filter(i => i.type === 'Post-Tax (Roth)').reduce((s, i) => s + Math.max(0, math.fromCurrency(i.value) - (math.fromCurrency(i.costBasis) || 0)), 0),
@@ -211,9 +216,7 @@ export const burndown = {
             const isRetired = age >= assumptions.retirementAge;
             const yearResult = { age, year: currentYear + i, draws: {}, totalDraw: 0 };
             const fpl = fpl2026Base * Math.pow(1 + inflationRate, i);
-            const magiLimit = fpl * magiCeilingMult;
-            const annualHelocInterest = bal['heloc'] * helocInterestRate;
-            let currentYearBudget = baseAnnualBudget * Math.pow(1 + inflationRate, i) + annualHelocInterest;
+            let currentYearBudget = baseAnnualBudget * Math.pow(1 + inflationRate, i);
 
             let taxableIncome = 0;
             let nonTaxableIncome = 0;

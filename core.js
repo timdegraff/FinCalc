@@ -15,6 +15,7 @@ export function initializeUI() {
     attachDynamicRowListeners();
     attachSortingListeners();
     attachCoPilotListeners();
+    attachPasteListeners();
     showTab('assets-debts');
 }
 
@@ -26,7 +27,7 @@ function attachGlobalListeners() {
     if (logoutBtn) logoutBtn.onclick = logoutUser;
 
     document.body.addEventListener('input', (e) => {
-        if (e.target.closest('.input-base, .input-range')) {
+        if (e.target.closest('.input-base, .input-range') || e.target.closest('input[data-id]')) {
             handleLinkedBudgetValues(e.target);
             if (e.target.dataset.id === 'contribution' || e.target.dataset.id === 'amount') {
                 const row = e.target.closest('tr') || e.target.closest('.bg-slate-800');
@@ -36,6 +37,25 @@ function attachGlobalListeners() {
                 const label = e.target.previousElementSibling?.querySelector('span');
                 if (label) label.textContent = e.target.value;
             }
+
+            // Age logic: retirement age cannot be below current age
+            if (e.target.dataset.id === 'currentAge' || e.target.dataset.id === 'retirementAge') {
+                const container = e.target.closest('#assumptions-container') || e.target.closest('#burndown-live-sliders');
+                if (container) {
+                    const cAgeInput = container.querySelector('[data-id="currentAge"]') || container.querySelector('[data-live-id="currentAge"]');
+                    const rAgeInput = container.querySelector('[data-id="retirementAge"]') || container.querySelector('[data-live-id="retirementAge"]');
+                    if (cAgeInput && rAgeInput) {
+                        const cVal = parseInt(cAgeInput.value);
+                        const rVal = parseInt(rAgeInput.value);
+                        if (rVal < cVal) {
+                            rAgeInput.value = cVal;
+                            const rLabel = rAgeInput.previousElementSibling?.querySelector('span');
+                            if (rLabel) rLabel.textContent = cVal;
+                        }
+                    }
+                }
+            }
+
             window.debouncedAutoSave();
         }
     });
@@ -44,6 +64,43 @@ function attachGlobalListeners() {
         const label = document.getElementById('label-projection-end');
         if (label) label.textContent = e.target.value;
         window.debouncedAutoSave();
+    });
+}
+
+function attachPasteListeners() {
+    document.body.addEventListener('paste', (e) => {
+        const target = e.target;
+        if (target.dataset.paste === 'spreadsheet') {
+            const clipboardData = e.clipboardData || window.clipboardData;
+            const pastedData = clipboardData.getData('Text');
+            
+            // Check if it's spreadsheet-like data (tabs or multiple lines)
+            if (pastedData.includes('\t') || pastedData.includes('\n')) {
+                e.preventDefault();
+                const lines = pastedData.trim().split(/\r?\n/);
+                
+                // If the target field is empty, use the first row of pasted data to fill it
+                // Otherwise, treat all lines as new rows
+                lines.forEach((line, index) => {
+                    const columns = line.split('\t');
+                    const name = columns[0] || '';
+                    const monthly = columns[1] || '0';
+                    
+                    if (index === 0 && !target.value.trim()) {
+                        target.value = name;
+                        const row = target.closest('tr');
+                        const monthlyInput = row.querySelector('[data-id="monthly"]');
+                        if (monthlyInput) {
+                            monthlyInput.value = math.toCurrency(math.fromCurrency(monthly));
+                            handleLinkedBudgetValues(monthlyInput);
+                        }
+                    } else {
+                        window.addRow('budget-expenses-rows', 'budget-expense', { name, monthly: math.fromCurrency(monthly) });
+                    }
+                });
+                window.debouncedAutoSave();
+            }
+        }
     });
 }
 
@@ -120,7 +177,7 @@ function attachDynamicRowListeners() {
         } else if (btn.dataset.action === 'toggle-freq') {
             const isMonthly = btn.textContent.trim().toLowerCase() === 'monthly';
             btn.textContent = isMonthly ? 'Annual' : 'Monthly';
-            const input = btn.closest('div').querySelector('input');
+            const input = btn.closest('div')?.querySelector('input') || btn.closest('.space-y-1')?.querySelector('input') || btn.closest('.space-y-2')?.querySelector('input');
             if (input) {
                 const cur = math.fromCurrency(input.value);
                 input.value = math.toCurrency(isMonthly ? cur * 12 : cur / 12);
@@ -158,7 +215,7 @@ function updateCostBasisVisibility(row) {
     const costBasisInput = row.querySelector('[data-id="costBasis"]');
     if (!typeSelect || !costBasisInput) return;
     const val = typeSelect.value;
-    // HSA and 529 are tax-advantaged so cost basis is not usually needed for gain-based drawdown logic.
+    // As per user request: HSA and 529 are tax-advantaged so cost basis is hidden/irrelevant.
     const isIrrelevant = (val === 'Pre-Tax (401k/IRA)' || val === 'Cash' || val === 'HSA' || val === '529 Plan');
     costBasisInput.style.visibility = isIrrelevant ? 'hidden' : 'visible';
     costBasisInput.disabled = isIrrelevant;
@@ -266,15 +323,30 @@ window.createAssumptionControls = (data) => {
     <label class="block"><span class="text-[10px] text-slate-400 font-bold uppercase">Filing Status</span><select data-id="filingStatus" class="input-base w-full mt-1"><option>Single</option><option>Married Filing Jointly</option></select></label>
     <label class="block"><span class="text-[10px] text-slate-400 font-bold uppercase">Benefit Target</span><select data-id="benefitCeiling" class="input-base w-full mt-1"><option value="1.38">138% FPL (Medicaid)</option><option value="2.5">250% FPL (Silver)</option><option value="999">No Ceiling</option></select></label></div></div>`;
     
-    const sliders = { currentAge: 'Current Age', retirementAge: 'Retirement Age', stockGrowth: 'Stocks %', inflation: 'Inflation %' };
-    Object.entries(sliders).forEach(([key, label]) => {
-        const val = data.assumptions?.[key] || 0;
+    const sliderConfigs = [
+        { id: 'currentAge', label: 'Current Age', min: 18, max: 100, step: 1 },
+        { id: 'retirementAge', label: 'Retirement Age', min: 18, max: 100, step: 1 },
+        { id: 'stockGrowth', label: 'Stocks APY %', min: 0, max: 15, step: 0.5 },
+        { id: 'cryptoGrowth', label: 'Bitcoin APY %', min: 0, max: 50, step: 1 },
+        { id: 'metalsGrowth', label: 'Metals APY %', min: 0, max: 15, step: 1 },
+        { id: 'inflation', label: 'Inflation %', min: 0, max: 10, step: 0.1 }
+    ];
+
+    sliderConfigs.forEach(({ id, label, min, max, step }) => {
+        let val = data.assumptions?.[id] || 0;
+        // Age Constraint Check
+        if (id === 'retirementAge') {
+            const cAge = data.assumptions?.currentAge || 0;
+            if (val < cAge) val = cAge;
+        }
+
         const div = document.createElement('div');
         div.className = 'space-y-2';
         div.innerHTML = `<label class="flex justify-between font-bold text-[10px] uppercase text-slate-500">${label} <span class="text-blue-400">${val}</span></label>
-        <input type="range" data-id="${key}" value="${val}" min="0" max="100" step="0.5" class="input-range">`;
+        <input type="range" data-id="${id}" value="${val}" min="${min}" max="${max}" step="${step}" class="input-range">`;
         container.appendChild(div);
     });
+
     container.querySelectorAll('select').forEach(s => s.value = data.assumptions?.[s.dataset.id] || 'Single');
 };
 
