@@ -2,6 +2,7 @@
 import { math, engine } from './utils.js';
 
 let chartInstance = null;
+let isLogScale = false;
 
 const assetColors = {
     'Cash': '#f472b6',
@@ -20,6 +21,18 @@ export const projection = {
         const currentYear = new Date().getFullYear();
         const endAge = parseFloat(document.getElementById('input-projection-end')?.value) || 100;
         const duration = endAge - assumptions.currentAge;
+
+        // Init toggle if not done
+        const logBtn = document.getElementById('toggle-log-scale');
+        if (logBtn && !logBtn.dataset.init) {
+            logBtn.dataset.init = "true";
+            logBtn.onclick = () => {
+                isLogScale = !isLogScale;
+                logBtn.classList.toggle('text-blue-400', isLogScale);
+                logBtn.classList.toggle('border-blue-500', isLogScale);
+                projection.run(window.currentData);
+            };
+        }
         
         let buckets = {
             'Cash': investments.filter(i => i.type === 'Cash').reduce((s, i) => s + math.fromCurrency(i.value), 0),
@@ -94,7 +107,16 @@ function renderChart(labels, datasets) {
                 }
             },
             scales: {
-                y: { stacked: true, ticks: { color: '#64748b', font: { size: 10 }, callback: (v) => math.toCurrency(v, true) }, grid: { color: 'rgba(51, 65, 85, 0.2)' } },
+                y: { 
+                    stacked: !isLogScale, 
+                    type: isLogScale ? 'logarithmic' : 'linear',
+                    ticks: { 
+                        color: '#64748b', 
+                        font: { size: 10 }, 
+                        callback: (v) => math.toCurrency(v, true) 
+                    }, 
+                    grid: { color: 'rgba(51, 65, 85, 0.2)' } 
+                },
                 x: { ticks: { color: '#64748b', font: { size: 10 }, maxTicksLimit: 12 }, grid: { display: false } }
             }
         }
