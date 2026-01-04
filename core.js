@@ -33,7 +33,6 @@ function attachGlobalListeners() {
                 if (row) checkIrsLimits(row);
             }
             if (e.target.dataset.id) {
-                // Update local assumption labels if they exist
                 const label = e.target.previousElementSibling?.querySelector('span');
                 if (label) label.textContent = e.target.value;
             }
@@ -159,9 +158,10 @@ function updateCostBasisVisibility(row) {
     const costBasisInput = row.querySelector('[data-id="costBasis"]');
     if (!typeSelect || !costBasisInput) return;
     const val = typeSelect.value;
-    const isLocked = (val === 'Pre-Tax (401k/IRA)' || val === 'Cash');
-    costBasisInput.style.visibility = isLocked ? 'hidden' : 'visible';
-    costBasisInput.disabled = isLocked;
+    // HSA and 529 are tax-advantaged so cost basis is not usually needed for gain-based drawdown logic.
+    const isIrrelevant = (val === 'Pre-Tax (401k/IRA)' || val === 'Cash' || val === 'HSA' || val === '529 Plan');
+    costBasisInput.style.visibility = isIrrelevant ? 'hidden' : 'visible';
+    costBasisInput.disabled = isIrrelevant;
 }
 
 export function showTab(tabId) {
@@ -219,7 +219,6 @@ window.updateSidebarChart = (data) => {
         totalSum += val;
     });
 
-    // Flash Mitigation: Only re-render if total sum changed by > 0.5%
     const diff = Math.abs(totalSum - lastChartSum);
     if (lastChartSum !== 0 && (diff / lastChartSum) < 0.005) return;
     lastChartSum = totalSum;
@@ -263,7 +262,7 @@ window.updateSidebarChart = (data) => {
 window.createAssumptionControls = (data) => {
     const container = document.getElementById('assumptions-container');
     if (!container) return;
-    container.innerHTML = `<div class="space-y-6"><h4 class="text-xs uppercase font-bold text-slate-500 mb-2">Personal Settings</h4><div class="space-y-4">
+    container.innerHTML = `<div class="space-y-6"><h4 class="text-xs uppercase font-bold text-blue-400 mb-2">Personal Settings</h4><div class="space-y-4">
     <label class="block"><span class="text-[10px] text-slate-400 font-bold uppercase">Filing Status</span><select data-id="filingStatus" class="input-base w-full mt-1"><option>Single</option><option>Married Filing Jointly</option></select></label>
     <label class="block"><span class="text-[10px] text-slate-400 font-bold uppercase">Benefit Target</span><select data-id="benefitCeiling" class="input-base w-full mt-1"><option value="1.38">138% FPL (Medicaid)</option><option value="2.5">250% FPL (Silver)</option><option value="999">No Ceiling</option></select></label></div></div>`;
     

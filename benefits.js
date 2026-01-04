@@ -26,7 +26,7 @@ export const benefits = {
                             <span class="text-lg text-slate-400">Household Size:</span>
                             <span data-label="hhSize" class="text-xl font-bold text-white">1</span>
                         </div>
-                        <input type="range" data-benefit-id="hhSize" min="1" max="10" step="1" value="1" class="benefit-slider">
+                        <input type="range" data-benefit-id="hhSize" min="1" max="10" step="1" value="1" class="benefit-slider w-full">
                     </div>
 
                     <div class="space-y-4">
@@ -34,19 +34,22 @@ export const benefits = {
                             <span class="text-lg text-slate-400">Annual Income (Health):</span>
                             <span data-label="healthIncome" class="text-xl font-bold text-white">$40,000</span>
                         </div>
-                        <div class="relative pt-6">
-                            <div class="absolute inset-0 flex items-center justify-between pointer-events-none -top-4 opacity-50 text-[10px] uppercase font-bold tracking-widest text-slate-500 px-1">
+                        <div class="relative pt-8">
+                            <div class="absolute inset-x-0 flex items-center justify-between pointer-events-none top-0 opacity-50 text-[10px] uppercase font-bold tracking-widest text-slate-500 px-1">
                                 <span>Medicaid</span>
                                 <span>Healthy MI</span>
                                 <span>Silver Plan</span>
+                                <span>Full Rate</span>
                             </div>
-                            <div id="health-slider-track" class="h-4 rounded-full mb-4 relative overflow-hidden flex">
+                            <div id="health-slider-track" class="h-4 rounded-full mb-4 relative overflow-hidden flex w-full">
                                 <div class="h-full bg-blue-600" style="flex: 0 0 25%"></div>
                                 <div class="h-full bg-purple-600" style="flex: 0 0 15%"></div>
                                 <div class="h-full bg-orange-500" style="flex: 0 0 30%"></div>
                                 <div class="h-full bg-red-500" style="flex: 1"></div>
                             </div>
-                            <input type="range" data-benefit-id="healthIncome" min="0" max="150000" step="500" value="40000" class="benefit-slider absolute top-6 left-0">
+                            <input type="range" data-benefit-id="healthIncome" min="0" max="150000" step="500" value="40000" class="benefit-slider absolute top-8 left-0 w-full opacity-0 hover:opacity-10 focus:opacity-10 transition-opacity" style="height: 16px; background: transparent; z-index: 10;">
+                            <!-- Visible Slider that overlays the track -->
+                            <input type="range" data-benefit-id="healthIncome-visible" min="0" max="150000" step="500" value="40000" class="benefit-slider absolute top-8 left-0 w-full" style="background: transparent; z-index: 5;">
                         </div>
                     </div>
 
@@ -67,7 +70,7 @@ export const benefits = {
                             <span class="text-lg text-slate-400">Household Size:</span>
                             <span data-label="hhSize" class="text-xl font-bold text-white">1</span>
                         </div>
-                        <input type="range" data-benefit-id="hhSize" min="1" max="10" step="1" value="1" class="benefit-slider">
+                        <input type="range" data-benefit-id="hhSize" min="1" max="10" step="1" value="1" class="benefit-slider w-full">
                     </div>
 
                     <div class="space-y-4">
@@ -75,7 +78,7 @@ export const benefits = {
                             <span class="text-lg text-slate-400">Annual Gross Income (SNAP):</span>
                             <span data-label="snapIncome" class="text-xl font-bold text-white">$13,000</span>
                         </div>
-                        <input type="range" data-benefit-id="snapIncome" min="0" max="150000" step="500" value="13000" class="benefit-slider">
+                        <input type="range" data-benefit-id="snapIncome" min="0" max="150000" step="500" value="13000" class="benefit-slider w-full">
                         <p class="text-right text-xs text-pink-500 font-bold opacity-70">Limit for categorical eligibility: ~200% FPL</p>
                     </div>
 
@@ -84,7 +87,7 @@ export const benefits = {
                             <span class="text-lg text-slate-400">Monthly Shelter & Utility Costs:</span>
                             <span data-label="shelterCosts" class="text-xl font-bold text-white">$700</span>
                         </div>
-                        <input type="range" data-benefit-id="shelterCosts" min="0" max="5000" step="50" value="700" class="benefit-slider">
+                        <input type="range" data-benefit-id="shelterCosts" min="0" max="5000" step="50" value="700" class="benefit-slider w-full">
                         <div class="flex justify-between text-xs text-slate-500">
                             <span>Rent, mortgage, utilities, etc.</span>
                             <label class="flex items-center gap-2 cursor-pointer">
@@ -101,15 +104,12 @@ export const benefits = {
                     <div class="pt-8 text-center space-y-2">
                         <h3 id="snap-result-value" class="text-4xl font-black text-emerald-400">$0 / month</h3>
                         <p class="text-lg text-slate-500">Estimated SNAP Benefit.</p>
-                        <button class="text-blue-400 text-sm font-bold flex items-center gap-1 mx-auto pt-4 opacity-50 hover:opacity-100">
-                            <i class="fas fa-caret-right"></i> Show Calculation
-                        </button>
                     </div>
                 </div>
 
                 <div class="mt-12 p-4 bg-slate-800/30 rounded-xl border border-slate-800">
                     <p class="text-[10px] text-slate-500 italic leading-relaxed">
-                        Note: As of Jan 1, 2026, Michigan continues to operate under "Broad Based Categorical Eligibility," effectively removing asset tests for SNAP and Healthy Michigan Plan (Medicaid) for the vast majority of households. Calculations reflect 2026 estimated Federal Poverty Levels (FPL).
+                        Note: As of Jan 1, 2026, Michigan continues to operate under "Broad Based Categorical Eligibility," effectively removing asset tests for SNAP and Healthy Michigan Plan (Medicaid). Calculations reflect 2026 estimated Federal Poverty Levels (FPL).
                     </p>
                 </div>
             </div>
@@ -133,6 +133,12 @@ export const benefits = {
 
         container.querySelectorAll('input').forEach(input => {
             input.oninput = () => {
+                // Keep dual healthIncome inputs in sync
+                if (input.dataset.benefitId === 'healthIncome' || input.dataset.benefitId === 'healthIncome-visible') {
+                    const other = container.querySelector(`[data-benefit-id="${input.dataset.benefitId === 'healthIncome' ? 'healthIncome-visible' : 'healthIncome'}"]`);
+                    if (other) other.value = input.value;
+                }
+
                 if (input.dataset.benefitId === 'hhSize') {
                     container.querySelectorAll('[data-benefit-id="hhSize"]').forEach(el => el.value = input.value);
                 }
@@ -169,7 +175,7 @@ export const benefits = {
         const income = data.healthIncome;
         const ratio = income / fpl2026;
 
-        const ball = c.querySelector('[data-benefit-id="healthIncome"]');
+        const ball = c.querySelector('[data-benefit-id="healthIncome-visible"]');
         if (ratio < 1.38) {
             document.getElementById('health-result-title').textContent = "Medicaid (Healthy MI)";
             document.getElementById('health-result-desc').textContent = "State-sponsored. $0 premiums.";
@@ -244,7 +250,13 @@ export const benefits = {
             const el = c.querySelector(`[data-benefit-id="${key}"]`);
             if (!el) return;
             if (el.type === 'checkbox') el.checked = val;
-            else el.value = val;
+            else {
+                el.value = val;
+                if (key === 'healthIncome') {
+                    const visible = c.querySelector('[data-benefit-id="healthIncome-visible"]');
+                    if (visible) visible.value = val;
+                }
+            }
         });
         benefits.refresh();
     }

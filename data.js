@@ -19,7 +19,7 @@ async function loadData() {
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
         window.currentData = docSnap.data();
-        if (!window.currentData.assumptions) window.currentData.assumptions = assumptions.defaults;
+        if (!window.currentData.assumptions) window.currentData.assumptions = { ...assumptions.defaults };
     } else {
         window.currentData = getInitialData();
         await autoSave(false);
@@ -67,17 +67,24 @@ export async function autoSave(scrape = true) {
 }
 
 function scrapeDataFromUI() {
+    const prevData = window.currentData || getInitialData();
     const data = { 
-        assumptions: {
-            filingStatus: document.querySelector('[data-id="filingStatus"]')?.value,
-            benefitCeiling: document.querySelector('[data-id="benefitCeiling"]')?.value,
-        }, 
+        assumptions: { ...prevData.assumptions }, 
         investments: [], realEstate: [], otherAssets: [], helocs: [], debts: [], income: [], 
         budget: { savings: [], expenses: [] }, benefits: benefits.scrape(), burndown: burndown.scrape() 
     };
+
+    // Update assumptions only if they exist in the current DOM
+    const filingStatusEl = document.querySelector('[data-id="filingStatus"]');
+    if (filingStatusEl) data.assumptions.filingStatus = filingStatusEl.value;
+    
+    const benefitCeilingEl = document.querySelector('[data-id="benefitCeiling"]');
+    if (benefitCeilingEl) data.assumptions.benefitCeiling = benefitCeilingEl.value;
+
     document.querySelectorAll('#assumptions-container [data-id]').forEach(i => {
-        if (i.tagName !== 'SELECT') data.assumptions[i.dataset.id] = parseFloat(i.value);
+        if (i.tagName !== 'SELECT') data.assumptions[i.dataset.id] = parseFloat(i.value) || 0;
     });
+
     document.querySelectorAll('#investment-rows tr').forEach(r => data.investments.push(scrapeRow(r)));
     document.querySelectorAll('#real-estate-rows tr').forEach(r => data.realEstate.push(scrapeRow(r)));
     document.querySelectorAll('#other-assets-rows tr').forEach(r => data.otherAssets.push(scrapeRow(r)));
@@ -110,7 +117,7 @@ function scrapeRow(row) {
 }
 
 function getInitialData() {
-    return { assumptions: assumptions.defaults, investments: [], realEstate: [], income: [], budget: { savings: [], expenses: [] }, benefits: {}, burndown: {} };
+    return { assumptions: { ...assumptions.defaults }, investments: [], realEstate: [], otherAssets: [], helocs: [], debts: [], income: [], budget: { savings: [], expenses: [] }, benefits: {}, burndown: {} };
 }
 
 export function updateSummaries(data) {
