@@ -251,12 +251,13 @@ export const burndown = {
         const fixedOtherAssets = otherAssets.reduce((s, o) => s + (math.fromCurrency(o.value) - math.fromCurrency(o.loan)), 0);
         const helocLimit = helocs.reduce((s, h) => s + math.fromCurrency(h.limit), 0);
         const fpl2026Base = filingStatus === 'Single' ? 16060 : 32120; // Corrected MFJ base FPL
-        const baseAnnualBudget = state.useSync ? (budget.expenses?.reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0) : state.manualBudget;
         const ssBenefitBase = (assumptions.ssMonthly || 0) * 12;
         
         const results = [];
         const endAge = parseFloat(document.getElementById('input-projection-end')?.value) || 75;
         const duration = endAge - assumptions.currentAge;
+
+        const activeExpenses = budget.expenses || [];
 
         for (let i = 0; i <= duration; i++) {
             const age = assumptions.currentAge + i;
@@ -264,6 +265,18 @@ export const burndown = {
             const yearResult = { age, year: currentYear + i, draws: {}, totalDraw: 0 };
             const inflationFactor = Math.pow(1 + inflationRate, i);
             const fpl = fpl2026Base * inflationFactor;
+
+            // CALCULATE DYNAMIC BUDGET PER YEAR
+            let baseAnnualBudget = 0;
+            if (state.useSync) {
+                baseAnnualBudget = activeExpenses.reduce((sum, exp) => {
+                    if (isRetired && exp.removedInRetirement) return sum;
+                    return sum + math.fromCurrency(exp.annual);
+                }, 0);
+            } else {
+                baseAnnualBudget = state.manualBudget;
+            }
+            
             const currentYearBudget = baseAnnualBudget * inflationFactor;
 
             if (age < assumptions.retirementAge) {

@@ -122,6 +122,7 @@ export const templates = {
     `,
     "budget-expense": () => `
         <td class="px-6 py-2"><input data-id="name" data-paste="spreadsheet" type="text" placeholder="Expense (Paste from Sheets)" class="input-base w-full"></td>
+        <td class="px-6 py-2 text-center"><input data-id="removedInRetirement" type="checkbox" class="w-6 h-6 flex-shrink-0 accent-pink-500 rounded border-slate-600 bg-slate-900 mx-auto"></td>
         <td class="px-6 py-2"><input data-id="monthly" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-400"></td>
         <td class="px-6 py-2"><input data-id="annual" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-500 font-bold"></td>
         <td class="px-2 py-2 text-center"><button data-action="remove" class="text-slate-500 hover:text-red-400"><i class="fas fa-times"></i></button></td>
