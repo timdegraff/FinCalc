@@ -34,68 +34,38 @@ function attachGlobalListeners() {
                 if (row) checkIrsLimits(row);
             }
             
-            // Sync labels and twin sliders
-            if (e.target.dataset.id) {
-                const val = e.target.value;
-                const label = e.target.previousElementSibling?.querySelector('span');
-                if (label) {
-                    if (e.target.dataset.id === 'ssMonthly') {
-                        label.textContent = math.toCurrency(parseFloat(val));
-                    } else {
-                        label.textContent = val;
-                    }
-                }
-
-                // TWIN SYNC: If moving main assumptions, update burndown counterparts
-                const isMainAssumption = e.target.closest('#assumptions-container');
-                if (isMainAssumption) {
-                    const id = e.target.dataset.id;
-                    // Update Burndown Live Sliders
-                    const liveSlider = document.querySelector(`#burndown-live-sliders [data-live-id="${id}"]`);
-                    if (liveSlider) {
-                        liveSlider.value = val;
-                        const liveLabel = liveSlider.previousElementSibling?.querySelector('span');
-                        if (liveLabel) liveLabel.textContent = val;
-                    }
-                    // Update Burndown Top Quick Access (specifically for retirementAge)
-                    if (id === 'retirementAge') {
-                        const topInput = document.getElementById('input-top-retire-age');
-                        if (topInput) {
-                            topInput.value = val;
-                            const topLabel = document.getElementById('label-top-retire-age');
-                            if (topLabel) topLabel.textContent = val;
-                        }
-                    }
-                }
-            }
-
-            // Age logic: retirement age cannot be below current age
-            if (e.target.dataset.id === 'currentAge' || e.target.dataset.id === 'retirementAge') {
-                const container = e.target.closest('#assumptions-container') || e.target.closest('#burndown-live-sliders');
-                if (container) {
-                    const isLive = !!e.target.dataset.liveId;
-                    const cAgeInput = container.querySelector(isLive ? '[data-live-id="currentAge"]' : '[data-id="currentAge"]');
-                    const rAgeInput = container.querySelector(isLive ? '[data-live-id="retirementAge"]' : '[data-id="retirementAge"]');
+            // UNIFIED SYNC LOGIC
+            const id = e.target.dataset.id || e.target.dataset.liveId;
+            if (id) {
+                let val = e.target.value;
+                
+                // 1. Age Constraint: Retirement Age >= Current Age
+                if (id === 'currentAge' || id === 'retirementAge') {
+                    const currentAge = parseFloat(document.querySelector('[data-id="currentAge"]')?.value || window.currentData?.assumptions?.currentAge || 40);
+                    let retirementAge = parseFloat(document.querySelector('[data-id="retirementAge"]')?.value || window.currentData?.assumptions?.retirementAge || 65);
                     
-                    if (cAgeInput && rAgeInput) {
-                        const cVal = Math.round(parseFloat(cAgeInput.value));
-                        let rVal = Math.round(parseFloat(rAgeInput.value));
-                        if (rVal < cVal) {
-                            rAgeInput.value = cVal;
-                            const rLabel = rAgeInput.previousElementSibling?.querySelector('span');
-                            if (rLabel) rLabel.textContent = cVal;
-                            
-                            // Propagate this sync to the main container too if we are in the live slider
-                            if (isLive) {
-                                const mainRInput = document.querySelector('#assumptions-container [data-id="retirementAge"]');
-                                if (mainRInput) {
-                                    mainRInput.value = cVal;
-                                    const mainRLabel = mainRInput.previousElementSibling?.querySelector('span');
-                                    if (mainRLabel) mainRLabel.textContent = cVal;
-                                }
-                            }
+                    if (id === 'currentAge') {
+                        const newC = parseFloat(val);
+                        if (newC > retirementAge) {
+                            retirementAge = newC;
+                            // Trigger sync for retirementAge immediately
+                            syncAllInputs('retirementAge', newC);
+                        }
+                    } else if (id === 'retirementAge') {
+                        const newR = parseFloat(val);
+                        if (newR < currentAge) {
+                            val = currentAge;
+                            e.target.value = val;
                         }
                     }
+                }
+
+                // 2. Sync all other elements sharing this ID
+                syncAllInputs(id, val);
+                
+                // 3. Update memory model immediately to prevent race conditions during "scrape"
+                if (window.currentData && window.currentData.assumptions) {
+                    window.currentData.assumptions[id] = parseFloat(val) || val;
                 }
             }
 
@@ -107,6 +77,41 @@ function attachGlobalListeners() {
         const label = document.getElementById('label-projection-end');
         if (label) label.textContent = e.target.value;
         window.debouncedAutoSave();
+    });
+}
+
+/**
+ * Robustly syncs every instance of an input and its label across the entire DOM.
+ */
+function syncAllInputs(id, val) {
+    // Find all range inputs/selectors with this ID (Main, Live, Top)
+    const selectors = [
+        `#assumptions-container [data-id="${id}"]`,
+        `#burndown-live-sliders [data-live-id="${id}"]`,
+        `#burndown-live-sliders [data-id="${id}"]`,
+        `#input-top-retire-age[data-id="${id}"]`
+    ];
+
+    selectors.forEach(sel => {
+        document.querySelectorAll(sel).forEach(el => {
+            if (el.value !== val) el.value = val;
+            
+            // Sync associated labels (spans)
+            let label = null;
+            if (el.id === 'input-top-retire-age') {
+                label = document.getElementById('label-top-retire-age');
+            } else {
+                label = el.previousElementSibling?.querySelector('span');
+            }
+            
+            if (label) {
+                if (id === 'ssMonthly') {
+                    label.textContent = math.toCurrency(parseFloat(val));
+                } else {
+                    label.textContent = val;
+                }
+            }
+        });
     });
 }
 

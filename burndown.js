@@ -21,7 +21,7 @@ export const burndown = {
                                 <i class="fas fa-magic"></i> OPTIMIZE FOR BENEFITS
                             </button>
                             
-                            <!-- New Quick Access Slider -->
+                            <!-- Quick Access Slider -->
                             <div class="flex items-center gap-4 bg-slate-900/50 p-2 rounded-xl border border-slate-700">
                                 <span class="text-[10px] font-bold text-slate-500 uppercase whitespace-nowrap">Retire Age: <span id="label-top-retire-age" class="text-purple-400">65</span></span>
                                 <input type="range" id="input-top-retire-age" data-id="retirementAge" min="18" max="100" value="65" class="w-24 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500">
@@ -108,36 +108,6 @@ export const burndown = {
                 window.debouncedAutoSave();
             };
         }
-        const topRetireInput = document.getElementById('input-top-retire-age');
-        if (topRetireInput) {
-            topRetireInput.oninput = (e) => {
-                let newVal = parseFloat(e.target.value);
-                if (newVal < window.currentData.assumptions.currentAge) {
-                    newVal = window.currentData.assumptions.currentAge;
-                    e.target.value = newVal;
-                }
-                
-                const mainInput = document.querySelector(`#assumptions-container [data-id="retirementAge"]`);
-                if (mainInput) {
-                    mainInput.value = newVal;
-                    const mainLabel = mainInput.previousElementSibling?.querySelector('span');
-                    if (mainLabel) mainLabel.textContent = newVal;
-                }
-
-                window.currentData.assumptions.retirementAge = newVal;
-                const label = document.getElementById('label-top-retire-age');
-                if (label) label.textContent = newVal;
-                
-                const liveInput = document.querySelector(`#burndown-live-sliders [data-live-id="retirementAge"]`);
-                if (liveInput) {
-                    liveInput.value = newVal;
-                    const liveLabel = liveInput.previousElementSibling?.querySelector('span');
-                    if (liveLabel) liveLabel.textContent = newVal;
-                }
-
-                window.debouncedAutoSave();
-            };
-        }
     },
 
     load: (data) => {
@@ -218,39 +188,8 @@ export const burndown = {
                 div.className = 'space-y-2';
                 div.innerHTML = `
                     <label class="flex justify-between font-bold text-[10px] uppercase text-slate-500">${label} <span class="text-blue-400 font-black">${val}</span></label>
-                    <input type="range" data-live-id="${key}" value="${val}" min="${min}" max="${max}" step="${step}" class="input-range">
+                    <input type="range" data-live-id="${key}" data-id="${key}" value="${val}" min="${min}" max="${max}" step="${step}" class="input-range">
                 `;
-                div.querySelector('input').oninput = (e) => {
-                    let newVal = parseFloat(e.target.value);
-                    if (key === 'retirementAge' && newVal < data.assumptions.currentAge) {
-                        newVal = data.assumptions.currentAge;
-                        e.target.value = newVal;
-                    } else if (key === 'currentAge' && newVal > data.assumptions.retirementAge) {
-                        data.assumptions.retirementAge = newVal;
-                        const rSlider = sliderContainer.querySelector('[data-live-id="retirementAge"]');
-                        if (rSlider) { rSlider.value = newVal; rSlider.previousElementSibling.querySelector('span').textContent = newVal; }
-                    }
-                    
-                    const mainInput = document.querySelector(`#assumptions-container [data-id="${key}"]`);
-                    if (mainInput) {
-                        mainInput.value = newVal;
-                        const mainLabel = mainInput.previousElementSibling?.querySelector('span');
-                        if (mainLabel) mainLabel.textContent = newVal;
-                        
-                        if (key === 'retirementAge') {
-                            const topInput = document.getElementById('input-top-retire-age');
-                            if (topInput) {
-                                topInput.value = newVal;
-                                const topLabel = document.getElementById('label-top-retire-age');
-                                if (topLabel) topLabel.textContent = newVal;
-                            }
-                        }
-                    }
-
-                    div.querySelector('span').textContent = newVal;
-                    data.assumptions[key] = newVal;
-                    window.debouncedAutoSave();
-                };
                 sliderContainer.appendChild(div);
             });
         } else if (sliderContainer) {
@@ -327,7 +266,6 @@ export const burndown = {
             const fpl = fpl2026Base * inflationFactor;
             const currentYearBudget = baseAnnualBudget * inflationFactor;
 
-            // Handle Savings during working years to keep in sync with Projections
             if (age < assumptions.retirementAge) {
                 const summaries = engine.calculateSummaries(data);
                 bal['401k'] += summaries.total401kContribution;
@@ -358,10 +296,13 @@ export const burndown = {
             const tax = engine.calculateTax(taxableIncome, filingStatus);
             
             yearResult.magi = Math.max(0, taxableIncome);
+            
+            // Benefit Logic
+            yearResult.isMedicare = age >= 65;
             yearResult.isMedicaid = yearResult.magi < fpl * 1.38;
             yearResult.isSilver = yearResult.magi < fpl * 2.5 && !yearResult.isMedicaid;
             
-            if (!yearResult.isMedicaid && bal['hsa'] > 0) {
+            if (!yearResult.isMedicare && !yearResult.isMedicaid && bal['hsa'] > 0) {
                 const medicalSpend = currentYearBudget * 0.10;
                 const hsaMedicalDraw = Math.min(bal['hsa'], medicalSpend);
                 bal['hsa'] -= hsaMedicalDraw;
@@ -401,12 +342,11 @@ export const burndown = {
             const cryptoG = (1 + (assumptions.cryptoGrowth / 100));
             const metalsG = (1 + (assumptions.metalsGrowth / 100));
             
-            // Apply Growth for next year
             bal['taxable'] *= stockG;
             bal['401k'] *= stockG;
             bal['roth-basis'] *= stockG;
             bal['roth-earnings'] *= stockG;
-            bal['hsa'] *= stockG; // Specifically requested Stock APY growth for HSA
+            bal['hsa'] *= stockG; 
             bal['crypto'] *= cryptoG;
             bal['metals'] *= metalsG;
             hidden529 *= stockG;
@@ -440,7 +380,17 @@ export const burndown = {
                 </td>`;
             }).join('');
             
-            const badge = r.isMedicaid ? `<span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 text-[9px] font-bold">MEDICAID</span>` : (r.isSilver ? `<span class="px-2 py-0.5 rounded bg-purple-900/40 text-purple-400 text-[9px] font-bold">SILVER</span>` : `<span class="text-[9px] text-slate-700">PRIVATE</span>`);
+            let badge = '';
+            if (r.age >= 65) {
+                if (r.isMedicaid) {
+                    badge = `<span class="px-2 py-0.5 rounded bg-emerald-900/40 text-emerald-400 text-[9px] font-black" title="Dual Eligible: Medicare + Medicaid">DUAL (MC/MA)</span>`;
+                } else {
+                    badge = `<span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 text-[9px] font-bold">MEDICARE</span>`;
+                }
+            } else {
+                badge = r.isMedicaid ? `<span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 text-[9px] font-bold">MEDICAID</span>` : (r.isSilver ? `<span class="px-2 py-0.5 rounded bg-purple-900/40 text-purple-400 text-[9px] font-bold">SILVER</span>` : `<span class="text-[9px] text-slate-700">PRIVATE</span>`);
+            }
+            
             const snapDisplay = r.snapBenefit > 0 ? `<div class="text-[8px] text-emerald-500 font-bold tracking-tight">+${formatter.formatCurrency(r.snapBenefit / inflationFactor, 0)} SNAP</div>` : '';
             
             return `<tr class="border-b border-slate-800/50 hover:bg-slate-800/20 text-[10px]">
