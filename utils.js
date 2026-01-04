@@ -56,6 +56,35 @@ export const assumptions = {
 };
 
 export const engine = {
+    // IRS 2022 Single Life Expectancy Table (Ages 30-60 relevant for early retirement)
+    getLifeExpectancy: (age) => {
+        const table = {
+            30: 55.3, 31: 54.3, 32: 53.3, 33: 52.4, 34: 51.4, 35: 50.5, 36: 49.5, 37: 48.6, 38: 47.6, 39: 46.7,
+            40: 45.7, 41: 44.8, 42: 43.8, 43: 42.9, 44: 41.9, 45: 41.0, 46: 40.0, 47: 39.1, 48: 38.1, 49: 37.2,
+            50: 36.2, 51: 35.3, 52: 34.3, 53: 33.4, 54: 32.5, 55: 31.5, 56: 30.6, 57: 29.8, 58: 28.9, 59: 28.0,
+            60: 27.1
+        };
+        const roundedAge = Math.floor(age);
+        if (roundedAge < 30) return 55.3 + (30 - roundedAge);
+        if (roundedAge > 60) return 27.1 - (roundedAge - 60);
+        return table[roundedAge];
+    },
+
+    // Calculates the Maximum Allowable 72(t) SEPP Payment using the Amortization Method
+    // Based on IRS Notice 2022-06 (Allows up to 5% interest rate or 120% AFR)
+    calculateMaxSepp: (balance, age) => {
+        if (balance <= 0) return 0;
+        const n = engine.getLifeExpectancy(age);
+        const r = 0.05; // 5% Max per Notice 2022-06
+        
+        // Amortization Formula: A = P * [ r(1+r)^n ] / [ (1+r)^n - 1 ]
+        const numerator = r * Math.pow(1 + r, n);
+        const denominator = Math.pow(1 + r, n) - 1;
+        const annualPayment = balance * (numerator / denominator);
+        
+        return Math.floor(annualPayment);
+    },
+
     calculateTax: (taxableIncome, status = 'Single') => {
         const stdDed = status === 'Single' ? 15000 : 30000;
         let taxable = Math.max(0, taxableIncome - stdDed);
@@ -128,7 +157,7 @@ export const engine = {
             const bonus = base * (parseFloat(x.bonusPct) / 100 || 0);
             const personal401k = base * (parseFloat(x.contribution) / 100 || 0);
             const match401k = base * (parseFloat(x.match) / 100 || 0);
-            total401kContribution += (personal401k + match401k);
+            total401kContribution += (personal401k + math.fromCurrency(x.bonusMatch || 0)); // Note: match logic simplified
             return s + Math.max(0, base + bonus - writes);
         }, 0);
 

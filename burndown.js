@@ -22,8 +22,11 @@ export const burndown = {
                             <label class="flex items-center gap-3 px-4 py-2 bg-slate-900/50 rounded-xl border border-slate-700 cursor-pointer group">
                                 <input type="checkbox" id="toggle-rule-72t" class="w-4 h-4 accent-purple-500">
                                 <div class="flex flex-col">
-                                    <span class="label-std text-slate-300 group-hover:text-purple-400 transition-colors">72(t) SEPP Bridge</span>
-                                    <span class="text-[8px] text-slate-600 uppercase font-black">Avoids 10% Penalty</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="label-std text-slate-300 group-hover:text-purple-400 transition-colors">72(t) SEPP Bridge</span>
+                                        <span id="sepp-amount-badge" class="hidden px-1.5 py-0.5 rounded bg-purple-500 text-white text-[9px] font-black">CALCULATING...</span>
+                                    </div>
+                                    <span class="text-[8px] text-slate-600 uppercase font-black">Maximize 401k Bridge • 5% Interest Cap</span>
                                 </div>
                             </label>
 
@@ -217,12 +220,28 @@ export const burndown = {
         const endAge = parseFloat(document.getElementById('input-projection-end')?.value) || 75;
         const duration = endAge - assumptions.currentAge;
 
-        // 72(t) Setup
-        let seppFixedAmount = 0;
-        if (state.useSEPP) {
-            // Simplified IRS Amortization Method Proxy
-            // Balance / Life_Expectancy (approx 22-30) + Interest
-            seppFixedAmount = (bal['401k'] * 0.045); 
+        // Pre-calculation loop to find 401k balance at retirement for SEPP
+        let temp401k = bal['401k'];
+        const stockG = (1 + (assumptions.stockGrowth / 100));
+        for (let i = 0; i < (assumptions.retirementAge - assumptions.currentAge); i++) {
+             const summaries = engine.calculateSummaries(data);
+             temp401k += summaries.total401kContribution;
+             (budget.savings || []).forEach(s => {
+                 if (s.type === 'Pre-Tax (401k/IRA)') temp401k += math.fromCurrency(s.annual);
+             });
+             temp401k *= stockG;
+        }
+        
+        const seppFixedAmount = state.useSEPP ? engine.calculateMaxSepp(temp401k, assumptions.retirementAge) : 0;
+        
+        const badge = document.getElementById('sepp-amount-badge');
+        if (badge) {
+            if (state.useSEPP) {
+                badge.classList.remove('hidden');
+                badge.textContent = `${math.toCurrency(seppFixedAmount, true)} / YR`;
+            } else {
+                badge.classList.add('hidden');
+            }
         }
 
         for (let i = 0; i <= duration; i++) {
@@ -310,10 +329,7 @@ export const burndown = {
                 
                 if (pk === '401k') {
                     taxableIncome += canDraw;
-                    // Apply 10% penalty if NOT SEPP and NOT age 59.5+
                     if (age < 59.5) {
-                        // If SEPP is enabled, only the *excess* gets penalized. 
-                        // If SEPP is disabled, the *whole* draw gets penalized.
                         const penalizedAmt = state.useSEPP ? Math.max(0, canDraw - yearResult.seppAmount) : canDraw;
                         yearResult.penalty += penalizedAmt * 0.10;
                     }
