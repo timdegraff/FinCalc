@@ -35,22 +35,25 @@ export const benefits = {
                             <span data-label="healthIncome" class="text-2xl font-black text-white">$40,000</span>
                         </div>
                         <div class="relative pt-10">
-                            <div class="absolute inset-x-0 flex items-center justify-between pointer-events-none top-0 opacity-80 text-[9px] uppercase font-black tracking-widest text-slate-500 px-1">
+                            <!-- Labels that will be positioned dynamically -->
+                            <div id="health-slider-labels" class="absolute inset-x-0 flex items-center justify-between pointer-events-none top-0 opacity-80 text-[8px] uppercase font-black tracking-widest text-slate-500 px-1">
                                 <span>Medicaid</span>
-                                <span>Healthy MI</span>
-                                <span>Silver Plan</span>
-                                <span>Gold/Standard</span>
-                                <span>Full Rate</span>
+                                <span>HMP</span>
+                                <span>Silver</span>
+                                <span>Gold</span>
+                                <span>Full</span>
                             </div>
-                            <!-- Background Track with Segments -->
+                            
+                            <!-- Background Track with Dynamic Segments -->
                             <div id="health-slider-track" class="h-4 rounded-full mb-4 relative overflow-hidden flex w-full border border-slate-700/50">
-                                <div class="h-full bg-blue-600" style="flex: 0 0 25%" title="Traditional Medicaid"></div>
-                                <div class="h-full bg-purple-600" style="flex: 0 0 13%" title="Healthy Michigan Plan"></div>
-                                <div class="h-full bg-slate-400" style="flex: 0 0 22%" title="Silver Plan (Cost Sharing)"></div>
-                                <div class="h-full bg-[#FFD700]" style="flex: 0 0 20%" title="Gold Plan"></div>
-                                <div class="h-full bg-red-600" style="flex: 0 0 20%" title="Unsubsidized"></div>
+                                <div id="seg-medicaid" class="h-full bg-blue-600 transition-all duration-300"></div>
+                                <div id="seg-hmp" class="h-full bg-purple-600 transition-all duration-300"></div>
+                                <div id="seg-silver" class="h-full bg-slate-300 transition-all duration-300"></div>
+                                <div id="seg-gold" class="h-full bg-amber-500 transition-all duration-300"></div>
+                                <div id="seg-full" class="h-full bg-red-600 transition-all duration-300"></div>
                             </div>
-                            <!-- Range inputs -->
+
+                            <!-- Range inputs: hidden for interaction, visible for thumb styling -->
                             <input type="range" data-benefit-id="healthIncome" min="0" max="150000" step="500" value="40000" class="benefit-slider absolute top-10 left-0 w-full opacity-0 hover:opacity-10 focus:opacity-10 transition-opacity" style="height: 16px; background: transparent; z-index: 10;">
                             <input type="range" id="health-visible-slider" data-benefit-id="healthIncome-visible" min="0" max="150000" step="500" value="40000" class="benefit-slider absolute top-10 left-0 w-full" style="background: transparent; z-index: 5;">
                         </div>
@@ -66,8 +69,10 @@ export const benefits = {
                     </div>
 
                     <div class="pt-10 text-center space-y-3">
-                        <h3 id="health-result-title" class="text-4xl font-black transition-colors duration-300">Calculating...</h3>
-                        <p id="health-result-desc" class="text-xl text-slate-500 font-medium">Please adjust the sliders.</p>
+                        <div id="health-result-card" class="inline-block px-8 py-6 rounded-3xl border-2 transition-all duration-300">
+                            <h3 id="health-result-title" class="text-4xl font-black mb-1">Calculating...</h3>
+                            <p id="health-result-desc" class="text-lg opacity-60 font-medium">Please adjust the sliders.</p>
+                        </div>
                     </div>
                 </div>
 
@@ -143,17 +148,13 @@ export const benefits = {
 
         container.querySelectorAll('input').forEach(input => {
             input.oninput = () => {
-                // Sync health sliders
                 if (input.dataset.benefitId === 'healthIncome' || input.dataset.benefitId === 'healthIncome-visible') {
                     const other = container.querySelector(`[data-benefit-id="${input.dataset.benefitId === 'healthIncome' ? 'healthIncome-visible' : 'healthIncome'}"]`);
                     if (other) other.value = input.value;
                 }
-
-                // Sync hhSize across tabs
                 if (input.dataset.benefitId === 'hhSize') {
                     container.querySelectorAll('[data-benefit-id="hhSize"]').forEach(el => el.value = input.value);
                 }
-                
                 benefits.refresh();
                 window.debouncedAutoSave();
             };
@@ -165,57 +166,84 @@ export const benefits = {
         const c = document.getElementById('benefits-module');
         if (!c) return;
 
-        // Update Labels
         c.querySelectorAll('[data-label="hhSize"]').forEach(el => el.textContent = data.hhSize);
         c.querySelector('[data-label="healthIncome"]').textContent = math.toCurrency(data.healthIncome);
         c.querySelector('[data-label="snapIncome"]').textContent = math.toCurrency(data.snapIncome);
         c.querySelector('[data-label="shelterCosts"]').textContent = math.toCurrency(data.shelterCosts);
 
         // --- HEALTH COVERAGE LOGIC (ACA/MEDICAID 2026) ---
+        // Est. 2026 FPL: HH1=$16,060, HH2=$21,710, +$5,650/pp
         const fpl2026 = 16060 + (data.hhSize - 1) * 5650;
         const income = data.healthIncome;
         const ratio = income / fpl2026;
+        const maxSliderVal = 150000;
+
+        // Dynamic Segment Calculation
+        const pct = (val) => Math.min(100, (val / maxSliderVal) * 100);
+        
+        const medicaidLimit = fpl2026 * 1.38;
+        const hmpLimit = fpl2026 * 1.60;
+        const silverLimit = fpl2026 * 2.50;
+        const goldLimit = fpl2026 * 4.00;
+
+        const wMedicaid = pct(medicaidLimit);
+        const wHmp = pct(hmpLimit) - wMedicaid;
+        const wSilver = pct(silverLimit) - pct(hmpLimit);
+        const wGold = pct(goldLimit) - pct(silverLimit);
+        const wFull = 100 - pct(goldLimit);
+
+        document.getElementById('seg-medicaid').style.flex = `0 0 ${wMedicaid}%`;
+        document.getElementById('seg-hmp').style.flex = `0 0 ${wHmp}%`;
+        document.getElementById('seg-silver').style.flex = `0 0 ${wSilver}%`;
+        document.getElementById('seg-gold').style.flex = `0 0 ${wGold}%`;
+        document.getElementById('seg-full').style.flex = `0 0 ${wFull}%`;
 
         const healthTitle = document.getElementById('health-result-title');
         const healthDesc = document.getElementById('health-result-desc');
+        const healthCard = document.getElementById('health-result-card');
         const healthBall = document.getElementById('health-visible-slider');
 
         if (ratio < 1.38) {
             healthTitle.textContent = "Medicaid (Healthy MI)";
-            healthTitle.style.color = "#3b82f6"; // Blue
             healthDesc.textContent = "State-sponsored plan. $0 monthly premiums.";
-            healthBall.style.setProperty('--thumb-color', '#3b82f6');
+            healthCard.style.borderColor = "#2563eb";
+            healthCard.style.color = "#3b82f6";
+            healthBall.style.setProperty('--thumb-color', '#2563eb');
         } else if (ratio < 1.60) {
             healthTitle.textContent = "Healthy Michigan Plan Plus";
-            healthTitle.style.color = "#a855f7"; // Purple
             healthDesc.textContent = "Comprehensive HMP Coverage with minimal cost-sharing.";
-            healthBall.style.setProperty('--thumb-color', '#a855f7');
+            healthCard.style.borderColor = "#9333ea";
+            healthCard.style.color = "#a855f7";
+            healthBall.style.setProperty('--thumb-color', '#9333ea');
         } else if (ratio < 2.50) {
-            healthTitle.textContent = "Silver Plan (Cost Sharing)";
-            healthTitle.style.color = "#94a3b8"; // Silver
-            healthDesc.textContent = "Highest Marketplace subsidies & lowest out-of-pocket costs.";
+            healthTitle.textContent = "Silver Marketplace Plan";
+            healthDesc.textContent = "Max cost-sharing reductions and low premiums.";
+            healthCard.style.borderColor = "#94a3b8";
+            healthCard.style.color = "#cbd5e1";
             healthBall.style.setProperty('--thumb-color', '#94a3b8');
         } else if (ratio < 4.00) {
             healthTitle.textContent = "Gold Marketplace Plan";
-            healthTitle.style.color = "#FFD700"; // Gold
-            healthDesc.textContent = "Comprehensive coverage with mid-level subsidies.";
-            healthBall.style.setProperty('--thumb-color', '#FFD700');
+            healthDesc.textContent = "Higher coverage tier with moderate subsidies.";
+            healthCard.style.borderColor = "#d97706";
+            healthCard.style.color = "#f59e0b";
+            healthBall.style.setProperty('--thumb-color', '#d97706');
         } else {
-            healthTitle.textContent = "Private Insurance (Full Rate)";
-            healthTitle.style.color = "#ef4444"; // Red
-            healthDesc.textContent = "Unsubsidized private coverage. Market rates apply.";
-            healthBall.style.setProperty('--thumb-color', '#ef4444');
+            healthTitle.textContent = "Standard / Private Rate";
+            healthDesc.textContent = "Unsubsidized private coverage or full marketplace rates.";
+            healthCard.style.borderColor = "#dc2626";
+            healthCard.style.color = "#ef4444";
+            healthBall.style.setProperty('--thumb-color', '#dc2626');
         }
 
         // --- SNAP LOGIC (MI 2026) ---
+        const monthlyGross = data.snapIncome / 12;
         const snapFpl = 16060 + (data.hhSize - 1) * 5650;
         const snapGrossLimit = snapFpl * 2.0; 
-        const monthlyGross = data.snapIncome / 12;
         const snapResultEl = document.getElementById('snap-result-value');
 
         if (monthlyGross > (snapGrossLimit / 12)) {
             snapResultEl.textContent = "$0 / month";
-            snapResultEl.classList.replace('text-emerald-400', 'text-slate-500');
+            snapResultEl.style.color = "#64748b";
         } else {
             const stdDed = data.hhSize <= 3 ? 205 : (data.hhSize === 4 ? 220 : (data.hhSize === 5 ? 255 : 295));
             const adjIncome = Math.max(0, monthlyGross - stdDed);
@@ -223,14 +251,17 @@ export const benefits = {
             const totalShelter = data.shelterCosts + suaAmt;
             const shelterThreshold = adjIncome / 2;
             const rawExcessShelter = Math.max(0, totalShelter - shelterThreshold);
+            
+            // Michigan BBCE rules: Shelter cap of $712 applies UNLESS a member is elderly or disabled
             const shelterCap = 712; 
             const finalShelterDeduction = (data.isDisabled) ? rawExcessShelter : Math.min(rawExcessShelter, shelterCap);
+            
             const netIncome = Math.max(0, adjIncome - finalShelterDeduction);
             const maxBenefit = 295 + (data.hhSize - 1) * 215;
             const estimatedBenefit = Math.max(0, maxBenefit - (netIncome * 0.3));
             
             snapResultEl.textContent = `${math.toCurrency(estimatedBenefit)} / month`;
-            snapResultEl.classList.replace('text-slate-500', 'text-emerald-400');
+            snapResultEl.style.color = "#34d399";
         }
     },
 
