@@ -27,7 +27,10 @@ function attachGlobalListeners() {
     document.body.addEventListener('input', (e) => {
         if (e.target.closest('.input-base, .input-range')) {
             handleLinkedBudgetValues(e.target);
-            if (e.target.dataset.id === 'contribution') checkIrsLimits(e.target.closest('tr'));
+            if (e.target.dataset.id === 'contribution' || e.target.dataset.id === 'amount') {
+                const row = e.target.closest('tr') || e.target.closest('.bg-slate-800');
+                if (row) checkIrsLimits(row);
+            }
             window.debouncedAutoSave();
         }
     });
@@ -39,15 +42,21 @@ function attachGlobalListeners() {
 }
 
 function checkIrsLimits(row) {
-    const amount = math.fromCurrency(row.querySelector('[data-id="amount"]').value);
-    const isMonthly = row.querySelector('[data-id="isMonthly"]').textContent.trim().toLowerCase() === 'monthly';
-    const baseAnnual = isMonthly ? amount * 12 : amount;
-    const personalPct = parseFloat(row.querySelector('[data-id="contribution"]').value) || 0;
-    const matchPct = parseFloat(row.querySelector('[data-id="match"]').value) || 0;
-    const total401k = baseAnnual * ((personalPct + matchPct) / 100);
+    const amountEl = row.querySelector('[data-id="amount"]');
+    if (!amountEl) return;
+    
+    const amountValue = math.fromCurrency(amountEl.value);
+    const freqBtn = row.querySelector('[data-id="isMonthly"]');
+    const isMonthly = freqBtn && freqBtn.textContent.trim().toLowerCase() === 'monthly';
+    const baseAnnual = isMonthly ? amountValue * 12 : amountValue;
+    
+    const personalPct = parseFloat(row.querySelector('[data-id="contribution"]')?.value) || 0;
+    // IRS limit only applies to personal deferrals ($23,500 for 2026)
+    const personal401k = baseAnnual * (personalPct / 100);
     const limit = 23500; 
+    
     const warning = row.querySelector('[data-id="capWarning"]');
-    if (warning) warning.classList.toggle('hidden', total401k <= limit);
+    if (warning) warning.classList.toggle('hidden', personal401k <= limit);
 }
 
 function attachCoPilotListeners() {
@@ -110,15 +119,32 @@ function attachDynamicRowListeners() {
     document.body.addEventListener('click', (e) => {
         const btn = e.target.closest('button');
         if (!btn) return;
+        
         if (btn.dataset.addRow) {
             window.addRow(btn.dataset.addRow, btn.dataset.rowType);
             window.debouncedAutoSave();
         } else if (btn.dataset.action === 'remove') {
-            btn.closest('tr')?.remove();
+            const row = btn.closest('tr') || btn.closest('.bg-slate-800');
+            row?.remove();
             window.debouncedAutoSave();
         } else if (btn.dataset.action === 'toggle-freq') {
             const isMonthly = btn.textContent.trim().toLowerCase() === 'monthly';
             btn.textContent = isMonthly ? 'Annual' : 'Monthly';
+            
+            // Logic to convert value based on new frequency
+            const container = btn.closest('div');
+            const input = container.querySelector('input');
+            if (input) {
+                const currentVal = math.fromCurrency(input.value);
+                if (isMonthly) { // Was Monthly, now Annual
+                    input.value = math.toCurrency(currentVal * 12);
+                } else { // Was Annual, now Monthly
+                    input.value = math.toCurrency(currentVal / 12);
+                }
+            }
+            
+            const parent = btn.closest('tr') || btn.closest('.bg-slate-800');
+            if (parent) checkIrsLimits(parent);
             window.debouncedAutoSave();
         }
     });
@@ -169,11 +195,19 @@ export function showTab(tabId) {
 window.addRow = (containerId, type, data = {}) => {
     const container = document.getElementById(containerId);
     if (!container) return;
-    const row = document.createElement('tr');
-    row.className = 'border-b border-slate-700/50 hover:bg-slate-800/20 transition-colors';
-    row.innerHTML = templates[type](data);
-    container.appendChild(row);
-    row.querySelectorAll('[data-id]').forEach(input => {
+    
+    let element;
+    if (type === 'income') {
+        element = document.createElement('div');
+    } else {
+        element = document.createElement('tr');
+        element.className = 'border-b border-slate-700/50 hover:bg-slate-800/20 transition-colors';
+    }
+    
+    element.innerHTML = templates[type](data);
+    container.appendChild(element);
+    
+    element.querySelectorAll('[data-id]').forEach(input => {
         const key = input.dataset.id;
         const val = data[key];
         if (val !== undefined) {
@@ -182,15 +216,17 @@ window.addRow = (containerId, type, data = {}) => {
             else input.value = val;
         }
     });
+    
     if (type === 'income') {
-        const amtBtn = row.querySelector('[data-id="isMonthly"]');
+        const amtBtn = element.querySelector('[data-id="isMonthly"]');
         if (amtBtn) amtBtn.textContent = data.isMonthly ? 'Monthly' : 'Annual';
-        const offBtn = row.querySelector('[data-id="writeOffsMonthly"]');
+        const offBtn = element.querySelector('[data-id="writeOffsMonthly"]');
         if (offBtn) offBtn.textContent = data.writeOffsMonthly ? 'Monthly' : 'Annual';
-        checkIrsLimits(row);
+        checkIrsLimits(element);
     }
-    if (type === 'investment') updateCostBasisVisibility(row);
-    row.querySelectorAll('[data-type="currency"]').forEach(formatter.bindCurrencyEventListeners);
+    
+    if (type === 'investment') updateCostBasisVisibility(element);
+    element.querySelectorAll('[data-type="currency"]').forEach(formatter.bindCurrencyEventListeners);
 };
 
 window.updateSidebarChart = (data) => {

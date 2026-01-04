@@ -131,34 +131,28 @@
             </section>
 
             <!-- Income Tab -->
-            <section id="tab-income" class="tab-content hidden max-w-full mx-auto px-4">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-white">Income Sources</h2>
-                    <button data-add-row="income-rows" data-row-type="income" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold transition-all hover:bg-blue-500"><i class="fas fa-plus mr-2"></i>Add Income</button>
+            <section id="tab-income" class="tab-content hidden max-w-7xl mx-auto px-4">
+                <div class="flex justify-between items-center mb-8">
+                    <div>
+                        <h2 class="text-2xl font-bold text-white">Income Sources</h2>
+                        <p class="text-sm text-slate-500">Manage salaries, side hustles, and rental income</p>
+                    </div>
+                    <button data-add-row="income-cards" data-row-type="income" class="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold transition-all hover:bg-blue-500 shadow-lg shadow-blue-900/20"><i class="fas fa-plus mr-2"></i>Add Income</button>
                 </div>
-                <div class="card-container bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-[11px] min-w-[1300px]">
-                            <thead>
-                                <tr class="bg-slate-900/50 text-slate-400">
-                                    <th class="px-4 py-3 text-left">Employer / Name</th>
-                                    <th class="px-4 py-3 text-right w-32">Amount</th>
-                                    <th class="px-4 py-3 text-right w-24">Increase %</th>
-                                    <th class="px-4 py-3 text-right w-32">Write-offs</th>
-                                    <th class="px-4 py-3 text-right w-24">Bonus %</th>
-                                    <th class="px-4 py-3 text-right w-24">Personal 401k %</th>
-                                    <th class="px-4 py-3 text-right w-24">401k Match %</th>
-                                    <th class="px-4 py-3 text-right w-24">Tax Free Until (Age)</th>
-                                    <th class="px-4 py-3 text-center">Retiree?</th>
-                                    <th class="px-4 py-3 text-center">Non-Tax?</th>
-                                    <th class="w-12 px-4 py-3"></th>
-                                </tr>
-                            </thead>
-                            <tbody id="income-rows"></tbody>
-                        </table>
+                
+                <div id="income-cards" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <!-- Cards are dynamically injected here -->
+                </div>
+
+                <div class="mt-12 p-6 bg-slate-800/30 rounded-2xl border border-slate-800 flex items-start gap-4">
+                    <i class="fas fa-info-circle text-blue-400 mt-1"></i>
+                    <div class="space-y-1">
+                        <p class="text-xs text-slate-400 italic">
+                            * Personal 401k contributions are checked against 2026 IRS limits ($23,500). Warning icon <i class="fas fa-exclamation-triangle text-amber-500 mx-1"></i> triggers on personal deferral only.
+                        </p>
+                        <p class="text-[10px] text-slate-500">Note: Toggling "Annual" or "Monthly" will automatically convert the current amount for convenience.</p>
                     </div>
                 </div>
-                <p class="mt-4 text-[10px] text-slate-500 italic">* Note: Personal 401k and Match percentages are calculated against base salary only. The warning icon <i class="fas fa-exclamation-triangle text-amber-500 mx-1"></i> indicates total 401k exceeds IRS 2026 limits.</p>
             </section>
 
             <!-- Budget Tab -->
