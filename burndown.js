@@ -388,8 +388,14 @@ export const burndown = {
             const draws = keys.map(k => {
                 const amt = (r.draws[k] || 0) / inflationFactor;
                 const balance = r.balances[k] / inflationFactor;
+                const meta = burndown.assetMeta[k];
+                
+                // Color active draws with their specific asset type color
+                const activeColorStyle = amt > 0 ? `style="color: ${meta.color}"` : '';
+                const activeClass = amt > 0 ? 'font-black' : 'text-slate-600';
+
                 return `<td class="p-2 text-right border-l border-slate-800/50">
-                    <div class="${amt > 0 ? (k === 'heloc' ? 'text-red-400' : 'text-white') + ' font-bold' : 'text-slate-600'}">${formatter.formatCurrency(amt, 0)}</div>
+                    <div class="${activeClass}" ${activeColorStyle}>${formatter.formatCurrency(amt, 0)}</div>
                     <div class="text-[8px] ${k === 'heloc' && balance > 0 ? 'text-red-400' : 'opacity-40'}">${formatter.formatCurrency(balance, 0)}</div>
                 </td>`;
             }).join('');
