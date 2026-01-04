@@ -17,7 +17,9 @@ export const assetColors = {
     'Real Estate': '#6366f1',
     'Other': '#94a3b8',
     'HELOC': '#ef4444',
-    'Debt': '#dc2626'
+    'Debt': '#dc2626',
+    'HSA': '#2dd4bf',
+    '529 Plan': '#fb7185'
 };
 
 export const math = {
@@ -66,6 +68,30 @@ export const engine = {
         return tax;
     },
 
+    calculateSnapBenefit: (income, hhSize, shelterCosts, hasSUA, isDisabled, inflationFactor = 1) => {
+        const monthlyGross = income / 12;
+        const snapFpl = (16060 + (hhSize - 1) * 5650) * inflationFactor;
+        const snapGrossLimit = snapFpl * 2.0; 
+
+        if (monthlyGross > (snapGrossLimit / 12)) return 0;
+
+        const stdDed = (hhSize <= 3 ? 205 : (hhSize === 4 ? 220 : (hhSize === 5 ? 255 : 295))) * inflationFactor;
+        const adjIncome = Math.max(0, monthlyGross - stdDed);
+        const suaAmt = (hasSUA ? 680 : 0) * inflationFactor; 
+        const totalShelter = shelterCosts + suaAmt;
+        const shelterThreshold = adjIncome / 2;
+        const rawExcessShelter = Math.max(0, totalShelter - shelterThreshold);
+        
+        const shelterCap = 712 * inflationFactor; 
+        const finalShelterDeduction = (isDisabled) ? rawExcessShelter : Math.min(rawExcessShelter, shelterCap);
+        
+        const netIncome = Math.max(0, adjIncome - finalShelterDeduction);
+        const maxBenefit = (295 + (hhSize - 1) * 215) * inflationFactor;
+        const estimatedBenefit = Math.max(0, maxBenefit - (netIncome * 0.3));
+        
+        return estimatedBenefit;
+    },
+
     calculateSummaries: (data) => {
         const inv = data.investments || [];
         const re = data.realEstate || [];
@@ -94,7 +120,7 @@ export const engine = {
             const personal401k = base * (parseFloat(x.contribution) / 100 || 0);
             const match401k = base * (parseFloat(x.match) / 100 || 0);
             total401kContribution += (personal401k + match401k);
-            return s + base + bonus - writes;
+            return s + Math.max(0, base + bonus - writes); // Clamp base item to 0
         }, 0);
 
         const totalAnnualSavings = (budget.savings?.reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0) + total401kContribution;

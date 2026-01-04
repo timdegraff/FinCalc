@@ -84,7 +84,7 @@ export const burndown = {
     },
 
     load: (data) => {
-        burndown.priorityOrder = data?.priority || ['cash', 'roth-basis', 'heloc', 'taxable', '401k', 'roth-earnings', 'crypto', 'metals'];
+        burndown.priorityOrder = data?.priority || ['cash', 'taxable', 'roth-basis', 'heloc', '401k', 'roth-earnings', 'crypto', 'metals', 'hsa', '529'];
     },
 
     scrape: () => {
@@ -105,11 +105,13 @@ export const burndown = {
         '401k': { label: '401k/IRA', color: assetColors['Pre-Tax (401k/IRA)'] },
         'roth-earnings': { label: 'Roth Gains', color: assetColors['Roth Gains'] },
         'crypto': { label: 'Bitcoin', color: assetColors['Crypto'] },
-        'metals': { label: 'Metals', color: assetColors['Metals'] }
+        'metals': { label: 'Metals', color: assetColors['Metals'] },
+        'hsa': { label: 'HSA', color: assetColors['HSA'] },
+        '529': { label: '529 Plan', color: assetColors['529 Plan'] }
     },
 
     optimize: () => {
-        burndown.priorityOrder = ['cash', 'roth-basis', 'heloc', 'taxable', '401k', 'roth-earnings', 'crypto', 'metals'];
+        burndown.priorityOrder = ['cash', 'taxable', 'roth-basis', 'heloc', '401k', 'roth-earnings', 'crypto', 'metals', 'hsa', '529'];
     },
 
     run: () => {
@@ -193,7 +195,7 @@ export const burndown = {
     },
 
     calculate: (data) => {
-        const { assumptions, investments = [], otherAssets = [], realEstate = [], income = [], budget = {}, helocs = [] } = data;
+        const { assumptions, investments = [], otherAssets = [], realEstate = [], income = [], budget = {}, helocs = [], benefits = {} } = data;
         const state = burndown.scrape();
         const inflationRate = (assumptions.inflation || 3) / 100;
         const filingStatus = assumptions.filingStatus || 'Single';
@@ -206,13 +208,15 @@ export const burndown = {
         }, 0);
         
         let bal = {
-            'cash': investments.filter(i => i.type === 'Cash' || i.type === 'HSA' || i.type === '529 Plan').reduce((s, i) => s + math.fromCurrency(i.value), 0),
+            'cash': investments.filter(i => i.type === 'Cash').reduce((s, i) => s + math.fromCurrency(i.value), 0),
             'taxable': taxValue,
             'roth-basis': investments.filter(i => i.type === 'Post-Tax (Roth)').reduce((s, i) => s + (math.fromCurrency(i.costBasis) || 0), 0),
             'roth-earnings': investments.filter(i => i.type === 'Post-Tax (Roth)').reduce((s, i) => s + Math.max(0, math.fromCurrency(i.value) - (math.fromCurrency(i.costBasis) || 0)), 0),
             '401k': investments.filter(i => i.type === 'Pre-Tax (401k/IRA)').reduce((s, i) => s + math.fromCurrency(i.value), 0),
             'crypto': investments.filter(i => i.type === 'Crypto').reduce((s, i) => s + math.fromCurrency(i.value), 0),
             'metals': investments.filter(i => i.type === 'Metals').reduce((s, i) => s + math.fromCurrency(i.value), 0),
+            'hsa': investments.filter(i => i.type === 'HSA').reduce((s, i) => s + math.fromCurrency(i.value), 0),
+            '529': investments.filter(i => i.type === '529 Plan').reduce((s, i) => s + math.fromCurrency(i.value), 0),
             'heloc': 0 
         };
 
@@ -230,8 +234,9 @@ export const burndown = {
             const age = assumptions.currentAge + i;
             const isRetired = age >= assumptions.retirementAge;
             const yearResult = { age, year: currentYear + i, draws: {}, totalDraw: 0 };
-            const fpl = fpl2026Base * Math.pow(1 + inflationRate, i);
-            let currentYearBudget = baseAnnualBudget * Math.pow(1 + inflationRate, i);
+            const inflationFactor = Math.pow(1 + inflationRate, i);
+            const fpl = fpl2026Base * inflationFactor;
+            let currentYearBudget = baseAnnualBudget * inflationFactor;
 
             let taxableIncome = 0;
             let nonTaxableIncome = 0;
@@ -241,15 +246,27 @@ export const burndown = {
                 if (inc.isMonthly) amt *= 12;
                 amt -= (math.fromCurrency(inc.writeOffs) * (inc.writeOffsMonthly ? 12 : 1));
                 amt *= Math.pow(1 + (inc.increase / 100 || 0), i);
+                amt = Math.max(0, amt); // Fix negative items
                 if (inc.nonTaxable || (inc.taxFreeUntil && yearResult.year <= inc.taxFreeUntil)) nonTaxableIncome += amt;
                 else taxableIncome += amt;
             });
 
-            // Social Security in future dollars
-            const ssYearly = (age >= assumptions.ssStartAge) ? ssBenefitBase * Math.pow(1 + inflationRate, i) : 0;
+            const ssYearly = (age >= assumptions.ssStartAge) ? ssBenefitBase * inflationFactor : 0;
             taxableIncome += ssYearly; 
+
+            // Calculate SNAP for this year using inflated thresholds
+            const snapHHSize = benefits.hhSize || 1;
+            const snapShelter = (benefits.shelterCosts || 0) * inflationFactor;
+            const snapBenefitMonthly = engine.calculateSnapBenefit(taxableIncome, snapHHSize, snapShelter, benefits.hasSUA, benefits.isDisabled, inflationFactor);
+            const snapYearly = snapBenefitMonthly * 12;
+            yearResult.snapBenefit = snapYearly;
+
+            // SNAP reduces budget need dollar-for-dollar
+            const budgetOffset = snapYearly;
+            let netBudgetNeeded = Math.max(0, currentYearBudget - budgetOffset);
+
             const tax = engine.calculateTax(taxableIncome, filingStatus);
-            const shortfall = Math.max(0, currentYearBudget - (taxableIncome + nonTaxableIncome - tax));
+            const shortfall = Math.max(0, netBudgetNeeded - (taxableIncome + nonTaxableIncome - tax));
             let remainingNeed = shortfall;
 
             burndown.priorityOrder.forEach(pk => {
@@ -268,17 +285,16 @@ export const burndown = {
                 }
             });
 
-            yearResult.magi = taxableIncome;
-            yearResult.isMedicaid = taxableIncome < fpl * 1.38;
-            yearResult.isSilver = taxableIncome < fpl * 2.5 && !yearResult.isMedicaid;
+            yearResult.magi = Math.max(0, taxableIncome);
+            yearResult.isMedicaid = yearResult.magi < fpl * 1.38;
+            yearResult.isSilver = yearResult.magi < fpl * 2.5 && !yearResult.isMedicaid;
             yearResult.balances = { ...bal };
             yearResult.budget = currentYearBudget;
             
-            // Inflate Real Estate separately for Net Worth
             const currentRE = realEstate.reduce((s, r) => s + math.fromCurrency(r.value), 0) * Math.pow(1 + (assumptions.realEstateGrowth / 100), i);
-            const currentMortgages = realEstate.reduce((s, r) => s + math.fromCurrency(r.mortgage), 0); // Assume mortgage fixed
+            const currentMortgages = realEstate.reduce((s, r) => s + math.fromCurrency(r.mortgage), 0); 
             
-            yearResult.netWorth = (bal['cash'] + bal['taxable'] + bal['roth-basis'] + bal['roth-earnings'] + bal['401k'] + bal['crypto'] + bal['metals'] + fixedOtherAssets + currentRE - currentMortgages) - bal['heloc'];
+            yearResult.netWorth = (bal['cash'] + bal['taxable'] + bal['roth-basis'] + bal['roth-earnings'] + bal['401k'] + bal['crypto'] + bal['metals'] + bal['hsa'] + bal['529'] + fixedOtherAssets + currentRE - currentMortgages) - bal['heloc'];
             results.push(yearResult);
 
             const stockG = (1 + (assumptions.stockGrowth / 100));
@@ -290,6 +306,8 @@ export const burndown = {
             bal['roth-earnings'] *= stockG;
             bal['crypto'] *= cryptoG;
             bal['metals'] *= metalsG;
+            bal['hsa'] *= stockG;
+            bal['529'] *= stockG;
         }
         return results;
     },
@@ -311,11 +329,12 @@ export const burndown = {
                 </td>`;
             }).join('');
             let badge = r.isMedicaid ? `<span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 text-[9px] font-bold">MEDICAID</span>` : (r.isSilver ? `<span class="px-2 py-0.5 rounded bg-purple-900/40 text-purple-400 text-[9px] font-bold">SILVER</span>` : `<span class="text-[9px] text-slate-700">PRIVATE</span>`);
+            const snapDisplay = r.snapBenefit > 0 ? `<div class="text-[8px] text-emerald-500 font-bold">+${formatter.formatCurrency(r.snapBenefit, 0)} SNAP</div>` : '';
             return `<tr class="border-b border-slate-800/50 hover:bg-slate-800/20 text-[10px]">
                 <td class="p-2 text-center font-bold border-r border-slate-700">${r.age}</td>
                 <td class="p-2 text-right text-slate-500">${formatter.formatCurrency(r.budget, 0)}</td>
                 <td class="p-2 text-right font-black text-emerald-400">${formatter.formatCurrency(r.magi, 0)}</td>
-                <td class="p-2 text-center">${badge}</td>
+                <td class="p-2 text-center space-y-1">${badge}${snapDisplay}</td>
                 ${draws}
                 <td class="p-2 text-right font-black border-l border-slate-700 text-teal-400">${formatter.formatCurrency(r.netWorth, 0)}</td>
             </tr>`;

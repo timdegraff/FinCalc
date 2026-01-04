@@ -1,5 +1,5 @@
 
-import { math } from './utils.js';
+import { math, engine } from './utils.js';
 
 export const benefits = {
     init: () => {
@@ -256,26 +256,13 @@ export const benefits = {
             setDetail("$450 - $850+ / mo", "Variable", "Full Choice", "No Income Limits");
         }
 
-        const monthlyGross = data.snapIncome / 12;
-        const snapFpl = 16060 + (data.hhSize - 1) * 5650;
-        const snapGrossLimit = snapFpl * 2.0; 
+        const estimatedBenefit = engine.calculateSnapBenefit(data.snapIncome, data.hhSize, data.shelterCosts, data.hasSUA, data.isDisabled);
         const snapResultEl = document.getElementById('snap-result-value');
 
-        if (monthlyGross > (snapGrossLimit / 12)) {
+        if (estimatedBenefit <= 0) {
             snapResultEl.textContent = "$0 / month";
             snapResultEl.style.color = "#64748b";
         } else {
-            const stdDed = data.hhSize <= 3 ? 205 : (data.hhSize === 4 ? 220 : (data.hhSize === 5 ? 255 : 295));
-            const adjIncome = Math.max(0, monthlyGross - stdDed);
-            const suaAmt = data.hasSUA ? 680 : 0; 
-            const totalShelter = data.shelterCosts + suaAmt;
-            const shelterThreshold = adjIncome / 2;
-            const rawExcessShelter = Math.max(0, totalShelter - shelterThreshold);
-            const shelterCap = 712; 
-            const finalShelterDeduction = (data.isDisabled) ? rawExcessShelter : Math.min(rawExcessShelter, shelterCap);
-            const netIncome = Math.max(0, adjIncome - finalShelterDeduction);
-            const maxBenefit = 295 + (data.hhSize - 1) * 215;
-            const estimatedBenefit = Math.max(0, maxBenefit - (netIncome * 0.3));
             snapResultEl.textContent = `${math.toCurrency(estimatedBenefit)} / month`;
             snapResultEl.style.color = "#34d399";
         }
