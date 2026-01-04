@@ -3,7 +3,7 @@ import { GoogleGenAI } from '@google/genai';
 import { signInWithGoogle, logoutUser } from './auth.js';
 import { templates } from './templates.js';
 import { autoSave, updateSummaries } from './data.js';
-import { math, engine, assetColors } from './utils.js';
+import { math, engine, assetColors, assumptions } from './utils.js';
 import { formatter } from './formatter.js';
 
 let assetChart = null;

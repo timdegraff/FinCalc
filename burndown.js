@@ -246,7 +246,7 @@ export const burndown = {
                 if (inc.isMonthly) amt *= 12;
                 amt -= (math.fromCurrency(inc.writeOffs) * (inc.writeOffsMonthly ? 12 : 1));
                 amt *= Math.pow(1 + (inc.increase / 100 || 0), i);
-                amt = Math.max(0, amt); // Fix negative items
+                amt = Math.max(0, amt); 
                 if (inc.nonTaxable || (inc.taxFreeUntil && yearResult.year <= inc.taxFreeUntil)) nonTaxableIncome += amt;
                 else taxableIncome += amt;
             });
@@ -262,8 +262,7 @@ export const burndown = {
             yearResult.snapBenefit = snapYearly;
 
             // SNAP reduces budget need dollar-for-dollar
-            const budgetOffset = snapYearly;
-            let netBudgetNeeded = Math.max(0, currentYearBudget - budgetOffset);
+            let netBudgetNeeded = Math.max(0, currentYearBudget - snapYearly);
 
             const tax = engine.calculateTax(taxableIncome, filingStatus);
             const shortfall = Math.max(0, netBudgetNeeded - (taxableIncome + nonTaxableIncome - tax));
@@ -329,12 +328,12 @@ export const burndown = {
                 </td>`;
             }).join('');
             let badge = r.isMedicaid ? `<span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 text-[9px] font-bold">MEDICAID</span>` : (r.isSilver ? `<span class="px-2 py-0.5 rounded bg-purple-900/40 text-purple-400 text-[9px] font-bold">SILVER</span>` : `<span class="text-[9px] text-slate-700">PRIVATE</span>`);
-            const snapDisplay = r.snapBenefit > 0 ? `<div class="text-[8px] text-emerald-500 font-bold">+${formatter.formatCurrency(r.snapBenefit, 0)} SNAP</div>` : '';
+            const snapDisplay = r.snapBenefit > 0 ? `<div class="text-[8px] text-emerald-500 font-bold tracking-tight">+${formatter.formatCurrency(r.snapBenefit, 0)} SNAP</div>` : '';
             return `<tr class="border-b border-slate-800/50 hover:bg-slate-800/20 text-[10px]">
                 <td class="p-2 text-center font-bold border-r border-slate-700">${r.age}</td>
                 <td class="p-2 text-right text-slate-500">${formatter.formatCurrency(r.budget, 0)}</td>
                 <td class="p-2 text-right font-black text-emerald-400">${formatter.formatCurrency(r.magi, 0)}</td>
-                <td class="p-2 text-center space-y-1">${badge}${snapDisplay}</td>
+                <td class="p-2 text-center space-y-1 w-20">${badge}${snapDisplay}</td>
                 ${draws}
                 <td class="p-2 text-right font-black border-l border-slate-700 text-teal-400">${formatter.formatCurrency(r.netWorth, 0)}</td>
             </tr>`;
