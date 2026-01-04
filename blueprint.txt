@@ -10,6 +10,7 @@ TO DO LIST
 - [x] Move Benefit Threshold to Burndown and implement Strategy selection.
 - [x] Add "Reset Market Growth" button to Assumptions.
 - [x] Implement SWR indicator and Perpetual Wealth strategy.
+- [x] Decouple Budget Sourcing (Sync/Manual) from Draw Strategy.
 - [ ] Add "Net Income" preview to Income cards (Gross - Taxes - 401k - Match)
 - [ ] Implement "Educational Needs" section in Budget for 529 drawdown tracking.
 
@@ -50,7 +51,13 @@ BURNDOWN CHART & STRATEGY ENGINE (KEY FEATURES)
 The Burndown engine is a year-by-year cashflow simulator that models the 
 transition from accumulation to decumulation.
 
-1.  INCOME SEQUENCING:
+1.  BUDGET SOURCING:
+    - SYNC MODE: Pulls live data from the Budget tab. In retirement years, it 
+      filters out expenses marked "Removed in Retirement".
+    - MANUAL MODE: Allows user to define a fixed annual spending target (default 100k) 
+      which is then adjusted for inflation.
+
+2.  INCOME SEQUENCING:
     - PERSISTENT INCOME: The engine first pulls from active income or retirement-
       stable sources (Pensions, Rental Income, Social Security).
     - SOCIAL SECURITY: Automatically kicks in at the user-defined "SS Start Age" 
@@ -58,13 +65,13 @@ transition from accumulation to decumulation.
     - SEPP BRIDGE: If enabled, 72(t) distributions are calculated to avoid 
       penalties while bridging to age 59.5.
       
-2.  WITHDRAWAL LOGIC (FUNGIBLE PRIORITY):
+3.  WITHDRAWAL LOGIC (FUNGIBLE PRIORITY):
     - Users can drag and drop the "Draw Priority" list to change which accounts 
       are tapped first (e.g., Cash vs. Taxable vs. Roth).
     - The engine drains each bucket to zero before moving to the next.
     - HELOCs are treated as a revolving liability used only when liquid assets fail.
 
-3.  TAX & BENEFIT MODELING:
+4.  TAX & BENEFIT MODELING:
     - MAGI TRACKING: Every dollar pulled is categorized (Taxable vs. Non-Taxable).
     - DYNAMIC TAXES: Federal and Michigan state taxes are recalculated every year 
       based on that year's specific MAGI.
@@ -72,12 +79,12 @@ transition from accumulation to decumulation.
       Strategies like "Medicaid Max" dynamically adjust withdrawals to stay 
       under 138% of the inflation-adjusted Federal Poverty Level.
 
-4.  PERPETUAL WEALTH PRESERVATION:
+5.  PERPETUAL WEALTH PRESERVATION:
     - Calculates the "Safe Withdrawal Rate" (SWR) as (Asset Growth % - Inflation %).
     - When active, the system draws the maximum amount possible that leaves the 
       portfolio "Flat" in Real Dollar terms (Purchasing Power remains constant).
       
-5.  INFLATION HANDLING:
+6.  INFLATION HANDLING:
     - All future cashflows are modeled in nominal dollars.
     - "Real Dollars" toggle applies a deflationary divisor to show all future 
       values in today's purchasing power.

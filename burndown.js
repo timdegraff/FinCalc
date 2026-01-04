@@ -5,6 +5,9 @@ import { math, engine, assetColors } from './utils.js';
 let isRealDollars = false;
 
 export const burndown = {
+    // Initializing with defaults ensures priorityOrder is never undefined for Firebase
+    priorityOrder: ['cash', 'taxable', 'roth-basis', 'heloc', '401k', 'roth-earnings', 'crypto', 'metals', 'hsa'],
+    
     init: () => {
         const container = document.getElementById('tab-burndown');
         container.innerHTML = `
@@ -21,9 +24,9 @@ export const burndown = {
                             <div class="flex flex-col gap-1">
                                 <label class="label-std text-slate-500">Draw Strategy</label>
                                 <select id="burndown-strategy" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-black text-blue-400 outline-none focus:border-blue-500 transition-all">
-                                    <option value="standard">Standard Budget</option>
-                                    <option value="medicaid">Benefit Opt (138% FPL Medicaid)</option>
-                                    <option value="silver">Benefit Opt (250% FPL Silver)</option>
+                                    <option value="standard">Meet Target Budget</option>
+                                    <option value="medicaid">Target 138% FPL (Medicaid)</option>
+                                    <option value="silver">Target 250% FPL (Silver)</option>
                                     <option value="perpetual">Wealth Preservation (Real Flat)</option>
                                 </select>
                             </div>
@@ -52,13 +55,21 @@ export const burndown = {
                             </button>
                         </div>
                         
-                        <div class="flex items-center gap-6 bg-slate-900/50 p-2 rounded-xl border border-slate-700">
-                            <div class="flex items-center gap-3 px-2">
-                                <span class="label-std text-slate-500">Budget Source:</span>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" id="toggle-budget-sync" checked class="w-4 h-4 accent-blue-500">
-                                    <span class="text-xs text-slate-300 font-bold uppercase tracking-widest">Sync</span>
-                                </label>
+                        <div class="flex items-center gap-6 bg-slate-900/50 p-3 rounded-xl border border-slate-700">
+                            <div class="flex items-center gap-4">
+                                <div class="flex flex-col gap-1">
+                                    <label class="label-std text-slate-500">Budget Source</label>
+                                    <div class="flex items-center gap-2">
+                                        <label class="flex items-center gap-2 cursor-pointer bg-slate-800 px-2 py-1 rounded border border-slate-700">
+                                            <input type="checkbox" id="toggle-budget-sync" checked class="w-3 h-3 accent-blue-500">
+                                            <span class="text-[9px] text-slate-300 font-bold uppercase tracking-widest">Sync</span>
+                                        </label>
+                                        <div id="manual-budget-container" class="hidden flex items-center gap-2">
+                                            <span class="text-[9px] text-slate-500 font-bold uppercase">Manual:</span>
+                                            <input type="text" id="input-manual-budget" data-type="currency" value="$100,000" class="bg-slate-900 border border-slate-700 rounded px-2 py-0.5 text-[10px] text-teal-400 font-black outline-none w-24 mono-numbers">
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -103,8 +114,25 @@ export const burndown = {
             seppToggle.onchange = () => { burndown.run(); window.debouncedAutoSave(); };
         }
         const syncToggle = document.getElementById('toggle-budget-sync');
+        const manualContainer = document.getElementById('manual-budget-container');
         if (syncToggle) {
-            syncToggle.onchange = (e) => { burndown.run(); window.debouncedAutoSave(); };
+            syncToggle.onchange = (e) => { 
+                if (manualContainer) manualContainer.classList.toggle('hidden', syncToggle.checked);
+                burndown.run(); 
+                window.debouncedAutoSave(); 
+            };
+        }
+        const manualInput = document.getElementById('input-manual-budget');
+        if (manualInput) {
+            manualInput.oninput = () => { burndown.run(); window.debouncedAutoSave(); };
+            manualInput.addEventListener('blur', (e) => {
+                const val = math.fromCurrency(e.target.value);
+                e.target.value = math.toCurrency(val);
+            });
+            manualInput.addEventListener('focus', (e) => {
+                const val = math.fromCurrency(e.target.value);
+                e.target.value = val === 0 ? '' : val;
+            });
         }
         const realBtn = document.getElementById('toggle-burndown-real');
         if (realBtn) {
@@ -119,7 +147,7 @@ export const burndown = {
     },
 
     load: (data) => {
-        burndown.priorityOrder = data?.priority || ['cash', 'taxable', 'roth-basis', 'heloc', '401k', 'roth-earnings', 'crypto', 'metals', 'hsa'];
+        if (data?.priority) burndown.priorityOrder = data.priority;
         isRealDollars = !!data?.isRealDollars;
         const strategySelect = document.getElementById('burndown-strategy');
         if (strategySelect && data?.strategy) {
@@ -137,18 +165,28 @@ export const burndown = {
             realBtn.classList.toggle('border-blue-500', isRealDollars);
         }
         const syncToggle = document.getElementById('toggle-budget-sync');
-        if (syncToggle && data?.useSync !== undefined) syncToggle.checked = data.useSync;
+        const manualContainer = document.getElementById('manual-budget-container');
+        if (syncToggle && data?.useSync !== undefined) {
+            syncToggle.checked = data.useSync;
+            if (manualContainer) manualContainer.classList.toggle('hidden', data.useSync);
+        }
+        const manualInput = document.getElementById('input-manual-budget');
+        if (manualInput && data?.manualBudget !== undefined) {
+            manualInput.value = math.toCurrency(data.manualBudget);
+        }
     },
 
     scrape: () => {
         const strategySelect = document.getElementById('burndown-strategy');
         const syncToggle = document.getElementById('toggle-budget-sync');
         const seppToggle = document.getElementById('toggle-rule-72t');
+        const manualInput = document.getElementById('input-manual-budget');
         return { 
             priority: burndown.priorityOrder,
             strategy: strategySelect?.value || 'standard',
             useSync: syncToggle?.checked ?? true,
             useSEPP: seppToggle?.checked ?? false,
+            manualBudget: math.fromCurrency(manualInput?.value || "$100,000"),
             isRealDollars
         };
     },
@@ -203,7 +241,6 @@ export const burndown = {
             }
         }
 
-        // Calculate SWR for the indicator
         const stockGrowth = (data.assumptions.stockGrowth || 8) / 100;
         const inflationRate = (data.assumptions.inflation || 3) / 100;
         const swrValue = Math.max(0, stockGrowth - inflationRate);
@@ -303,17 +340,17 @@ export const burndown = {
             const currentRE = realEstate.reduce((s, r) => s + (math.fromCurrency(r.value) * Math.pow(1 + realEstateGrowth, i) - math.fromCurrency(r.mortgage)), 0);
             const currentNW = (bal['cash'] + bal['taxable'] + bal['roth-basis'] + bal['roth-earnings'] + bal['401k'] + bal['crypto'] + bal['metals'] + bal['hsa'] + hidden529 + fixedOtherAssets + currentRE) - bal['heloc'];
 
-            let baseAnnualBudget = state.useSync ? (budget.expenses || []).reduce((sum, exp) => (isRetired && exp.removedInRetirement) ? sum : sum + math.fromCurrency(exp.annual), 0) : math.fromCurrency(document.getElementById('input-manual-budget')?.value || 0);
+            let baseAnnualBudget = state.useSync ? 
+                (budget.expenses || []).reduce((sum, exp) => (isRetired && exp.removedInRetirement) ? sum : sum + math.fromCurrency(exp.annual), 0) : 
+                (state.manualBudget || 100000);
+            
             let currentYearBudget = baseAnnualBudget * inflationFactor;
 
-            // Strategy Overrides
             if (isRetired) {
                 if (state.strategy === 'medicaid') currentYearBudget = fpl * 1.38;
                 else if (state.strategy === 'silver') currentYearBudget = fpl * 2.50;
                 else if (state.strategy === 'perpetual') {
-                    // Perpetual Safe Draw = Portfolio Value * (Growth % - Inflation %)
                     const safeRate = Math.max(0, stockGrowth - inflationRate);
-                    // This draw keeps the portfolio flat in REAL terms.
                     currentYearBudget = currentNW * safeRate;
                 }
             }

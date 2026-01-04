@@ -65,14 +65,35 @@ function clearDynamicContent() {
     .forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
 }
 
+/**
+ * Recursively removes all keys with 'undefined' values to prevent Firestore errors.
+ */
+function stripUndefined(obj) {
+    if (Array.isArray(obj)) {
+        return obj.map(item => stripUndefined(item));
+    } else if (obj !== null && typeof obj === 'object') {
+        return Object.fromEntries(
+            Object.entries(obj)
+                .filter(([_, value]) => value !== undefined)
+                .map(([key, value]) => [key, stripUndefined(value)])
+        );
+    }
+    return obj;
+}
+
 export async function autoSave(scrape = true) {
     if (scrape) window.currentData = scrapeDataFromUI();
     updateSummaries(window.currentData);
     window.updateSidebarChart(window.currentData);
     if (!document.getElementById('tab-projection').classList.contains('hidden')) projection.run(window.currentData);
     if (!document.getElementById('tab-burndown').classList.contains('hidden')) burndown.run();
+    
     if (user && db) {
-        try { await setDoc(doc(db, "users", user.uid), window.currentData, { merge: true }); }
+        try { 
+            // Sanitize the object before sending to Firebase
+            const sanitizedData = stripUndefined(window.currentData);
+            await setDoc(doc(db, "users", user.uid), sanitizedData, { merge: true }); 
+        }
         catch (e) { console.error("Save Error:", e); }
     }
 }
@@ -93,8 +114,6 @@ function scrapeDataFromUI() {
     if (stateEl) data.assumptions.state = stateEl.value;
     const filingStatusEl = document.querySelector('[data-id="filingStatus"]');
     if (filingStatusEl) data.assumptions.filingStatus = filingStatusEl.value;
-    const benefitCeilingEl = document.querySelector('[data-id="benefitCeiling"]');
-    if (benefitCeilingEl) data.assumptions.benefitCeiling = benefitCeilingEl.value;
 
     document.querySelectorAll('#assumptions-container [data-id]').forEach(i => {
         if (i.tagName !== 'SELECT') data.assumptions[i.dataset.id] = parseFloat(i.value) || 0;
