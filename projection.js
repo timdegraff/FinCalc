@@ -69,15 +69,19 @@ export const projection = {
             pointRadius: 0
         }));
         
+        const tableData = [];
+
         for (let i = 0; i <= duration; i++) {
             const age = assumptions.currentAge + i;
             labels.push(`${age} (${currentYear + i})`);
             
             const inflationFactor = Math.pow(1 + inflationRate, i);
-            
+            const currentYearBuckets = {};
+
             Object.keys(buckets).forEach((key, idx) => {
                 let displayValue = isRealDollars ? (buckets[key] / inflationFactor) : buckets[key];
                 datasets[idx].data.push(displayValue);
+                currentYearBuckets[key] = displayValue;
                 
                 if (key === 'Brokerage' || key === 'Pre-Tax' || key === 'Post-Tax' || key === 'HSA') buckets[key] *= (1 + stockGrowth);
                 else if (key === 'Crypto') buckets[key] *= (1 + cryptoGrowth);
@@ -85,6 +89,10 @@ export const projection = {
                 else if (key === 'Real Estate') buckets[key] *= (1 + realEstateGrowth);
                 else if (key === 'Cash') buckets[key] *= (1 + (inflationRate * 0.5));
             });
+
+            if (i === 0 || i === duration || age % 5 === 0) {
+                tableData.push({ age, year: currentYear + i, ...currentYearBuckets });
+            }
 
             if (age < assumptions.retirementAge) {
                 const summaries = engine.calculateSummaries(data);
@@ -105,6 +113,7 @@ export const projection = {
         }
         
         renderChart(labels, datasets);
+        renderTable(tableData);
     }
 };
 
@@ -141,4 +150,48 @@ function renderChart(labels, datasets) {
             }
         }
     });
+}
+
+function renderTable(tableData) {
+    const container = document.getElementById('projection-table-container');
+    if (!container) return;
+
+    if (tableData.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    const keys = Object.keys(tableData[0]).filter(k => k !== 'age' && k !== 'year');
+    
+    const headerHtml = `
+        <thead class="bg-slate-900/50 text-slate-500 label-std">
+            <tr>
+                <th class="px-4 py-2 text-left">Age (Year)</th>
+                ${keys.map(k => `<th class="px-4 py-2 text-right" style="color: ${assetColors[k] || '#94a3b8'}">${k}</th>`).join('')}
+                <th class="px-4 py-2 text-right text-teal-400">Total</th>
+            </tr>
+        </thead>
+    `;
+
+    const bodyHtml = `
+        <tbody class="mono-numbers text-xs">
+            ${tableData.map(row => {
+                const total = keys.reduce((s, k) => s + (row[k] || 0), 0);
+                return `
+                    <tr class="border-b border-slate-700/50 hover:bg-slate-800/20 transition-colors">
+                        <td class="px-4 py-2 font-bold text-white">${row.age} <span class="text-slate-500 font-normal">(${row.year})</span></td>
+                        ${keys.map(k => `<td class="px-4 py-2 text-right">${math.toCurrency(row[k], true)}</td>`).join('')}
+                        <td class="px-4 py-2 text-right font-black text-teal-400">${math.toCurrency(total, true)}</td>
+                    </tr>
+                `;
+            }).join('')}
+        </tbody>
+    `;
+
+    container.innerHTML = `
+        <table class="w-full text-left border-collapse">
+            ${headerHtml}
+            ${bodyHtml}
+        </table>
+    `;
 }

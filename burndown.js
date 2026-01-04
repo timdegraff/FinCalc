@@ -220,7 +220,6 @@ export const burndown = {
         const endAge = parseFloat(document.getElementById('input-projection-end')?.value) || 75;
         const duration = endAge - assumptions.currentAge;
 
-        // Pre-calculation loop to find 401k balance at retirement for SEPP
         let temp401k = bal['401k'];
         const stockG = (1 + (assumptions.stockGrowth / 100));
         for (let i = 0; i < (assumptions.retirementAge - assumptions.currentAge); i++) {
@@ -286,7 +285,6 @@ export const burndown = {
             const ssYearly = (age >= assumptions.ssStartAge) ? ssBenefitBase * inflationFactor : 0;
             taxableIncome += ssYearly; 
 
-            // APPLY SEPP 72(t) DISTRIBUTION
             if (isRetired && age < 60 && state.useSEPP) {
                 const canDrawSEPP = Math.min(bal['401k'], seppFixedAmount);
                 bal['401k'] -= canDrawSEPP;
@@ -383,6 +381,14 @@ export const burndown = {
                 </td>`;
             }).join('');
             
+            let benefitBadge = '';
+            if (r.isMedicaid) benefitBadge += `<span class="px-1.5 py-0.5 rounded bg-blue-600 text-white text-[8px] font-black uppercase">Medicaid</span>`;
+            else if (r.isSilver) benefitBadge += `<span class="px-1.5 py-0.5 rounded bg-slate-400 text-slate-900 text-[8px] font-black uppercase">Silver</span>`;
+            
+            if (r.snapBenefit > 0) {
+                benefitBadge += `<div class="text-[8px] text-emerald-400 font-bold uppercase mt-1">SNAP: ${formatter.formatCurrency(r.snapBenefit / inf, 0)}</div>`;
+            }
+
             const penaltyDisplay = r.penalty > 0 ? `<div class="text-[8px] text-red-500 font-bold uppercase">Penalty: ${formatter.formatCurrency(r.penalty / inf, 0)}</div>` : '';
             
             return `<tr class="border-b border-slate-800/50 hover:bg-slate-800/10 text-[10px]">
@@ -390,6 +396,7 @@ export const burndown = {
                 <td class="p-2 text-right text-slate-500">${formatter.formatCurrency(r.budget / inf, 0)}</td>
                 <td class="p-2 text-right font-black text-emerald-400">${formatter.formatCurrency(r.magi / inf, 0)}</td>
                 <td class="p-2 text-right text-blue-300">${r.persistentIncome > 0 ? formatter.formatCurrency(r.persistentIncome / inf, 0) : '—'}</td>
+                <td class="p-2 text-center border-x border-slate-800/50">${benefitBadge || '—'}</td>
                 <td class="p-2 text-center">${penaltyDisplay || '—'}</td>
                 ${draws}
                 <td class="p-2 text-right font-black border-l border-slate-700 text-teal-400">${formatter.formatCurrency(r.netWorth / inf, 0)}</td>
@@ -403,6 +410,7 @@ export const burndown = {
                     <th class="p-2 text-right">Budget</th>
                     <th class="p-2 text-right">MAGI</th>
                     <th class="p-2 text-right">Inc</th>
+                    <th class="p-2 text-center border-x border-slate-800/50">Benefits</th>
                     <th class="p-2 text-center">Tax Info</th>
                     ${headerCells}
                     <th class="p-2 text-right border-l border-slate-700">Net Worth</th>
