@@ -106,6 +106,12 @@ export const benefits = {
                         </button>
                     </div>
                 </div>
+
+                <div class="mt-12 p-4 bg-slate-800/30 rounded-xl border border-slate-800">
+                    <p class="text-[10px] text-slate-500 italic leading-relaxed">
+                        Note: As of Jan 1, 2026, Michigan continues to operate under "Broad Based Categorical Eligibility," effectively removing asset tests for SNAP and Healthy Michigan Plan (Medicaid) for the vast majority of households. Calculations reflect 2026 estimated Federal Poverty Levels (FPL).
+                    </p>
+                </div>
             </div>
         `;
 
@@ -127,7 +133,6 @@ export const benefits = {
 
         container.querySelectorAll('input').forEach(input => {
             input.oninput = () => {
-                // Sync household size between sliders
                 if (input.dataset.benefitId === 'hhSize') {
                     container.querySelectorAll('[data-benefit-id="hhSize"]').forEach(el => el.value = input.value);
                 }
@@ -141,13 +146,10 @@ export const benefits = {
         const data = benefits.scrape();
         const c = document.getElementById('benefits-module');
 
-        // Update Labels
         c.querySelectorAll('[data-label="hhSize"]').forEach(el => el.textContent = data.hhSize);
         c.querySelector('[data-label="healthIncome"]').textContent = math.toCurrency(data.healthIncome);
         c.querySelector('[data-label="snapIncome"]').textContent = math.toCurrency(data.snapIncome);
 
-        // Auto-set Max Shelter logic for 2026 Michigan
-        // Shelter cap for households without elderly/disabled is approx $712 for 2026.
         if (data.isAutoSetMax) {
             const shelterSlider = c.querySelector('[data-benefit-id="shelterCosts"]');
             const maxShelter = data.isDisabled ? 5000 : 712; 
@@ -163,7 +165,6 @@ export const benefits = {
         }
         c.querySelector('[data-label="shelterCosts"]').textContent = math.toCurrency(data.shelterCosts);
 
-        // Logic (MI Healthy MI Plan 2026)
         const fpl2026 = 16060 + (data.hhSize - 1) * 5440;
         const income = data.healthIncome;
         const ratio = income / fpl2026;
@@ -172,27 +173,25 @@ export const benefits = {
         if (ratio < 1.38) {
             document.getElementById('health-result-title').textContent = "Medicaid (Healthy MI)";
             document.getElementById('health-result-desc').textContent = "State-sponsored. $0 premiums.";
-            document.getElementById('health-result-title').style.color = "#2563eb"; // Blue
+            document.getElementById('health-result-title').style.color = "#2563eb"; 
             ball.style.setProperty('--thumb-color', '#2563eb');
         } else if (ratio < 2.5) {
             document.getElementById('health-result-title').textContent = "Silver Marketplace Plan";
             document.getElementById('health-result-desc').textContent = "Tax credit subsidized. High CSR.";
-            document.getElementById('health-result-title').style.color = "#a855f7"; // Purple
+            document.getElementById('health-result-title').style.color = "#a855f7"; 
             ball.style.setProperty('--thumb-color', '#a855f7');
         } else if (ratio < 4.0) {
             document.getElementById('health-result-title').textContent = "Marketplace (Bronze/Gold)";
             document.getElementById('health-result-desc').textContent = "Partial tax credits available.";
-            document.getElementById('health-result-title').style.color = "#f97316"; // Orange
+            document.getElementById('health-result-title').style.color = "#f97316"; 
             ball.style.setProperty('--thumb-color', '#f97316');
         } else {
             document.getElementById('health-result-title').textContent = "Private Insurance";
             document.getElementById('health-result-desc').textContent = "No subsidies. Full market rate.";
-            document.getElementById('health-result-title').style.color = "#ef4444"; // Red
+            document.getElementById('health-result-title').style.color = "#ef4444"; 
             ball.style.setProperty('--thumb-color', '#ef4444');
         }
 
-        // SNAP Logic for Michigan 2026
-        // Michigan uses categorical eligibility (200% FPL)
         const snapFpl = 16060 + (data.hhSize - 1) * 5440;
         const snapGrossLimit = snapFpl * 2.0;
         const monthlyGross = data.snapIncome / 12;
