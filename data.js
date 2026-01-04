@@ -40,7 +40,6 @@ export function loadUserDataIntoUI(data) {
     populate(data.otherAssets, 'other-assets-rows', 'otherAsset');
     populate(data.income, 'income-rows', 'income');
     
-    // Budget prepopulation
     const summaries = engine.calculateSummaries(data);
     window.addRow('budget-savings-rows', 'budget-savings', { name: '401k / 403b', annual: summaries.total401kContribution, monthly: summaries.total401kContribution / 12, isLocked: true });
     populate(data.budget?.savings?.filter(s => s.name !== '401k / 403b'), 'budget-savings-rows', 'budget-savings');
@@ -58,6 +57,7 @@ function clearDynamicContent() {
 export async function autoSave(scrape = true) {
     if (scrape) window.currentData = scrapeDataFromUI();
     updateSummaries(window.currentData);
+    window.updateSidebarChart(window.currentData);
 
     if (!document.getElementById('tab-projection').classList.contains('hidden')) projection.run(window.currentData);
     if (!document.getElementById('tab-burndown').classList.contains('hidden')) burndown.run();
@@ -69,14 +69,24 @@ export async function autoSave(scrape = true) {
 }
 
 function scrapeDataFromUI() {
-    const data = { assumptions: {}, investments: [], realEstate: [], income: [], budget: { savings: [], expenses: [] }, benefits: benefits.scrape(), burndown: burndown.scrape() };
-    document.querySelectorAll('#assumptions-container [data-id]').forEach(i => data.assumptions[i.dataset.id] = parseFloat(i.value));
+    const data = { 
+        assumptions: {
+            filingStatus: document.querySelector('[data-id="filingStatus"]')?.value,
+            benefitCeiling: document.querySelector('[data-id="benefitCeiling"]')?.value,
+        }, 
+        investments: [], realEstate: [], income: [], budget: { savings: [], expenses: [] }, 
+        benefits: benefits.scrape(), burndown: burndown.scrape() 
+    };
+    document.querySelectorAll('#assumptions-container [data-id]').forEach(i => {
+        if (i.tagName !== 'SELECT') data.assumptions[i.dataset.id] = parseFloat(i.value);
+    });
     document.querySelectorAll('#investment-rows tr').forEach(r => data.investments.push(scrapeRow(r)));
+    document.querySelectorAll('#real-estate-rows tr').forEach(r => data.realEstate.push(scrapeRow(r)));
     document.querySelectorAll('#income-rows tr').forEach(r => {
-        const rowData = scrapeRow(r);
-        rowData.isMonthly = r.querySelector('[data-id="isMonthly"]')?.textContent.trim().toLowerCase() === 'monthly';
-        rowData.writeOffsMonthly = r.querySelector('[data-id="writeOffsMonthly"]')?.textContent.trim().toLowerCase() === 'monthly';
-        data.income.push(rowData);
+        const d = scrapeRow(r);
+        d.isMonthly = r.querySelector('[data-id="isMonthly"]')?.textContent.trim().toLowerCase() === 'monthly';
+        d.writeOffsMonthly = r.querySelector('[data-id="writeOffsMonthly"]')?.textContent.trim().toLowerCase() === 'monthly';
+        data.income.push(d);
     });
     document.querySelectorAll('#budget-savings-rows tr').forEach(r => {
         if (!r.querySelector('[data-id="name"]').readOnly) data.budget.savings.push(scrapeRow(r));
@@ -88,7 +98,7 @@ function scrapeDataFromUI() {
 function scrapeRow(row) {
     const d = {};
     row.querySelectorAll('[data-id]').forEach(i => {
-        if (i.tagName === 'BUTTON') return;
+        if (i.tagName === 'BUTTON' || i.dataset.id === 'capWarning') return;
         const k = i.dataset.id;
         if (i.type === 'checkbox') d[k] = i.checked;
         else if (i.dataset.type === 'currency') d[k] = math.fromCurrency(i.value);
@@ -98,7 +108,7 @@ function scrapeRow(row) {
 }
 
 function getInitialData() {
-    return { assumptions: assumptions.defaults, investments: [], realEstate: [], income: [], budget: { savings: [], expenses: [{ name: 'Mortgage', monthly: 1417, annual: 17004 }] }, benefits: {}, burndown: {} };
+    return { assumptions: assumptions.defaults, investments: [], realEstate: [], income: [], budget: { savings: [], expenses: [] }, benefits: {}, burndown: {} };
 }
 
 export function updateSummaries(data) {
@@ -113,7 +123,6 @@ export function updateSummaries(data) {
     set('sum-budget-annual', s.totalAnnualBudget);
     set('sum-budget-total', s.totalAnnualSavings + s.totalAnnualBudget);
     
-    // Sync locked 401k row in budget
     const r401k = Array.from(document.querySelectorAll('#budget-savings-rows tr')).find(r => r.querySelector('[data-id="name"]').readOnly);
     if (r401k) {
         r401k.querySelector('[data-id="monthly"]').value = math.toCurrency(s.total401kContribution / 12);

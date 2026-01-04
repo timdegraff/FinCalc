@@ -50,18 +50,20 @@
                 <button data-tab="burndown" class="tab-btn w-full text-left p-3 rounded-lg flex items-center gap-3"><i class="fas fa-stairs w-6 text-purple-400" style="transform: scaleX(-1);"></i><span>Burndown</span></button>
             </nav>
             <div class="p-4 border-t border-slate-700 bg-slate-800/50">
-                 <div class="mb-4">
-                    <p class="text-xs text-slate-400 uppercase font-bold tracking-wider">Net Worth</p>
-                    <p id="sidebar-networth" class="text-2xl font-black text-teal-400">$0</p>
+                <div class="mb-4">
+                    <canvas id="sidebar-asset-chart" width="100" height="100" class="mb-2"></canvas>
+                    <p class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Net Worth</p>
+                    <p id="sidebar-networth" class="text-xl font-black text-teal-400">$0</p>
                 </div>
+                <button id="ai-pilot-btn" class="w-full mb-4 py-2.5 bg-gradient-to-r from-blue-600 to-teal-500 text-white rounded-lg text-xs font-black shadow-lg shadow-blue-900/40 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                    <i class="fas fa-robot"></i> ASK CO-PILOT
+                </button>
                 <div class="flex items-center gap-4 mb-4">
-                    <img id="user-avatar" class="w-10 h-10 rounded-full border border-slate-600" src="" alt="">
-                    <div>
-                        <p id="user-name" class="font-bold text-white text-sm"></p>
-                    </div>
+                    <img id="user-avatar" class="w-8 h-8 rounded-full border border-slate-600" src="" alt="">
+                    <p id="user-name" class="font-bold text-white text-[10px]"></p>
                 </div>
-                <button id="logout-btn" class="w-full py-2 bg-slate-700 hover:bg-red-900/40 text-slate-300 rounded-lg text-sm transition-colors flex items-center justify-center gap-2">
-                    <i class="fas fa-sign-out-alt"></i> Logout
+                <button id="logout-btn" class="w-full py-1.5 bg-slate-700 hover:bg-red-900/40 text-slate-300 rounded-lg text-[10px] transition-colors">
+                    Logout
                 </button>
             </div>
         </aside>
@@ -126,7 +128,6 @@
                         </table>
                     </div>
                 </div>
-                <!-- ... HELOCs and other debts ... -->
             </section>
 
             <!-- Income Tab -->
@@ -137,7 +138,7 @@
                 </div>
                 <div class="card-container bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
                     <div class="overflow-x-auto">
-                        <table class="w-full text-[11px] min-w-[1200px]">
+                        <table class="w-full text-[11px] min-w-[1300px]">
                             <thead>
                                 <tr class="bg-slate-900/50 text-slate-400">
                                     <th class="px-4 py-3 text-left">Employer / Name</th>
@@ -147,6 +148,7 @@
                                     <th class="px-4 py-3 text-right w-24">Bonus %</th>
                                     <th class="px-4 py-3 text-right w-24">Personal 401k %</th>
                                     <th class="px-4 py-3 text-right w-24">401k Match %</th>
+                                    <th class="px-4 py-3 text-right w-24">Tax Free Until (Age)</th>
                                     <th class="px-4 py-3 text-center">Retiree?</th>
                                     <th class="px-4 py-3 text-center">Non-Tax?</th>
                                     <th class="w-12 px-4 py-3"></th>
@@ -156,7 +158,7 @@
                         </table>
                     </div>
                 </div>
-                <p class="mt-4 text-xs text-slate-500 italic">* Note: Personal 401k and Match percentages are calculated against base salary only, excluding bonuses.</p>
+                <p class="mt-4 text-[10px] text-slate-500 italic">* Note: Personal 401k and Match percentages are calculated against base salary only. The warning icon <i class="fas fa-exclamation-triangle text-amber-500 mx-1"></i> indicates total 401k exceeds IRS 2026 limits.</p>
             </section>
 
             <!-- Budget Tab -->
@@ -230,15 +232,40 @@
                 </div>
             </section>
 
-            <!-- Projection & Burndown -->
+            <!-- Projection -->
             <section id="tab-projection" class="tab-content hidden max-w-7xl mx-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-white">Net Worth Projection</h2>
+                    <div class="flex items-center gap-4 bg-slate-800 px-4 py-2 rounded-xl border border-slate-700">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">Projection End Age: <span id="label-projection-end" class="text-blue-400">100</span></span>
+                        <input type="range" id="input-projection-end" min="70" max="110" value="100" class="w-32 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                </div>
                 <div class="card-container p-6 bg-slate-800 rounded-2xl border border-slate-700 mb-8">
                     <canvas id="projection-chart" height="120"></canvas>
                 </div>
                 <div id="assumptions-container" class="grid grid-cols-1 md:grid-cols-3 gap-8 p-6 bg-slate-800 rounded-2xl border border-slate-700"></div>
             </section>
-            <section id="tab-burndown" class="tab-content hidden max-w-7xl mx-auto"></section>
+
+            <!-- Burndown -->
+            <section id="tab-burndown" class="tab-content hidden max-w-full mx-auto"></section>
         </main>
+    </div>
+
+    <!-- AI Pilot Overlay -->
+    <div id="ai-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[80vh]">
+            <div class="p-6 border-b border-slate-700 flex justify-between items-center">
+                <h3 class="text-xl font-bold text-white flex items-center gap-3"><i class="fas fa-robot text-teal-400"></i> Financial Co-pilot Analysis</h3>
+                <button id="close-ai-modal" class="text-slate-500 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div id="ai-response-container" class="p-8 overflow-y-auto text-slate-300 leading-relaxed text-sm prose prose-invert max-w-none">
+                <div class="flex flex-col items-center justify-center py-20 gap-4">
+                    <div class="animate-spin text-teal-400 text-4xl"><i class="fas fa-circle-notch"></i></div>
+                    <p class="font-bold text-slate-500">Analyzing your financial strategy...</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script type="module" src="main.js"></script>

@@ -31,18 +31,23 @@ body {
 .input-range { -webkit-appearance: none; width: 100%; height: 6px; background: #334155; border-radius: 5px; outline: none; }
 .input-range::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: var(--accent-blue); border-radius: 50%; border: 2px solid #fff; cursor: pointer; }
 
-/* Benefits Specific Slider */
+/* High-Fidelity Benefits Slider */
 .benefit-slider {
-    -webkit-appearance: none; width: 100%; height: 4px; background: #334155; border-radius: 2px; outline: none;
+    --thumb-color: #3b82f6;
+    -webkit-appearance: none; width: 100%; height: 4px; background: transparent; outline: none;
 }
 .benefit-slider::-webkit-slider-thumb {
-    -webkit-appearance: none; width: 24px; height: 24px; background: #3b82f6; border: 4px solid #1e293b; border-radius: 50%; cursor: pointer;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    -webkit-appearance: none; width: 28px; height: 28px; 
+    background: var(--thumb-color); border: 4px solid #1e293b; border-radius: 50%; cursor: pointer;
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);
+    transition: background 0.3s ease;
 }
 
 .card-container { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
 
-/* Table Sticky Header */
 thead th { position: sticky; top: 0; z-index: 20; background: #1e293b; }
+
+.prose h1, .prose h2, .prose h3 { color: white; margin-top: 1.5em; margin-bottom: 0.5em; }
+.prose p { margin-bottom: 1em; }

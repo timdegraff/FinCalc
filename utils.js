@@ -18,10 +18,36 @@ export const math = {
 };
 
 export const assumptions = {
-    defaults: { currentAge: 40, retirementAge: 65, ssStartAge: 67, ssMonthly: 2500, stockGrowth: 7, inflation: 3 }
+    defaults: { 
+        currentAge: 40, retirementAge: 65, ssStartAge: 67, ssMonthly: 2500, 
+        stockGrowth: 7, inflation: 3, filingStatus: 'Single', benefitCeiling: 1.38,
+        helocRate: 8.5
+    }
 };
 
 export const engine = {
+    calculateTax: (taxableIncome, status = 'Single') => {
+        // Projected 2026 Brackets (Conservative Estimate)
+        const stdDed = status === 'Single' ? 15000 : 30000;
+        let taxable = Math.max(0, taxableIncome - stdDed);
+        let tax = 0;
+        
+        const brackets = status === 'Single' ? 
+            [[11600, 0.10], [47150, 0.12], [100525, 0.22], [191950, 0.24]] :
+            [[23200, 0.10], [94300, 0.12], [201050, 0.22], [383900, 0.24]];
+
+        let prev = 0;
+        for (const [limit, rate] of brackets) {
+            const range = Math.min(taxable, limit - prev);
+            tax += range * rate;
+            taxable -= range;
+            prev = limit;
+            if (taxable <= 0) break;
+        }
+        if (taxable > 0) tax += taxable * 0.32; // Catch-all upper bracket
+        return tax;
+    },
+
     calculateSummaries: (data) => {
         const inv = data.investments || [];
         const re = data.realEstate || [];
@@ -41,10 +67,10 @@ export const engine = {
             if (x.writeOffsMonthly) writes *= 12;
 
             const bonus = base * (parseFloat(x.bonusPct) / 100 || 0);
-            
-            // 401k calculated only on base salary per user request
             const personal401k = base * (parseFloat(x.contribution) / 100 || 0);
             const match401k = base * (parseFloat(x.match) / 100 || 0);
+            
+            // Note: Cap logic here for summary, but flags handled in core.js
             total401kContribution += (personal401k + match401k);
 
             return s + base + bonus - writes;
