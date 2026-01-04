@@ -242,9 +242,8 @@ function attachDynamicRowListeners() {
         }
     });
     document.body.addEventListener('change', (e) => {
-        if (e.target.dataset.id === 'type' && e.target.closest('#investment-rows')) {
-            updateCostBasisVisibility(e.target.closest('tr'));
-            // Update color class immediately
+        if (e.target.dataset.id === 'type' && e.target.closest('#investment-rows, #budget-savings-rows')) {
+            if (e.target.closest('#investment-rows')) updateCostBasisVisibility(e.target.closest('tr'));
             e.target.className = `input-base w-full font-bold ${templates.helpers.getTypeClass(e.target.value)}`;
         }
     });
@@ -277,6 +276,9 @@ function updateCostBasisVisibility(row) {
     const isIrrelevant = (['Pre-Tax (401k/IRA)', 'Cash', 'HSA', '529 Plan'].includes(typeSelect.value));
     costBasisInput.style.visibility = isIrrelevant ? 'hidden' : 'visible';
     costBasisInput.disabled = isIrrelevant;
+    if (isIrrelevant) {
+        costBasisInput.value = '$0';
+    }
 }
 
 export function showTab(tabId) {
@@ -306,6 +308,10 @@ window.addRow = (containerId, type, data = {}) => {
     if (type === 'income') {
         const amtBtn = element.querySelector('[data-id="isMonthly"]');
         if (amtBtn) amtBtn.textContent = data.isMonthly ? 'Monthly' : 'Annual';
+        
+        const expBtn = element.querySelector('[data-id="incomeExpensesMonthly"]');
+        if (expBtn) expBtn.textContent = data.incomeExpensesMonthly ? 'Monthly' : 'Annual';
+
         checkIrsLimits(element);
     }
     if (type === 'investment') updateCostBasisVisibility(element);

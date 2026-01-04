@@ -163,6 +163,7 @@ export const engine = {
                                 debts.reduce((s, x) => s + math.fromCurrency(x.balance), 0);
 
         let total401kContribution = 0;
+        let totalGrossIncome = 0;
         const grossIncome = inc.reduce((s, x) => {
             let base = math.fromCurrency(x.amount);
             if (x.isMonthly) base *= 12;
@@ -171,6 +172,7 @@ export const engine = {
             const bonus = base * (parseFloat(x.bonusPct) / 100 || 0);
             const personal401k = base * (parseFloat(x.contribution) / 100 || 0);
             total401kContribution += personal401k;
+            totalGrossIncome += (base + bonus);
             return s + Math.max(0, base + bonus - writes);
         }, 0);
 
@@ -179,7 +181,7 @@ export const engine = {
 
         return {
             netWorth: totalAssets - totalLiabilities,
-            totalAssets, totalLiabilities, grossIncome,
+            totalAssets, totalLiabilities, grossIncome, totalGrossIncome,
             total401kContribution, totalAnnualSavings, totalAnnualBudget
         };
     }

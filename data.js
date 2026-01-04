@@ -147,6 +147,10 @@ export function updateSummaries(data) {
     set('sum-budget-annual', s.totalAnnualBudget);
     set('sum-budget-total', s.totalAnnualSavings + s.totalAnnualBudget);
     
+    // Income tab summaries
+    set('sum-gross-income', s.totalGrossIncome);
+    set('sum-income-adjusted', s.grossIncome);
+    
     const r401k = Array.from(document.querySelectorAll('#budget-savings-rows tr')).find(r => r.querySelector('[data-id="monthly"]')?.readOnly);
     if (r401k) {
         const monthly = r401k.querySelector('[data-id="monthly"]');

@@ -8,17 +8,17 @@ export const templates = {
             const b = math.fromCurrency(costBasis);
             const stateRate = stateTaxRates[state] || 0;
             
-            // 100% efficient if basis covers value (no gains)
+            if (type === '529 Plan' || type === 'Post-Tax (Roth)') {
+                return `<div class="efficiency-badge inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[9px] font-black uppercase tracking-widest border border-current" title="100% Efficient (${type === '529 Plan' ? 'Tax-Free Education' : 'Tax-Free Withdrawal'})">100%</div>`;
+            }
+
             if (v > 0 && b >= v) {
                  return `<div class="efficiency-badge inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[9px] font-black uppercase tracking-widest border border-current" title="100% Efficient (No Gains)">100%</div>`;
             }
 
-            // Fixed Efficiency Assets (Liquid/Tax-Free)
             const fixedEfficiencies = {
-                'Post-Tax (Roth)': 1.0,
                 'Cash': 1.0,
-                'HSA': 1.0,
-                '529 Plan': 1.0
+                'HSA': 1.0
             };
 
             const styles = {
@@ -38,18 +38,16 @@ export const templates = {
             if (fixedEfficiencies[type] !== undefined) {
                 label = Math.round(fixedEfficiencies[type] * 100) + '%';
             } else if (type === 'Pre-Tax (401k/IRA)') {
-                // Estimated ordinary income tax (fed 22% avg + state)
                 const combinedRate = 0.22 + stateRate;
                 label = Math.round((1 - combinedRate) * 100) + '%';
             } else if (['Taxable', 'Crypto', 'Metals'].includes(type)) {
-                // Capital Gains Math
-                const fedRate = (type === 'Metals') ? 0.28 : 0.15; // Metals/Collectibles = 28%
+                const fedRate = (type === 'Metals') ? 0.28 : 0.15;
                 const combinedCapGainsRate = fedRate + stateRate;
                 const gainRatio = v > 0 ? Math.max(0, (v - b) / v) : 0;
                 const efficiency = 1 - (gainRatio * combinedCapGainsRate);
                 label = Math.round(efficiency * 100) + '%';
             } else {
-                label = '92%'; // Fallback
+                label = '92%';
             }
 
             return `<div class="efficiency-badge inline-flex items-center px-1.5 py-0.5 rounded ${s.bg} ${s.color} text-[9px] font-black uppercase tracking-widest border border-current opacity-80" title="Est. Realizable Value Post-Tax (${state} Tax: ${Math.round(stateRate*1000)/10}%)">${label}</div>`;
@@ -100,73 +98,92 @@ export const templates = {
         `;
     },
     income: () => `
-        <div class="bg-slate-800 rounded-2xl border border-slate-700/50 p-6 flex flex-col gap-5 relative group shadow-lg">
-            <button data-action="remove" class="absolute top-4 right-4 text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all">
-                <i class="fas fa-times"></i>
-            </button>
+        <div class="bg-slate-800 rounded-2xl border border-slate-700/50 flex flex-col relative group shadow-lg overflow-hidden">
+            <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/40">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-money-check-alt text-teal-400"></i>
+                    <input data-id="name" type="text" placeholder="Source Name" class="bg-transparent border-none outline-none text-white font-black uppercase tracking-widest text-sm placeholder:text-slate-600">
+                </div>
+                <button data-action="remove" class="text-slate-600 hover:text-red-400 transition-all">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
             
-            <div class="space-y-1">
-                <label class="label-std text-slate-500">Source</label>
-                <input data-id="name" type="text" placeholder="Employer Name" class="bg-transparent border-none outline-none w-full text-white font-black text-xl placeholder:text-slate-700 uppercase tracking-tighter">
-                <div class="h-[1px] bg-slate-700/50 w-full"></div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-5">
-                <div class="space-y-1">
-                    <div class="flex justify-between items-center h-4">
-                        <label class="label-std text-slate-500">Gross</label>
-                        <button data-action="toggle-freq" data-id="isMonthly" class="text-blue-500 hover:text-blue-400 label-std">Annual</button>
-                    </div>
-                    <input data-id="amount" data-type="currency" type="text" placeholder="$0" class="mono-numbers bg-transparent border-none outline-none w-full text-teal-400 font-bold text-base h-7">
-                    <div class="h-[1px] bg-slate-700/50 w-full"></div>
-                </div>
-                <div class="space-y-1">
-                    <label class="label-std text-slate-500">Growth %</label>
-                    <input data-id="increase" type="number" step="0.1" placeholder="0" class="mono-numbers bg-transparent border-none outline-none w-full text-white font-bold text-base h-7">
-                    <div class="h-[1px] bg-slate-700/50 w-full"></div>
-                </div>
-            </div>
-
-            <div class="p-4 bg-slate-900/40 rounded-xl border border-slate-700/30">
-                <div class="grid grid-cols-2 gap-5">
+            <div class="p-5 space-y-6">
+                <!-- Row 1: Gross & Growth -->
+                <div class="grid grid-cols-2 gap-6">
                     <div class="space-y-1">
-                        <label class="label-std text-slate-500">401K %</label>
-                        <input data-id="contribution" type="number" placeholder="0" class="mono-numbers bg-transparent border-none outline-none w-full text-white font-bold text-base h-7">
-                        <div class="h-[1px] bg-slate-700/50 w-full"></div>
+                        <div class="flex justify-between items-center">
+                            <label class="label-std text-slate-500">Gross Amount</label>
+                            <button data-action="toggle-freq" data-id="isMonthly" class="text-blue-500 hover:text-blue-400 label-std">Annual</button>
+                        </div>
+                        <input data-id="amount" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-teal-400 font-bold mono-numbers">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="label-std text-slate-500">Annual Growth %</label>
+                        <input data-id="increase" type="number" step="0.1" placeholder="0" class="input-base w-full text-white font-bold mono-numbers">
+                    </div>
+                </div>
+
+                <!-- Row 2: 401k & Match & Bonus -->
+                <div class="grid grid-cols-3 gap-4 p-4 bg-slate-900/40 rounded-xl border border-slate-700/30">
+                    <div class="space-y-1">
+                        <label class="label-std text-slate-500">401k %</label>
+                        <input data-id="contribution" type="number" placeholder="0" class="input-base w-full text-white font-bold mono-numbers">
                     </div>
                     <div class="space-y-1">
                         <label class="label-std text-slate-500">Match %</label>
-                        <input data-id="match" type="number" placeholder="0" class="mono-numbers bg-transparent border-none outline-none w-full text-white font-bold text-base h-7">
-                        <div class="h-[1px] bg-slate-700/50 w-full"></div>
+                        <input data-id="match" type="number" placeholder="0" class="input-base w-full text-white font-bold mono-numbers">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="label-std text-slate-500">Bonus %</label>
+                        <input data-id="bonusPct" type="number" placeholder="0" class="input-base w-full text-white font-bold mono-numbers">
                     </div>
                 </div>
-            </div>
 
-            <div class="flex flex-col gap-2 pt-2">
-                <label class="flex items-center gap-3 cursor-pointer">
-                    <input data-id="remainsInRetirement" type="checkbox" class="w-4 h-4 accent-blue-500 rounded bg-slate-900">
-                    <span class="label-std text-slate-500 leading-none">Keeps in Retirement?</span>
-                </label>
+                <!-- Row 3: Deductions/Expenses -->
+                <div class="space-y-1">
+                    <div class="flex justify-between items-center">
+                        <label class="label-std text-slate-500">Direct Deductions / Expenses</label>
+                        <button data-action="toggle-freq" data-id="incomeExpensesMonthly" class="text-blue-500 hover:text-blue-400 label-std">Annual</button>
+                    </div>
+                    <input data-id="incomeExpenses" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-pink-400 font-bold mono-numbers">
+                </div>
+
+                <!-- Row 4: Settings -->
+                <div class="flex flex-wrap gap-6 pt-2 border-t border-slate-700/30">
+                    <label class="flex items-center gap-3 cursor-pointer">
+                        <input data-id="nonTaxable" type="checkbox" class="w-4 h-4 accent-teal-500 rounded bg-slate-900 border-slate-700">
+                        <span class="label-std text-slate-500 hover:text-teal-400 transition-colors">Non-Taxable?</span>
+                    </label>
+                    <label class="flex items-center gap-3 cursor-pointer">
+                        <input data-id="remainsInRetirement" type="checkbox" class="w-4 h-4 accent-blue-500 rounded bg-slate-900 border-slate-700">
+                        <span class="label-std text-slate-500 hover:text-blue-400 transition-colors">Stays in Retirement?</span>
+                    </label>
+                </div>
             </div>
         </div>
     `,
-    "budget-savings": (data) => `
-        <td>
-            <select data-id="type" class="input-base w-full font-bold ${templates.helpers.getTypeClass(data.type)}">
-                <option>Taxable</option>
-                <option>Pre-Tax (401k/IRA)</option>
-                <option>Post-Tax (Roth)</option>
-                <option>Cash</option>
-                <option>Crypto</option>
-                <option>Metals</option>
-                <option>HSA</option>
-                <option>529 Plan</option>
-            </select>
-        </td>
-        <td><input data-id="monthly" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-bold mono-numbers" ${data.isLocked ? 'readonly' : ''}></td>
-        <td><input data-id="annual" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-black mono-numbers" ${data.isLocked ? 'readonly' : ''}></td>
-        <td class="text-center">${data.isLocked ? '' : '<button data-action="remove" class="text-slate-700 hover:text-red-400"><i class="fas fa-times"></i></button>'}</td>
-    `,
+    "budget-savings": (data) => {
+        const type = data.type || 'Taxable';
+        return `
+            <td>
+                <select data-id="type" class="input-base w-full font-bold ${templates.helpers.getTypeClass(type)}">
+                    <option ${type === 'Taxable' ? 'selected' : ''}>Taxable</option>
+                    <option ${type === 'Pre-Tax (401k/IRA)' ? 'selected' : ''}>Pre-Tax (401k/IRA)</option>
+                    <option ${type === 'Post-Tax (Roth)' ? 'selected' : ''}>Post-Tax (Roth)</option>
+                    <option ${type === 'Cash' ? 'selected' : ''}>Cash</option>
+                    <option ${type === 'Crypto' ? 'selected' : ''}>Crypto</option>
+                    <option ${type === 'Metals' ? 'selected' : ''}>Metals</option>
+                    <option ${type === 'HSA' ? 'selected' : ''}>HSA</option>
+                    <option ${type === '529 Plan' ? 'selected' : ''}>529 Plan</option>
+                </select>
+            </td>
+            <td><input data-id="monthly" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-bold mono-numbers" ${data.isLocked ? 'readonly' : ''}></td>
+            <td><input data-id="annual" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-black mono-numbers" ${data.isLocked ? 'readonly' : ''}></td>
+            <td class="text-center">${data.isLocked ? '' : '<button data-action="remove" class="text-slate-700 hover:text-red-400"><i class="fas fa-times"></i></button>'}</td>
+        `;
+    },
     "budget-expense": () => `
         <td><input data-id="name" type="text" placeholder="Expense Item" class="input-base w-full font-bold text-white"></td>
         <td class="text-center"><input data-id="removedInRetirement" type="checkbox" class="w-4 h-4 accent-pink-500 rounded bg-slate-900 mx-auto"></td>
