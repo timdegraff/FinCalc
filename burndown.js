@@ -1,6 +1,6 @@
 
 import { formatter } from './formatter.js';
-import { math, engine } from './utils.js';
+import { math, engine, assetColors } from './utils.js';
 
 export const burndown = {
     init: () => {
@@ -69,13 +69,11 @@ export const burndown = {
                 burndown.run();
             };
         }
-
         const manualInput = document.getElementById('input-manual-budget');
         if (manualInput) {
             manualInput.oninput = () => burndown.run();
             formatter.bindCurrencyEventListeners(manualInput);
         }
-
         const optBtn = document.getElementById('btn-optimize-draw');
         if (optBtn) {
             optBtn.onclick = () => {
@@ -86,7 +84,7 @@ export const burndown = {
     },
 
     load: (data) => {
-        burndown.priorityOrder = data?.priority || ['cash', 'roth-basis', 'heloc', 'taxable', '401k', 'roth-earnings'];
+        burndown.priorityOrder = data?.priority || ['cash', 'roth-basis', 'heloc', 'taxable', '401k', 'roth-earnings', 'crypto', 'metals'];
     },
 
     scrape: () => {
@@ -100,18 +98,18 @@ export const burndown = {
     },
 
     assetMeta: {
-        'cash': { label: 'Checking', color: '#f472b6', growthKey: null, taxable: false },
-        'taxable': { label: 'Brokerage', color: '#34d399', growthKey: 'stockGrowth', taxable: true },
-        'roth-basis': { label: 'Roth Basis', color: '#fbbf24', growthKey: 'stockGrowth', taxable: false },
-        'heloc': { label: 'HELOC', color: '#ef4444', growthKey: null, taxable: false },
-        '401k': { label: 'Pre-Tax', color: '#60a5fa', growthKey: 'stockGrowth', taxable: true },
-        'roth-earnings': { label: 'Roth Gains', color: '#f87171', growthKey: 'stockGrowth', taxable: false },
+        'cash': { label: 'Cash', color: assetColors['Cash'] },
+        'taxable': { label: 'Taxable Brokerage', color: assetColors['Taxable'] },
+        'roth-basis': { label: 'Roth Basis', color: assetColors['Post-Tax (Roth)'] },
+        'heloc': { label: 'HELOC', color: assetColors['HELOC'] },
+        '401k': { label: '401k/IRA', color: assetColors['Pre-Tax (401k/IRA)'] },
+        'roth-earnings': { label: 'Roth Gains', color: assetColors['Roth Gains'] },
+        'crypto': { label: 'Bitcoin', color: assetColors['Crypto'] },
+        'metals': { label: 'Metals', color: assetColors['Metals'] }
     },
 
     optimize: () => {
-        // Strategic sequence to minimize tax drag while using welfare benefits.
-        // Once the "headroom" is hit, we pivot to these non-taxable pools in this order.
-        burndown.priorityOrder = ['cash', 'roth-basis', 'heloc', 'taxable', '401k', 'roth-earnings'];
+        burndown.priorityOrder = ['cash', 'roth-basis', 'heloc', 'taxable', '401k', 'roth-earnings', 'crypto', 'metals'];
     },
 
     run: () => {
@@ -123,7 +121,7 @@ export const burndown = {
             const controls = { 
                 retirementAge: 'Retire Age', 
                 stockGrowth: 'Stock %', 
-                cryptoGrowth: 'Crypto %',
+                cryptoGrowth: 'Bitcoin %',
                 metalsGrowth: 'Metals %',
                 inflation: 'Inflat %',
                 helocRate: 'HELOC %'
@@ -140,7 +138,7 @@ export const burndown = {
                     const newVal = parseFloat(e.target.value);
                     div.querySelector('span').textContent = newVal;
                     data.assumptions[key] = newVal;
-                    burndown.run();
+                    window.debouncedAutoSave();
                 };
                 sliderContainer.appendChild(div);
             });
@@ -148,11 +146,15 @@ export const burndown = {
 
         const priorityList = document.getElementById('draw-priority-list');
         if (priorityList) {
-            priorityList.innerHTML = burndown.priorityOrder.map(k => `
-                <div data-pk="${k}" class="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-[10px] font-bold cursor-move flex items-center gap-2" style="color: ${burndown.assetMeta[k].color}">
-                    <i class="fas fa-grip-vertical opacity-30"></i> ${burndown.assetMeta[k].label}
-                </div>
-            `).join('');
+            priorityList.innerHTML = burndown.priorityOrder.map(k => {
+                const meta = burndown.assetMeta[k];
+                if (!meta) return ''; // Skip if not defined
+                return `
+                    <div data-pk="${k}" class="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-[10px] font-bold cursor-move flex items-center gap-2 uppercase tracking-widest" style="color: ${meta.color}">
+                        <i class="fas fa-grip-vertical opacity-30"></i> ${meta.label}
+                    </div>
+                `;
+            }).join('');
 
             if (!burndown.sortable) {
                 burndown.sortable = new Sortable(priorityList, {
@@ -173,19 +175,11 @@ export const burndown = {
     calculate: (data) => {
         const { assumptions, investments = [], income = [], budget = {}, helocs = [] } = data;
         const state = burndown.scrape();
-        
         const inflationRate = (assumptions.inflation || 3) / 100;
         const filingStatus = assumptions.filingStatus || 'Single';
         const magiCeilingMult = parseFloat(assumptions.benefitCeiling) || 1.38;
         const helocInterestRate = (parseFloat(assumptions.helocRate) || 8.5) / 100;
         const currentYear = new Date().getFullYear();
-
-        // Specific APYs mapping
-        const getGrowth = (type) => {
-            if (type === 'Crypto') return (assumptions.cryptoGrowth || 15) / 100;
-            if (type === 'Metals') return (assumptions.metalsGrowth || 4) / 100;
-            return (assumptions.stockGrowth || 7) / 100;
-        };
 
         let taxValue = investments.filter(i => i.type === 'Taxable').reduce((s, i) => s + math.fromCurrency(i.value), 0);
         let taxBasis = investments.filter(i => i.type === 'Taxable').reduce((s, i) => {
@@ -199,10 +193,11 @@ export const burndown = {
             'roth-basis': investments.filter(i => i.type === 'Post-Tax (Roth)').reduce((s, i) => s + (math.fromCurrency(i.costBasis) || 0), 0),
             'roth-earnings': investments.filter(i => i.type === 'Post-Tax (Roth)').reduce((s, i) => s + Math.max(0, math.fromCurrency(i.value) - (math.fromCurrency(i.costBasis) || 0)), 0),
             '401k': investments.filter(i => i.type === 'Pre-Tax (401k/IRA)').reduce((s, i) => s + math.fromCurrency(i.value), 0),
+            'crypto': investments.filter(i => i.type === 'Crypto').reduce((s, i) => s + math.fromCurrency(i.value), 0),
+            'metals': investments.filter(i => i.type === 'Metals').reduce((s, i) => s + math.fromCurrency(i.value), 0),
             'heloc': 0 
         };
         const helocLimit = helocs.reduce((s, h) => s + math.fromCurrency(h.limit), 0);
-
         const fpl2026Base = filingStatus === 'Single' ? 16060 : 21710;
         let baseAnnualBudget = state.useSync ? (budget.expenses?.reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0) : state.manualBudget;
         let ssBenefit = (assumptions.ssMonthly || 0) * 12;
@@ -215,72 +210,39 @@ export const burndown = {
             const age = assumptions.currentAge + i;
             const isRetired = age >= assumptions.retirementAge;
             const yearResult = { age, year: currentYear + i, draws: {}, totalDraw: 0 };
-            
             const fpl = fpl2026Base * Math.pow(1 + inflationRate, i);
             const magiLimit = fpl * magiCeilingMult;
-
             const annualHelocInterest = bal['heloc'] * helocInterestRate;
             let currentYearBudget = baseAnnualBudget * Math.pow(1 + inflationRate, i) + annualHelocInterest;
 
             let taxableIncome = 0;
             let nonTaxableIncome = 0;
             const activeIncomes = isRetired ? income.filter(i => i.remainsInRetirement) : income;
-            
             activeIncomes.forEach(inc => {
                 let amt = math.fromCurrency(inc.amount);
                 if (inc.isMonthly) amt *= 12;
                 amt -= (math.fromCurrency(inc.writeOffs) * (inc.writeOffsMonthly ? 12 : 1));
                 amt *= Math.pow(1 + (inc.increase / 100 || 0), i);
-                if (inc.nonTaxable || (inc.taxFreeUntil && age <= inc.taxFreeUntil)) nonTaxableIncome += amt;
+                if (inc.nonTaxable || (inc.taxFreeUntil && yearResult.year <= inc.taxFreeUntil)) nonTaxableIncome += amt;
                 else taxableIncome += amt;
             });
 
             const ssYearly = (age >= assumptions.ssStartAge) ? ssBenefit * Math.pow(1 + inflationRate, Math.max(0, age - assumptions.ssStartAge)) : 0;
             taxableIncome += ssYearly; 
-
             const tax = engine.calculateTax(taxableIncome, filingStatus);
-            const netCashIn = taxableIncome + nonTaxableIncome - tax;
-            const shortfall = Math.max(0, currentYearBudget - netCashIn);
+            const shortfall = Math.max(0, currentYearBudget - (taxableIncome + nonTaxableIncome - tax));
             let remainingNeed = shortfall;
 
-            // STRATEGIC PASS: Use taxable/401k only up to Ceiling
-            const headroom = Math.max(0, magiLimit - taxableIncome);
-            if (headroom > 0 && remainingNeed > 0) {
-                let draw401k = Math.min(bal['401k'], headroom, remainingNeed);
-                bal['401k'] -= draw401k;
-                yearResult.draws['401k'] = draw401k;
-                remainingNeed -= draw401k;
-                taxableIncome += draw401k;
-                
-                if (remainingNeed > 0 && taxableIncome < magiLimit) {
-                    const gainRatio = taxValue > 0 ? (taxValue - taxBasis) / taxValue : 1;
-                    const rHeadroom = magiLimit - taxableIncome;
-                    const maxForMagi = gainRatio > 0 ? rHeadroom / gainRatio : remainingNeed;
-                    const canDrawTaxable = Math.min(bal['taxable'], remainingNeed, maxForMagi);
-                    
-                    bal['taxable'] -= canDrawTaxable;
-                    taxBasis -= (canDrawTaxable * (taxBasis / taxValue || 1));
-                    taxValue -= canDrawTaxable;
-                    
-                    yearResult.draws['taxable'] = (yearResult.draws['taxable'] || 0) + canDrawTaxable;
-                    remainingNeed -= canDrawTaxable;
-                    taxableIncome += (canDrawTaxable * gainRatio);
-                }
-            }
-
-            // PRIORITY PASS: Remainder
+            // Priority Logic Pass
             burndown.priorityOrder.forEach(pk => {
                 if (remainingNeed <= 0) return;
                 const isHeloc = pk === 'heloc';
                 const limit = isHeloc ? (helocLimit - bal['heloc']) : bal[pk];
                 const canDraw = Math.min(limit, remainingNeed);
-                
                 if (isHeloc) bal['heloc'] += canDraw;
                 else bal[pk] -= canDraw;
-                
-                yearResult.draws[pk] = (yearResult.draws[pk] || 0) + canDraw;
+                yearResult.draws[pk] = canDraw;
                 remainingNeed -= canDraw;
-
                 if (pk === '401k') taxableIncome += canDraw;
                 if (pk === 'taxable') {
                     const gainRatio = taxValue > 0 ? (taxValue - taxBasis) / taxValue : 1;
@@ -293,44 +255,39 @@ export const burndown = {
             yearResult.isSilver = taxableIncome < fpl * 2.5 && !yearResult.isMedicaid;
             yearResult.balances = { ...bal };
             yearResult.budget = currentYearBudget;
-            yearResult.netWorth = (bal['cash'] + bal['taxable'] + bal['roth-basis'] + bal['roth-earnings'] + bal['401k']) - bal['heloc'];
+            yearResult.netWorth = (bal['cash'] + bal['taxable'] + bal['roth-basis'] + bal['roth-earnings'] + bal['401k'] + bal['crypto'] + bal['metals']) - bal['heloc'];
             results.push(yearResult);
 
-            // APY Driven Growth
-            const stockGrowth = (1 + (assumptions.stockGrowth / 100));
-            const cryptoGrowth = (1 + (assumptions.cryptoGrowth / 100));
-            const metalsGrowth = (1 + (assumptions.metalsGrowth / 100));
-            const reGrowth = (1 + (inflationRate + 0.01)); // Inflation + 1%
-
-            // Taxable Brokerage simplified growth (blended)
-            bal['taxable'] *= stockGrowth;
-            taxValue = bal['taxable']; 
-            bal['401k'] *= stockGrowth;
-            bal['roth-basis'] *= stockGrowth;
-            bal['roth-earnings'] *= stockGrowth;
+            const stockG = (1 + (assumptions.stockGrowth / 100));
+            const cryptoG = (1 + (assumptions.cryptoGrowth / 100));
+            const metalsG = (1 + (assumptions.metalsGrowth / 100));
+            bal['taxable'] *= stockG;
+            bal['401k'] *= stockG;
+            bal['roth-basis'] *= stockG;
+            bal['roth-earnings'] *= stockG;
+            bal['crypto'] *= cryptoG;
+            bal['metals'] *= metalsG;
         }
         return results;
     },
 
     renderTable: (results) => {
         const keys = burndown.priorityOrder;
-        const headerCells = keys.map(k => `<th class="p-3 text-right" style="color: ${burndown.assetMeta[k].color}">${burndown.assetMeta[k].label}</th>`).join('');
+        const headerCells = keys.map(k => {
+            const meta = burndown.assetMeta[k];
+            if (!meta) return '';
+            return `<th class="p-3 text-right" style="color: ${meta.color}">${meta.label}</th>`;
+        }).join('');
         const rows = results.map(r => {
             const draws = keys.map(k => {
                 const amt = r.draws[k] || 0;
-                const bal = r.balances[k];
-                return `
-                    <td class="p-2 text-right border-l border-slate-800/50">
-                        <div class="${amt > 0 ? (k === 'heloc' ? 'text-red-400' : 'text-white') + ' font-bold' : 'text-slate-600'}">${formatter.formatCurrency(amt, 0)}</div>
-                        <div class="text-[8px] ${k === 'heloc' && bal > 0 ? 'text-red-400' : 'opacity-40'}">${formatter.formatCurrency(bal, 0)}</div>
-                    </td>
-                `;
+                const balance = r.balances[k];
+                return `<td class="p-2 text-right border-l border-slate-800/50">
+                    <div class="${amt > 0 ? (k === 'heloc' ? 'text-red-400' : 'text-white') + ' font-bold' : 'text-slate-600'}">${formatter.formatCurrency(amt, 0)}</div>
+                    <div class="text-[8px] ${k === 'heloc' && balance > 0 ? 'text-red-400' : 'opacity-40'}">${formatter.formatCurrency(balance, 0)}</div>
+                </td>`;
             }).join('');
-
-            let badge = `<span class="text-[9px] text-slate-700">PRIVATE</span>`;
-            if (r.isMedicaid) badge = `<span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 text-[9px] font-bold">MEDICAID</span>`;
-            else if (r.isSilver) badge = `<span class="px-2 py-0.5 rounded bg-purple-900/40 text-purple-400 text-[9px] font-bold">SILVER</span>`;
-
+            let badge = r.isMedicaid ? `<span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 text-[9px] font-bold">MEDICAID</span>` : (r.isSilver ? `<span class="px-2 py-0.5 rounded bg-purple-900/40 text-purple-400 text-[9px] font-bold">SILVER</span>` : `<span class="text-[9px] text-slate-700">PRIVATE</span>`);
             return `<tr class="border-b border-slate-800/50 hover:bg-slate-800/20 text-[10px]">
                 <td class="p-2 text-center font-bold border-r border-slate-700">${r.age}</td>
                 <td class="p-2 text-right text-slate-500">${formatter.formatCurrency(r.budget, 0)}</td>
@@ -340,7 +297,6 @@ export const burndown = {
                 <td class="p-2 text-right font-black border-l border-slate-700 text-teal-400">${formatter.formatCurrency(r.netWorth, 0)}</td>
             </tr>`;
         }).join('');
-
         return `<table class="w-full text-left border-collapse">
             <thead class="sticky top-0 bg-slate-800 text-slate-500 uppercase text-[9px] z-20">
                 <tr><th class="p-3 border-r border-slate-700">Age</th><th class="p-3 text-right">Budget</th><th class="p-3 text-right">MAGI</th><th class="p-3 text-center">Plan</th>${headerCells}<th class="p-3 text-right border-l border-slate-700">Net Worth</th></tr>
