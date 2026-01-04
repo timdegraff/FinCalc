@@ -360,6 +360,17 @@ window.createAssumptionControls = (data) => {
             const div = document.createElement('div');
             div.className = 'space-y-2 mb-6';
             div.innerHTML = `<label class="flex justify-between label-std text-slate-500">${label} <span class="text-emerald-400 font-black mono-numbers">${isCurrency ? math.toCurrency(val) : val}</span></label><input type="range" data-id="${id}" value="${val}" min="${min}" max="${max}" step="${step}" class="input-range">`;
+            
+            if (id === 'ssMonthly') {
+                div.innerHTML += `
+                    <div class="mt-1">
+                        <a href="https://www.ssa.gov/myaccount/" target="_blank" rel="noopener noreferrer" class="text-[9px] text-slate-500 hover:text-white underline decoration-slate-700 transition-colors flex items-center gap-1 font-bold">
+                            <i class="fas fa-external-link-alt text-[7px]"></i> Check your SS estimate at ssa.gov
+                        </a>
+                    </div>
+                `;
+            }
+            
             sub.appendChild(div);
         });
     });
