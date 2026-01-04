@@ -74,7 +74,6 @@ function scrapeDataFromUI() {
         budget: { savings: [], expenses: [] }, benefits: benefits.scrape(), burndown: burndown.scrape() 
     };
 
-    // Update assumptions only if they exist in the current DOM
     const filingStatusEl = document.querySelector('[data-id="filingStatus"]');
     if (filingStatusEl) data.assumptions.filingStatus = filingStatusEl.value;
     

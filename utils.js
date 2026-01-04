@@ -39,7 +39,7 @@ export const math = {
 export const assumptions = {
     defaults: { 
         currentAge: 40, retirementAge: 65, ssStartAge: 67, ssMonthly: 2500, 
-        stockGrowth: 7, cryptoGrowth: 15, metalsGrowth: 4, inflation: 3, 
+        stockGrowth: 7, cryptoGrowth: 15, metalsGrowth: 4, realEstateGrowth: 3, inflation: 3, 
         filingStatus: 'Single', benefitCeiling: 1.38, helocRate: 8.5
     }
 };

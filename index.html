@@ -46,6 +46,7 @@
                 <button data-tab="income" class="tab-btn w-full text-left p-3 rounded-lg flex items-center gap-3"><i class="fas fa-money-bill-wave w-6 text-teal-400"></i><span>Income</span></button>
                 <button data-tab="budget" class="tab-btn w-full text-left p-3 rounded-lg flex items-center gap-3"><i class="fas fa-chart-pie w-6 text-pink-500"></i><span>Budget</span></button>
                 <button data-tab="benefits" class="tab-btn w-full text-left p-3 rounded-lg flex items-center gap-3"><i class="fas fa-hand-holding-heart w-6 text-amber-400"></i><span>Benefits</span></button>
+                <button data-tab="assumptions" class="tab-btn w-full text-left p-3 rounded-lg flex items-center gap-3"><i class="fas fa-sliders-h w-6 text-emerald-400"></i><span>Assumptions</span></button>
                 <button data-tab="projection" class="tab-btn w-full text-left p-3 rounded-lg flex items-center gap-3"><i class="fas fa-chart-line w-6 text-blue-400"></i><span>Projection</span></button>
                 <button data-tab="burndown" class="tab-btn w-full text-left p-3 rounded-lg flex items-center gap-3"><i class="fas fa-stairs w-6 text-purple-400" style="transform: scaleX(-1);"></i><span>Burndown</span></button>
             </nav>
@@ -222,6 +223,20 @@
                 <div id="benefits-module" class="bg-slate-900 min-h-[600px] rounded-3xl overflow-hidden border border-slate-800 shadow-2xl"></div>
             </section>
 
+            <!-- Assumptions Tab -->
+            <section id="tab-assumptions" class="tab-content hidden max-w-5xl mx-auto">
+                <div class="flex items-center gap-3 mb-8">
+                    <div class="w-12 h-12 bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-500/20 text-emerald-400 text-xl">
+                        <i class="fas fa-sliders-h"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-bold text-white">Global Assumptions</h2>
+                        <p class="text-sm text-slate-500">Configure your life and market parameters</p>
+                    </div>
+                </div>
+                <div id="assumptions-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 p-8 bg-slate-800 rounded-3xl border border-slate-700 shadow-xl"></div>
+            </section>
+
             <!-- Projection -->
             <section id="tab-projection" class="tab-content hidden max-w-7xl mx-auto">
                 <div class="flex justify-between items-center mb-4">
@@ -239,7 +254,6 @@
                         <canvas id="projection-chart"></canvas>
                     </div>
                 </div>
-                <div id="assumptions-container" class="grid grid-cols-1 md:grid-cols-3 gap-8 p-6 bg-slate-800 rounded-2xl border border-slate-700"></div>
             </section>
 
             <!-- Burndown -->

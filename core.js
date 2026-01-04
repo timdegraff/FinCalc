@@ -35,10 +35,16 @@ function attachGlobalListeners() {
             }
             if (e.target.dataset.id) {
                 const label = e.target.previousElementSibling?.querySelector('span');
-                if (label) label.textContent = e.target.value;
+                if (label) {
+                    if (e.target.dataset.id === 'ssMonthly') {
+                        label.textContent = math.toCurrency(parseFloat(e.target.value));
+                    } else {
+                        label.textContent = e.target.value;
+                    }
+                }
             }
 
-            // Retirement age logic: retirement age cannot be below current age
+            // Age logic: retirement age cannot be below current age
             if (e.target.dataset.id === 'currentAge' || e.target.dataset.id === 'retirementAge') {
                 const container = e.target.closest('#assumptions-container') || e.target.closest('#burndown-live-sliders');
                 if (container) {
@@ -70,7 +76,6 @@ function attachGlobalListeners() {
 function attachPasteListeners() {
     document.body.addEventListener('paste', (e) => {
         const target = e.target;
-        // If pasting into a spreadsheet-aware field in the budget table
         if (target.dataset.paste === 'spreadsheet' || target.dataset.id === 'monthly' || target.dataset.id === 'annual') {
             const clipboardData = e.clipboardData || window.clipboardData;
             const pastedData = clipboardData.getData('Text');
@@ -87,8 +92,6 @@ function attachPasteListeners() {
                     let name = '', monthly = 0;
 
                     if (target.dataset.id === 'monthly') {
-                        // If pasting into monthly, assume first column is monthly value, second is annual?
-                        // Or item | monthly.
                         if (columns.length > 1 && isNaN(math.fromCurrency(columns[0]))) {
                              name = columns[0];
                              monthly = math.fromCurrency(columns[1]);
@@ -96,7 +99,6 @@ function attachPasteListeners() {
                              monthly = math.fromCurrency(columns[0]);
                         }
                     } else {
-                        // Standard Item | Amount paste
                         name = columns[0] || '';
                         monthly = math.fromCurrency(columns[1] || '0');
                     }
@@ -232,7 +234,6 @@ function updateCostBasisVisibility(row) {
     const costBasisInput = row.querySelector('[data-id="costBasis"]');
     if (!typeSelect || !costBasisInput) return;
     const val = typeSelect.value;
-    // As per user request: HSA and 529 are tax-advantaged so cost basis is hidden/irrelevant.
     const isIrrelevant = (val === 'Pre-Tax (401k/IRA)' || val === 'Cash' || val === 'HSA' || val === '529 Plan');
     costBasisInput.style.visibility = isIrrelevant ? 'hidden' : 'visible';
     costBasisInput.disabled = isIrrelevant;
@@ -258,7 +259,6 @@ window.addRow = (containerId, type, data = {}) => {
     element.innerHTML = templates[type](data);
     container.appendChild(element);
     
-    // Auto-calculate missing budget fields if one is provided
     if (type === 'budget-expense' || type === 'budget-savings') {
         if (data.monthly !== undefined && data.annual === undefined) data.annual = data.monthly * 12;
         if (data.annual !== undefined && data.monthly === undefined) data.monthly = data.annual / 12;
@@ -348,32 +348,64 @@ window.updateSidebarChart = (data) => {
 window.createAssumptionControls = (data) => {
     const container = document.getElementById('assumptions-container');
     if (!container) return;
-    container.innerHTML = `<div class="space-y-6"><h4 class="text-xs uppercase font-bold text-blue-400 mb-2">Personal Settings</h4><div class="space-y-4">
-    <label class="block"><span class="text-[10px] text-slate-400 font-bold uppercase">Filing Status</span><select data-id="filingStatus" class="input-base w-full mt-1"><option>Single</option><option>Married Filing Jointly</option></select></label>
-    <label class="block"><span class="text-[10px] text-slate-400 font-bold uppercase">Benefit Target</span><select data-id="benefitCeiling" class="input-base w-full mt-1"><option value="1.38">138% FPL (Medicaid)</option><option value="2.5">250% FPL (Silver)</option><option value="999">No Ceiling</option></select></label></div></div>`;
     
-    const sliderConfigs = [
-        { id: 'currentAge', label: 'Current Age', min: 18, max: 100, step: 1 },
-        { id: 'retirementAge', label: 'Retirement Age', min: 18, max: 100, step: 1 },
-        { id: 'stockGrowth', label: 'Stocks APY %', min: 0, max: 15, step: 0.5 },
-        { id: 'cryptoGrowth', label: 'Bitcoin %', min: 0, max: 50, step: 1 },
-        { id: 'metalsGrowth', label: 'Metals %', min: 0, max: 15, step: 1 },
-        { id: 'inflation', label: 'Inflation %', min: 0, max: 10, step: 0.1 }
-    ];
+    const settingsHTML = `
+        <div class="col-span-full mb-4 pb-2 border-b border-slate-700/50 flex items-center gap-2">
+            <i class="fas fa-user-circle text-blue-400"></i>
+            <h3 class="text-xs uppercase font-black text-slate-400 tracking-widest">Personal & Strategy</h3>
+        </div>
+        <div class="space-y-6 lg:border-r lg:border-slate-700/30 lg:pr-8">
+            <label class="block"><span class="text-[10px] text-slate-500 font-black uppercase tracking-widest">Filing Status</span><select data-id="filingStatus" class="input-base w-full mt-1"><option>Single</option><option>Married Filing Jointly</option></select></label>
+            <label class="block"><span class="text-[10px] text-slate-500 font-black uppercase tracking-widest">Benefit Target Threshold</span><select data-id="benefitCeiling" class="input-base w-full mt-1"><option value="1.38">138% FPL (Medicaid)</option><option value="2.5">250% FPL (Silver)</option><option value="999">No Ceiling</option></select></label>
+            <div id="assumptions-life"></div>
+        </div>
+        <div class="space-y-6 lg:border-r lg:border-slate-700/30 lg:px-8">
+            <div class="mb-4 pb-2 border-b border-slate-700/50 flex items-center gap-2">
+                <i class="fas fa-university text-emerald-400"></i>
+                <h3 class="text-xs uppercase font-black text-slate-400 tracking-widest">Retirement & Social Security</h3>
+            </div>
+            <div id="assumptions-retirement"></div>
+        </div>
+        <div class="space-y-6 lg:pl-8">
+            <div class="mb-4 pb-2 border-b border-slate-700/50 flex items-center gap-2">
+                <i class="fas fa-chart-area text-amber-400"></i>
+                <h3 class="text-xs uppercase font-black text-slate-400 tracking-widest">Market & Growth</h3>
+            </div>
+            <div id="assumptions-market"></div>
+        </div>
+    `;
+    container.innerHTML = settingsHTML;
+    
+    const groups = {
+        life: [
+            { id: 'currentAge', label: 'Current Age', min: 18, max: 100, step: 1 },
+            { id: 'retirementAge', label: 'Retirement Age', min: 18, max: 100, step: 1 },
+        ],
+        retirement: [
+            { id: 'ssStartAge', label: 'SS Start Age', min: 62, max: 70, step: 1 },
+            { id: 'ssMonthly', label: 'SS Monthly (Today\'s $)', min: 0, max: 6000, step: 100, isCurrency: true },
+        ],
+        market: [
+            { id: 'stockGrowth', label: 'Stocks APY %', min: 0, max: 15, step: 0.5 },
+            { id: 'cryptoGrowth', label: 'Bitcoin %', min: 0, max: 50, step: 1 },
+            { id: 'metalsGrowth', label: 'Metals %', min: 0, max: 15, step: 1 },
+            { id: 'realEstateGrowth', label: 'Real Estate APY %', min: 0, max: 15, step: 0.5 },
+            { id: 'inflation', label: 'Inflation %', min: 0, max: 10, step: 0.1 }
+        ]
+    };
 
-    sliderConfigs.forEach(({ id, label, min, max, step }) => {
-        let val = data.assumptions?.[id] || 0;
-        // Age Constraint Check
-        if (id === 'retirementAge') {
-            const cAge = data.assumptions?.currentAge || 0;
-            if (val < cAge) val = cAge;
-        }
-
-        const div = document.createElement('div');
-        div.className = 'space-y-2';
-        div.innerHTML = `<label class="flex justify-between font-bold text-[10px] uppercase text-slate-500">${label} <span class="text-blue-400">${val}</span></label>
-        <input type="range" data-id="${id}" value="${val}" min="${min}" max="${max}" step="${step}" class="input-range">`;
-        container.appendChild(div);
+    Object.entries(groups).forEach(([groupName, configs]) => {
+        const subContainer = document.getElementById(`assumptions-${groupName}`);
+        configs.forEach(({ id, label, min, max, step, isCurrency }) => {
+            let val = data.assumptions?.[id] ?? assumptions.defaults[id];
+            
+            const div = document.createElement('div');
+            div.className = 'space-y-2 mb-6';
+            const displayVal = isCurrency ? math.toCurrency(val) : val;
+            div.innerHTML = `<label class="flex justify-between font-bold text-[10px] uppercase text-slate-500 tracking-widest">${label} <span class="text-emerald-400 font-black">${displayVal}</span></label>
+            <input type="range" data-id="${id}" value="${val}" min="${min}" max="${max}" step="${step}" class="input-range">`;
+            subContainer.appendChild(div);
+        });
     });
 
     container.querySelectorAll('select').forEach(s => s.value = data.assumptions?.[s.dataset.id] || 'Single');

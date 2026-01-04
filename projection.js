@@ -22,7 +22,6 @@ export const projection = {
         const endAge = parseFloat(document.getElementById('input-projection-end')?.value) || 100;
         const duration = endAge - assumptions.currentAge;
 
-        // Init toggle if not done
         const logBtn = document.getElementById('toggle-log-scale');
         if (logBtn && !logBtn.dataset.init) {
             logBtn.dataset.init = "true";
@@ -48,6 +47,7 @@ export const projection = {
         const stockGrowth = (assumptions.stockGrowth || 7) / 100;
         const cryptoGrowth = (assumptions.cryptoGrowth || 15) / 100;
         const metalsGrowth = (assumptions.metalsGrowth || 4) / 100;
+        const realEstateGrowth = (assumptions.realEstateGrowth || 3) / 100;
         const inflationRate = (assumptions.inflation || 3) / 100;
         
         const labels = [];
@@ -71,9 +71,9 @@ export const projection = {
                 if (key === 'Brokerage' || key === 'Pre-Tax' || key === 'Post-Tax') buckets[key] *= (1 + stockGrowth);
                 else if (key === 'Crypto') buckets[key] *= (1 + cryptoGrowth);
                 else if (key === 'Metals') buckets[key] *= (1 + metalsGrowth);
-                else if (key === 'Real Estate') buckets[key] *= (1 + (inflationRate + 0.01));
+                else if (key === 'Real Estate') buckets[key] *= (1 + realEstateGrowth);
                 else if (key === 'Cash') buckets[key] *= (1 + (inflationRate * 0.5));
-                else if (key === 'Other') { /* 0% Growth as per request */ }
+                else if (key === 'Other') { /* 0% Growth */ }
             });
 
             if (age < assumptions.retirementAge) {

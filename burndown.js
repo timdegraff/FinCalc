@@ -129,7 +129,6 @@ export const burndown = {
 
             sliderConfigs.forEach(({ key, label, min, max, step }) => {
                 let val = data.assumptions[key] || 0;
-                // Age Constraint Check
                 if (key === 'retirementAge') {
                     if (val < data.assumptions.currentAge) val = data.assumptions.currentAge;
                 }
@@ -142,8 +141,6 @@ export const burndown = {
                 `;
                 div.querySelector('input').oninput = (e) => {
                     let newVal = parseFloat(e.target.value);
-                    
-                    // Enforce Age Lock
                     if (key === 'retirementAge') {
                         if (newVal < data.assumptions.currentAge) {
                             newVal = data.assumptions.currentAge;
@@ -151,7 +148,6 @@ export const burndown = {
                         }
                     } else if (key === 'currentAge') {
                         if (newVal > data.assumptions.retirementAge) {
-                            // Also push retirement age up
                             data.assumptions.retirementAge = newVal;
                             const rSlider = sliderContainer.querySelector('[data-live-id="retirementAge"]');
                             if (rSlider) {
@@ -160,7 +156,6 @@ export const burndown = {
                             }
                         }
                     }
-
                     div.querySelector('span').textContent = newVal;
                     data.assumptions[key] = newVal;
                     window.debouncedAutoSave();
@@ -198,7 +193,7 @@ export const burndown = {
     },
 
     calculate: (data) => {
-        const { assumptions, investments = [], otherAssets = [], income = [], budget = {}, helocs = [] } = data;
+        const { assumptions, investments = [], otherAssets = [], realEstate = [], income = [], budget = {}, helocs = [] } = data;
         const state = burndown.scrape();
         const inflationRate = (assumptions.inflation || 3) / 100;
         const filingStatus = assumptions.filingStatus || 'Single';
@@ -225,7 +220,7 @@ export const burndown = {
         const helocLimit = helocs.reduce((s, h) => s + math.fromCurrency(h.limit), 0);
         const fpl2026Base = filingStatus === 'Single' ? 16060 : 21710;
         let baseAnnualBudget = state.useSync ? (budget.expenses?.reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0) : state.manualBudget;
-        let ssBenefit = (assumptions.ssMonthly || 0) * 12;
+        let ssBenefitBase = (assumptions.ssMonthly || 0) * 12;
         
         const results = [];
         const endAge = parseFloat(document.getElementById('input-projection-end')?.value) || 100;
@@ -250,13 +245,13 @@ export const burndown = {
                 else taxableIncome += amt;
             });
 
-            const ssYearly = (age >= assumptions.ssStartAge) ? ssBenefit * Math.pow(1 + inflationRate, Math.max(0, age - assumptions.ssStartAge)) : 0;
+            // Social Security in future dollars
+            const ssYearly = (age >= assumptions.ssStartAge) ? ssBenefitBase * Math.pow(1 + inflationRate, i) : 0;
             taxableIncome += ssYearly; 
             const tax = engine.calculateTax(taxableIncome, filingStatus);
             const shortfall = Math.max(0, currentYearBudget - (taxableIncome + nonTaxableIncome - tax));
             let remainingNeed = shortfall;
 
-            // Priority Logic Pass
             burndown.priorityOrder.forEach(pk => {
                 if (remainingNeed <= 0) return;
                 const isHeloc = pk === 'heloc';
@@ -278,8 +273,12 @@ export const burndown = {
             yearResult.isSilver = taxableIncome < fpl * 2.5 && !yearResult.isMedicaid;
             yearResult.balances = { ...bal };
             yearResult.budget = currentYearBudget;
-            // Add fixed other assets to net worth but not balances
-            yearResult.netWorth = (bal['cash'] + bal['taxable'] + bal['roth-basis'] + bal['roth-earnings'] + bal['401k'] + bal['crypto'] + bal['metals'] + fixedOtherAssets) - bal['heloc'];
+            
+            // Inflate Real Estate separately for Net Worth
+            const currentRE = realEstate.reduce((s, r) => s + math.fromCurrency(r.value), 0) * Math.pow(1 + (assumptions.realEstateGrowth / 100), i);
+            const currentMortgages = realEstate.reduce((s, r) => s + math.fromCurrency(r.mortgage), 0); // Assume mortgage fixed
+            
+            yearResult.netWorth = (bal['cash'] + bal['taxable'] + bal['roth-basis'] + bal['roth-earnings'] + bal['401k'] + bal['crypto'] + bal['metals'] + fixedOtherAssets + currentRE - currentMortgages) - bal['heloc'];
             results.push(yearResult);
 
             const stockG = (1 + (assumptions.stockGrowth / 100));
