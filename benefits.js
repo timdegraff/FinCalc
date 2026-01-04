@@ -7,141 +7,159 @@ export const benefits = {
         if (!container) return;
         
         container.innerHTML = `
-            <div class="p-8 pb-4">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-white">Benefits Calculator (Michigan 2026)</h2>
-                    <div class="text-[10px] text-slate-500 bg-slate-800/50 px-3 py-1 rounded-lg border border-slate-800">
-                        <i class="fas fa-info-circle mr-1"></i> MI 2026: No Asset Test for SNAP/HMP
-                    </div>
-                </div>
-                
-                <div class="flex bg-slate-800/80 p-1.5 rounded-xl mb-12 shadow-inner">
-                    <button data-subtab="health" class="subtab-btn active flex-1 py-3 font-bold rounded-lg transition-all">Health Coverage</button>
-                    <button data-subtab="snap" class="subtab-btn flex-1 py-3 font-bold rounded-lg transition-all">SNAP (Food)</button>
-                </div>
-
-                <div id="benefit-tab-health" class="benefit-subtab-content space-y-12">
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-center px-1">
-                            <span class="text-lg text-slate-400">Household Size:</span>
-                            <span data-label="hhSize" class="text-xl font-bold text-white">1</span>
-                        </div>
-                        <input type="range" data-benefit-id="hhSize" min="1" max="10" step="1" value="1" class="benefit-slider w-full">
-                    </div>
-
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-center px-1">
-                            <span class="text-lg text-slate-400 font-medium">Annual Income (Health):</span>
-                            <span data-label="healthIncome" class="text-2xl font-black text-white">$40,000</span>
-                        </div>
-                        <div class="relative pt-10">
-                            <div id="health-slider-labels" class="absolute inset-x-0 flex items-center justify-between pointer-events-none top-0 opacity-80 text-[8px] uppercase font-black tracking-widest text-slate-500 px-1">
-                                <span>Medicaid</span>
-                                <span>HMP</span>
-                                <span>Silver</span>
-                                <span>Gold</span>
-                                <span>Full</span>
+            <div class="flex flex-col gap-6 p-1">
+                <!-- Header Card -->
+                <div class="card-container p-6 bg-slate-800 rounded-2xl border border-slate-700">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center gap-4">
+                            <h3 class="text-xl font-black text-white flex items-center gap-3 uppercase tracking-tighter">
+                                <i class="fas fa-hand-holding-heart text-amber-400"></i> Benefit Optimization
+                            </h3>
+                            <div class="h-8 w-[1px] bg-slate-700 mx-2"></div>
+                            <div class="flex bg-slate-900/50 p-1 rounded-xl border border-slate-700">
+                                <button data-subtab="health" class="subtab-btn active px-4 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all">Health</button>
+                                <button data-subtab="snap" class="subtab-btn px-4 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all">SNAP</button>
                             </div>
+                        </div>
+                        <div class="px-4 py-2 bg-slate-900/50 rounded-xl border border-slate-700">
+                             <span class="label-std text-slate-500 block mb-1">Household Size</span>
+                             <div class="flex items-center gap-4">
+                                <input type="range" data-benefit-id="hhSize" min="1" max="10" step="1" value="1" class="benefit-slider w-24">
+                                <span data-label="hhSize" class="text-blue-400 font-black mono-numbers text-lg">1</span>
+                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Left Column: Controls -->
+                    <div class="lg:col-span-7 space-y-6">
+                        
+                        <!-- Health Content -->
+                        <div id="benefit-tab-health" class="benefit-subtab-content space-y-6">
+                            <div class="card-container p-6 bg-slate-800 rounded-2xl border border-slate-700">
+                                <label class="flex justify-between items-center mb-4">
+                                    <span class="label-std text-slate-400">Projected Annual MAGI</span>
+                                    <span data-label="healthIncome" class="text-xl font-black text-white mono-numbers">$40,000</span>
+                                </label>
+                                
+                                <div class="relative pt-6 pb-2">
+                                    <div id="health-slider-labels" class="absolute inset-x-0 flex items-center justify-between pointer-events-none top-0 text-[8px] uppercase font-black tracking-widest text-slate-600 px-1">
+                                        <span>Medicaid</span>
+                                        <span>HMP</span>
+                                        <span>Silver</span>
+                                        <span>Gold</span>
+                                        <span>Full</span>
+                                    </div>
+                                    
+                                    <div id="health-slider-track" class="h-3 rounded-full mb-4 relative overflow-hidden flex w-full border border-slate-900 shadow-inner bg-slate-900">
+                                        <div id="seg-medicaid" class="h-full bg-blue-600 transition-all duration-300 opacity-80"></div>
+                                        <div id="seg-hmp" class="h-full bg-purple-600 transition-all duration-300 opacity-80"></div>
+                                        <div id="seg-silver" class="h-full bg-slate-400 transition-all duration-300 opacity-80"></div>
+                                        <div id="seg-gold" class="h-full bg-amber-500 transition-all duration-300 opacity-80"></div>
+                                        <div id="seg-full" class="h-full bg-red-600 transition-all duration-300 opacity-80"></div>
+                                    </div>
+
+                                    <input type="range" data-benefit-id="healthIncome" min="0" max="150000" step="500" value="40000" class="benefit-slider absolute top-6 left-0 w-full opacity-0 hover:opacity-10 focus:opacity-10 transition-opacity cursor-pointer" style="height: 12px; z-index: 10;">
+                                    <input type="range" id="health-visible-slider" data-benefit-id="healthIncome-visible" min="0" max="150000" step="500" value="40000" class="benefit-slider absolute top-6 left-0 w-full" style="background: transparent; z-index: 5;">
+                                </div>
+                                
+                                <div class="mt-6 pt-6 border-t border-slate-700/50">
+                                    <label class="flex items-center gap-3 cursor-pointer group">
+                                        <input type="checkbox" data-benefit-id="isPregnant" class="w-4 h-4 accent-blue-500 bg-slate-900 border-slate-700 rounded">
+                                        <span class="label-std text-slate-500 group-hover:text-blue-400 transition-colors">Household member is pregnant?</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SNAP Content -->
+                        <div id="benefit-tab-snap" class="benefit-subtab-content hidden space-y-6">
+                            <div class="card-container p-6 bg-slate-800 rounded-2xl border border-slate-700 space-y-8">
+                                <div class="space-y-3">
+                                    <label class="flex justify-between items-center">
+                                        <span class="label-std text-slate-400">Annual Gross Income</span>
+                                        <span data-label="snapIncome" class="text-xl font-black text-white mono-numbers">$13,000</span>
+                                    </label>
+                                    <input type="range" data-benefit-id="snapIncome" min="0" max="150000" step="500" value="13000" class="benefit-slider w-full">
+                                    <p class="text-[8px] text-emerald-500/50 font-black tracking-widest uppercase">BBCE Categorical Limit (200% FPL)</p>
+                                </div>
+
+                                <div class="space-y-3">
+                                    <label class="flex justify-between items-center">
+                                        <span class="label-std text-slate-400">Monthly Shelter & Utility Costs</span>
+                                        <span data-label="shelterCosts" class="text-xl font-black text-white mono-numbers">$700</span>
+                                    </label>
+                                    <input type="range" data-benefit-id="shelterCosts" min="0" max="5000" step="50" value="700" class="benefit-slider w-full">
+                                    <div class="flex justify-between items-center pt-2">
+                                        <span class="text-[8px] text-slate-600 font-bold uppercase">Rent + Heat + Electric</span>
+                                        <label class="flex items-center gap-2 cursor-pointer group">
+                                            <input type="checkbox" data-benefit-id="hasSUA" checked class="w-3 h-3 accent-blue-500 bg-slate-900 border-slate-700 rounded">
+                                            <span class="text-[9px] font-black uppercase text-slate-500 group-hover:text-blue-400 transition-colors">Apply MI SUA</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="pt-6 border-t border-slate-700/50">
+                                    <label class="flex items-center gap-3 cursor-pointer group">
+                                        <input type="checkbox" data-benefit-id="isDisabled" class="w-4 h-4 accent-emerald-500 bg-slate-900 border-slate-700 rounded">
+                                        <span class="label-std text-slate-500 group-hover:text-emerald-400 transition-colors">Household member is disabled or 60+?</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Right Column: Results -->
+                    <div class="lg:col-span-5">
+                        <div id="results-container" class="sticky top-0 space-y-6">
                             
-                            <div id="health-slider-track" class="h-4 rounded-full mb-4 relative overflow-hidden flex w-full border border-slate-700/50">
-                                <div id="seg-medicaid" class="h-full bg-blue-600 transition-all duration-300"></div>
-                                <div id="seg-hmp" class="h-full bg-purple-600 transition-all duration-300"></div>
-                                <div id="seg-silver" class="h-full bg-slate-300 transition-all duration-300"></div>
-                                <div id="seg-gold" class="h-full bg-amber-500 transition-all duration-300"></div>
-                                <div id="seg-full" class="h-full bg-red-600 transition-all duration-300"></div>
+                            <!-- Main Eligibility Card -->
+                            <div id="benefit-result-card" class="card-container p-8 bg-slate-800 rounded-3xl border border-slate-700 text-center flex flex-col items-center justify-center transition-all duration-300">
+                                <div id="benefit-icon-container" class="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mb-4 bg-slate-900 border border-slate-700">
+                                    <i class="fas fa-stethoscope"></i>
+                                </div>
+                                <h3 id="benefit-result-title" class="text-2xl font-black text-white uppercase tracking-tighter mb-2">Calculating...</h3>
+                                <p id="benefit-result-desc" class="text-xs text-slate-400 font-medium mb-6">Please adjust the sliders to see results.</p>
+                                
+                                <div id="details-grid" class="grid grid-cols-2 gap-3 w-full border-t border-slate-700 pt-6">
+                                    <div class="p-3 bg-slate-900/50 rounded-xl border border-slate-700/50 text-left">
+                                        <span class="label-std text-slate-600 block mb-1">Premium</span>
+                                        <span id="detail-premium" class="text-sm font-black text-white mono-numbers">$0 / mo</span>
+                                    </div>
+                                    <div class="p-3 bg-slate-900/50 rounded-xl border border-slate-700/50 text-left">
+                                        <span class="label-std text-slate-600 block mb-1">Deductible</span>
+                                        <span id="detail-deductible" class="text-sm font-black text-white mono-numbers">$0</span>
+                                    </div>
+                                    <div class="p-3 bg-slate-900/50 rounded-xl border border-slate-700/50 text-left">
+                                        <span class="label-std text-slate-600 block mb-1">Coverage</span>
+                                        <span id="detail-benefit" class="text-sm font-black text-white uppercase tracking-tighter">Full Medical</span>
+                                    </div>
+                                    <div class="p-3 bg-slate-900/50 rounded-xl border border-slate-700/50 text-left">
+                                        <span class="label-std text-slate-600 block mb-1">Network</span>
+                                        <span id="detail-feature" class="text-sm font-black text-white uppercase tracking-tighter">No Co-pays</span>
+                                    </div>
+                                </div>
+
+                                <!-- SNAP Specific Result -->
+                                <div id="snap-specific-result" class="hidden w-full space-y-4">
+                                    <div class="p-6 bg-emerald-500/5 rounded-3xl border border-emerald-500/20">
+                                        <span class="label-std text-emerald-500 block mb-2">Est. Food Assistance</span>
+                                        <span id="snap-result-value" class="text-4xl font-black text-emerald-400 mono-numbers">$0.00</span>
+                                        <span class="block text-[10px] text-emerald-600 font-bold uppercase mt-2 tracking-widest">Per Month</span>
+                                    </div>
+                                </div>
                             </div>
 
-                            <input type="range" data-benefit-id="healthIncome" min="0" max="150000" step="500" value="40000" class="benefit-slider absolute top-10 left-0 w-full opacity-0 hover:opacity-10 focus:opacity-10 transition-opacity" style="height: 16px; background: transparent; z-index: 10;">
-                            <input type="range" id="health-visible-slider" data-benefit-id="healthIncome-visible" min="0" max="150000" step="500" value="40000" class="benefit-slider absolute top-10 left-0 w-full" style="background: transparent; z-index: 5;">
-                        </div>
-                    </div>
-
-                    <div class="flex flex-col gap-4 pt-4">
-                        <label class="flex items-center gap-4 cursor-pointer group">
-                            <div class="w-8 h-8 flex items-center justify-center bg-slate-800 rounded-lg border border-slate-700 group-hover:border-blue-500 transition-all">
-                                <input type="checkbox" data-benefit-id="isPregnant" class="w-5 h-5 accent-blue-500">
-                            </div>
-                            <span class="text-slate-400 group-hover:text-white transition-colors text-lg">Household member is pregnant?</span>
-                        </label>
-                    </div>
-
-                    <div class="pt-6 text-center">
-                        <div id="health-result-card" class="inline-block w-full max-w-xl px-10 py-8 rounded-[3rem] border-2 transition-all duration-500 bg-slate-900/40">
-                            <h3 id="health-result-title" class="text-4xl font-black mb-2 tracking-tight">Calculating...</h3>
-                            <p id="health-result-desc" class="text-xl opacity-80 font-bold mb-6">Please adjust the sliders.</p>
-                            
-                            <div id="health-details-grid" class="grid grid-cols-2 gap-6 text-left border-t border-white/10 pt-8 mt-4 hidden">
-                                <div class="space-y-1">
-                                    <p class="text-[10px] uppercase font-black tracking-widest opacity-50">Est. Premium</p>
-                                    <p id="detail-premium" class="text-lg font-black text-white">$0 / mo</p>
-                                </div>
-                                <div class="space-y-1">
-                                    <p class="text-[10px] uppercase font-black tracking-widest opacity-50">Deductible</p>
-                                    <p id="detail-deductible" class="text-lg font-black text-white">$0</p>
-                                </div>
-                                <div class="space-y-1">
-                                    <p class="text-[10px] uppercase font-black tracking-widest opacity-50">Key Benefit</p>
-                                    <p id="detail-benefit" class="text-lg font-black text-white">Full Medical</p>
-                                </div>
-                                <div class="space-y-1">
-                                    <p class="text-[10px] uppercase font-black tracking-widest opacity-50">Special Feature</p>
-                                    <p id="detail-feature" class="text-lg font-black text-white">No Co-pays</p>
-                                </div>
+                            <!-- Context Footer -->
+                            <div class="p-4 bg-slate-900/30 rounded-2xl border border-slate-800">
+                                <p class="text-[9px] text-slate-600 italic leading-relaxed text-center font-medium uppercase tracking-wider">
+                                    MI 2026 Standards: BBCE Rules Apply (No Asset Test). Based on Projected 2026 Federal Poverty Levels.
+                                </p>
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <div id="benefit-tab-snap" class="benefit-subtab-content hidden space-y-12">
-                     <div class="space-y-4">
-                        <div class="flex justify-between items-center px-1">
-                            <span class="text-lg text-slate-400">Household Size:</span>
-                            <span data-label="hhSize" class="text-xl font-bold text-white">1</span>
-                        </div>
-                        <input type="range" data-benefit-id="hhSize" min="1" max="10" step="1" value="1" class="benefit-slider w-full">
-                    </div>
-
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-center px-1">
-                            <span class="text-lg text-slate-400 font-medium">Annual Gross Income (SNAP):</span>
-                            <span data-label="snapIncome" class="text-2xl font-black text-white">$13,000</span>
-                        </div>
-                        <input type="range" data-benefit-id="snapIncome" min="0" max="150000" step="500" value="13000" class="benefit-slider w-full">
-                        <p class="text-right text-[10px] text-emerald-500 font-black tracking-tighter opacity-80">CATEGORICAL ELIGIBILITY LIMIT (200% FPL)</p>
-                    </div>
-
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-center px-1">
-                            <span class="text-lg text-slate-400 font-medium">Monthly Shelter & Utility Costs:</span>
-                            <span data-label="shelterCosts" class="text-2xl font-black text-white">$700</span>
-                        </div>
-                        <input type="range" data-benefit-id="shelterCosts" min="0" max="5000" step="50" value="700" class="benefit-slider w-full">
-                        <div class="flex justify-between text-[10px] text-slate-500 font-bold uppercase tracking-widest">
-                            <span>Rent + Heat + Electric</span>
-                            <label class="flex items-center gap-2 cursor-pointer group">
-                                <input type="checkbox" data-benefit-id="hasSUA" checked class="accent-blue-500">
-                                <span class="group-hover:text-white transition-colors">Apply MI Standard Utility Allowance</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <label class="flex items-center gap-4 cursor-pointer group">
-                         <div class="w-8 h-8 flex items-center justify-center bg-slate-800 rounded-lg border border-slate-700 group-hover:border-emerald-500 transition-all">
-                            <input type="checkbox" data-benefit-id="isDisabled" class="w-5 h-5 accent-emerald-500">
-                        </div>
-                        <span class="text-slate-400 group-hover:text-white transition-colors text-lg">Household member is disabled or 60+?</span>
-                    </label>
-
-                    <div class="pt-8 text-center space-y-2">
-                        <h3 id="snap-result-value" class="text-5xl font-black text-emerald-400 transition-all">$0 / month</h3>
-                        <p class="text-xl text-slate-500 font-medium">Estimated Monthly Food Assistance.</p>
-                    </div>
-                </div>
-
-                <div class="mt-12 p-6 bg-slate-800/30 rounded-2xl border border-slate-800/50">
-                    <p class="text-[10px] text-slate-500 italic leading-relaxed text-center">
-                        Note: 2026 Michigan standards utilize Broad-Based Categorical Eligibility (BBCE), removing asset tests for most households. Calculations assume updated 2025/2026 Federal Poverty Level (FPL) estimates. Consult MDHHS for final eligibility.
-                    </p>
                 </div>
             </div>
         `;
@@ -155,12 +173,36 @@ export const benefits = {
         
         container.querySelectorAll('.subtab-btn').forEach(btn => {
             btn.onclick = () => {
-                container.querySelectorAll('.subtab-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
+                container.querySelectorAll('.subtab-btn').forEach(b => {
+                    b.classList.remove('active', 'bg-blue-600', 'text-white');
+                    b.classList.add('text-slate-500');
+                });
+                btn.classList.add('active', 'bg-blue-600', 'text-white');
+                btn.classList.remove('text-slate-500');
+                
                 container.querySelectorAll('.benefit-subtab-content').forEach(c => c.classList.add('hidden'));
                 document.getElementById(`benefit-tab-${btn.dataset.subtab}`).classList.remove('hidden');
+                
+                // Show/Hide relevant result cards
+                const snapSection = document.getElementById('snap-specific-result');
+                const detailsSection = document.getElementById('details-grid');
+                if (btn.dataset.subtab === 'snap') {
+                    snapSection.classList.remove('hidden');
+                    detailsSection.classList.add('hidden');
+                } else {
+                    snapSection.classList.add('hidden');
+                    detailsSection.classList.remove('hidden');
+                }
+                benefits.refresh();
             };
         });
+
+        // Initialize first subtab styling
+        const activeSub = container.querySelector('.subtab-btn.active');
+        if (activeSub) {
+            activeSub.classList.add('bg-blue-600', 'text-white');
+            activeSub.classList.remove('text-slate-500');
+        }
 
         container.querySelectorAll('input').forEach(input => {
             input.oninput = () => {
@@ -205,66 +247,83 @@ export const benefits = {
         document.getElementById('seg-gold').style.flex = `0 0 ${pct(goldLimit) - pct(silverLimit)}%`;
         document.getElementById('seg-full').style.flex = `0 0 ${100 - pct(goldLimit)}%`;
 
-        const healthTitle = document.getElementById('health-result-title');
-        const healthDesc = document.getElementById('health-result-desc');
-        const healthCard = document.getElementById('health-result-card');
+        const healthTitle = document.getElementById('benefit-result-title');
+        const healthDesc = document.getElementById('benefit-result-desc');
+        const healthCard = document.getElementById('benefit-result-card');
         const healthBall = document.getElementById('health-visible-slider');
-        const detailsGrid = document.getElementById('health-details-grid');
+        const iconContainer = document.getElementById('benefit-icon-container');
+        const icon = iconContainer.querySelector('i');
+
+        const isSnapMode = c.querySelector('.subtab-btn[data-subtab="snap"]').classList.contains('active');
 
         const setDetail = (prem, ded, ben, feat) => {
-            detailsGrid.classList.remove('hidden');
             document.getElementById('detail-premium').textContent = prem;
             document.getElementById('detail-deductible').textContent = ded;
             document.getElementById('detail-benefit').textContent = ben;
             document.getElementById('detail-feature').textContent = feat;
         };
 
-        if (ratio < 1.38) {
-            healthTitle.textContent = "Medicaid (Healthy MI)";
-            healthDesc.textContent = "Full state-sponsored coverage.";
-            healthCard.style.borderColor = "#2563eb";
-            healthCard.style.color = "#3b82f6";
-            healthBall.style.setProperty('--thumb-color', '#2563eb');
-            setDetail("$0 / mo", "$0", "Dental & Vision", "Wide MI Network");
-        } else if (ratio < 1.60) {
-            healthTitle.textContent = "Healthy MI Plan Plus";
-            healthDesc.textContent = "Enhanced state-subsidized tier.";
-            healthCard.style.borderColor = "#9333ea";
-            healthCard.style.color = "#a855f7";
-            healthBall.style.setProperty('--thumb-color', '#9333ea');
-            setDetail("$0 - $25 / mo", "Very Low", "Full Wellness", "HMP Incentives");
-        } else if (ratio < 2.50) {
-            healthTitle.textContent = "Silver Marketplace Plan";
-            healthDesc.textContent = "Max cost-sharing reductions tier.";
-            healthCard.style.borderColor = "#94a3b8";
-            healthCard.style.color = "#cbd5e1";
-            healthBall.style.setProperty('--thumb-color', '#94a3b8');
-            setDetail("$40 - $120 / mo", "$750 - $1,500", "87-94% AV", "Subsidized Co-pays");
-        } else if (ratio < 4.00) {
-            healthTitle.textContent = "Gold Marketplace Plan";
-            healthDesc.textContent = "Comprehensive high-coverage tier.";
-            healthCard.style.borderColor = "#d97706";
-            healthCard.style.color = "#f59e0b";
-            healthBall.style.setProperty('--thumb-color', '#d97706');
-            setDetail("$150 - $350 / mo", "$500 - $1,000", "Low Out-of-Pocket", "Predictable Costs");
+        if (isSnapMode) {
+             icon.className = "fas fa-utensils";
+             iconContainer.style.color = "#34d399";
+             iconContainer.style.borderColor = "rgba(52, 211, 153, 0.3)";
+             healthTitle.textContent = "Food Assistance";
+             healthDesc.textContent = "Michigan SNAP (Bridge Card) Eligibility.";
+             healthCard.style.borderColor = "rgba(52, 211, 153, 0.2)";
         } else {
-            healthTitle.textContent = "Standard / Private Rate";
-            healthDesc.textContent = "Unsubsidized private marketplace rate.";
-            healthCard.style.borderColor = "#dc2626";
-            healthCard.style.color = "#ef4444";
-            healthBall.style.setProperty('--thumb-color', '#dc2626');
-            setDetail("$450 - $850+ / mo", "Variable", "Full Choice", "No Income Limits");
+            icon.className = "fas fa-stethoscope";
+            if (ratio < 1.38) {
+                healthTitle.textContent = "Medicaid (Healthy MI)";
+                healthDesc.textContent = "Full state-sponsored coverage.";
+                healthCard.style.borderColor = "rgba(37, 99, 235, 0.4)";
+                iconContainer.style.color = "#3b82f6";
+                iconContainer.style.borderColor = "rgba(59, 130, 246, 0.3)";
+                healthBall.style.setProperty('--thumb-color', '#2563eb');
+                setDetail("$0 / mo", "$0", "Dental & Vision", "Wide MI Network");
+            } else if (ratio < 1.60) {
+                healthTitle.textContent = "Healthy MI Plan Plus";
+                healthDesc.textContent = "Enhanced state-subsidized tier.";
+                healthCard.style.borderColor = "rgba(147, 51, 234, 0.4)";
+                iconContainer.style.color = "#a855f7";
+                iconContainer.style.borderColor = "rgba(168, 85, 247, 0.3)";
+                healthBall.style.setProperty('--thumb-color', '#9333ea');
+                setDetail("$0 - $25 / mo", "Very Low", "Full Wellness", "HMP Incentives");
+            } else if (ratio < 2.50) {
+                healthTitle.textContent = "Silver Marketplace";
+                healthDesc.textContent = "Max cost-sharing reductions tier.";
+                healthCard.style.borderColor = "rgba(148, 163, 184, 0.4)";
+                iconContainer.style.color = "#cbd5e1";
+                iconContainer.style.borderColor = "rgba(203, 213, 225, 0.3)";
+                healthBall.style.setProperty('--thumb-color', '#94a3b8');
+                setDetail("$40 - $120 / mo", "$750 - $1,500", "87-94% AV", "Subsidized Co-pays");
+            } else if (ratio < 4.00) {
+                healthTitle.textContent = "Gold Marketplace";
+                healthDesc.textContent = "Comprehensive high-coverage tier.";
+                healthCard.style.borderColor = "rgba(217, 119, 6, 0.4)";
+                iconContainer.style.color = "#f59e0b";
+                iconContainer.style.borderColor = "rgba(245, 158, 11, 0.3)";
+                healthBall.style.setProperty('--thumb-color', '#d97706');
+                setDetail("$150 - $350 / mo", "$500 - $1,000", "Low Out-of-Pocket", "Predictable Costs");
+            } else {
+                healthTitle.textContent = "Standard Rate";
+                healthDesc.textContent = "Unsubsidized private marketplace rate.";
+                healthCard.style.borderColor = "rgba(220, 38, 38, 0.4)";
+                iconContainer.style.color = "#ef4444";
+                iconContainer.style.borderColor = "rgba(239, 68, 68, 0.3)";
+                healthBall.style.setProperty('--thumb-color', '#dc2626');
+                setDetail("$450 - $850+ / mo", "Variable", "Full Choice", "No Income Limits");
+            }
         }
 
         const estimatedBenefit = engine.calculateSnapBenefit(data.snapIncome, data.hhSize, data.shelterCosts, data.hasSUA, data.isDisabled);
         const snapResultEl = document.getElementById('snap-result-value');
 
         if (estimatedBenefit <= 0) {
-            snapResultEl.textContent = "$0 / month";
-            snapResultEl.style.color = "#64748b";
+            snapResultEl.textContent = "$0.00";
+            snapResultEl.className = "text-4xl font-black text-slate-700 mono-numbers";
         } else {
-            snapResultEl.textContent = `${math.toCurrency(estimatedBenefit)} / month`;
-            snapResultEl.style.color = "#34d399";
+            snapResultEl.textContent = `${math.toCurrency(estimatedBenefit)}`;
+            snapResultEl.className = "text-4xl font-black text-emerald-400 mono-numbers";
         }
     },
 
