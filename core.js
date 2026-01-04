@@ -242,7 +242,11 @@ function attachDynamicRowListeners() {
         }
     });
     document.body.addEventListener('change', (e) => {
-        if (e.target.dataset.id === 'type' && e.target.closest('#investment-rows')) updateCostBasisVisibility(e.target.closest('tr'));
+        if (e.target.dataset.id === 'type' && e.target.closest('#investment-rows')) {
+            updateCostBasisVisibility(e.target.closest('tr'));
+            // Update color class immediately
+            e.target.className = `input-base w-full font-bold ${templates.helpers.getTypeClass(e.target.value)}`;
+        }
     });
 }
 
