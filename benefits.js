@@ -39,19 +39,20 @@ export const benefits = {
                                 <span>Medicaid</span>
                                 <span>Healthy MI</span>
                                 <span>Silver Plan</span>
+                                <span>Gold/Standard</span>
                                 <span>Full Rate</span>
                             </div>
                             <!-- Background Track with Segments -->
                             <div id="health-slider-track" class="h-4 rounded-full mb-4 relative overflow-hidden flex w-full border border-slate-700/50">
                                 <div class="h-full bg-blue-600" style="flex: 0 0 25%" title="Traditional Medicaid"></div>
                                 <div class="h-full bg-purple-600" style="flex: 0 0 13%" title="Healthy Michigan Plan"></div>
-                                <div class="h-full bg-slate-400" style="flex: 0 0 22%" title="Silver Marketplace (High Subsidies)"></div>
-                                <div class="h-full bg-orange-500" style="flex: 0 0 20%" title="Gold/Standard Marketplace"></div>
+                                <div class="h-full bg-slate-400" style="flex: 0 0 22%" title="Silver Plan (Cost Sharing)"></div>
+                                <div class="h-full bg-[#FFD700]" style="flex: 0 0 20%" title="Gold Plan"></div>
                                 <div class="h-full bg-red-600" style="flex: 0 0 20%" title="Unsubsidized"></div>
                             </div>
-                            <!-- Range inputs: one hidden for capture, one visible with dynamic thumb -->
+                            <!-- Range inputs -->
                             <input type="range" data-benefit-id="healthIncome" min="0" max="150000" step="500" value="40000" class="benefit-slider absolute top-10 left-0 w-full opacity-0 hover:opacity-10 focus:opacity-10 transition-opacity" style="height: 16px; background: transparent; z-index: 10;">
-                            <input type="range" data-benefit-id="healthIncome-visible" min="0" max="150000" step="500" value="40000" class="benefit-slider absolute top-10 left-0 w-full" style="background: transparent; z-index: 5;">
+                            <input type="range" id="health-visible-slider" data-benefit-id="healthIncome-visible" min="0" max="150000" step="500" value="40000" class="benefit-slider absolute top-10 left-0 w-full" style="background: transparent; z-index: 5;">
                         </div>
                     </div>
 
@@ -171,14 +172,13 @@ export const benefits = {
         c.querySelector('[data-label="shelterCosts"]').textContent = math.toCurrency(data.shelterCosts);
 
         // --- HEALTH COVERAGE LOGIC (ACA/MEDICAID 2026) ---
-        // 2026 FPL Estimates: HH1: $16,060, HH2: $21,710, +$5,440 per extra person
-        const fpl2026 = 16060 + (data.hhSize - 1) * 5650; // Using slightly indexed 2026 est.
+        const fpl2026 = 16060 + (data.hhSize - 1) * 5650;
         const income = data.healthIncome;
         const ratio = income / fpl2026;
 
         const healthTitle = document.getElementById('health-result-title');
         const healthDesc = document.getElementById('health-result-desc');
-        const healthBall = c.querySelector('[data-benefit-id="healthIncome-visible"]');
+        const healthBall = document.getElementById('health-visible-slider');
 
         if (ratio < 1.38) {
             healthTitle.textContent = "Medicaid (Healthy MI)";
@@ -192,14 +192,14 @@ export const benefits = {
             healthBall.style.setProperty('--thumb-color', '#a855f7');
         } else if (ratio < 2.50) {
             healthTitle.textContent = "Silver Plan (Cost Sharing)";
-            healthTitle.style.color = "#94a3b8"; // Silverish Slate
+            healthTitle.style.color = "#94a3b8"; // Silver
             healthDesc.textContent = "Highest Marketplace subsidies & lowest out-of-pocket costs.";
             healthBall.style.setProperty('--thumb-color', '#94a3b8');
         } else if (ratio < 4.00) {
-            healthTitle.textContent = "Gold/Platinum Marketplace";
-            healthTitle.style.color = "#fbbf24"; // Gold
-            healthDesc.textContent = "Marketplace Plan with partial Advance Tax Credits.";
-            healthBall.style.setProperty('--thumb-color', '#fbbf24');
+            healthTitle.textContent = "Gold Marketplace Plan";
+            healthTitle.style.color = "#FFD700"; // Gold
+            healthDesc.textContent = "Comprehensive coverage with mid-level subsidies.";
+            healthBall.style.setProperty('--thumb-color', '#FFD700');
         } else {
             healthTitle.textContent = "Private Insurance (Full Rate)";
             healthTitle.style.color = "#ef4444"; // Red
@@ -209,7 +209,7 @@ export const benefits = {
 
         // --- SNAP LOGIC (MI 2026) ---
         const snapFpl = 16060 + (data.hhSize - 1) * 5650;
-        const snapGrossLimit = snapFpl * 2.0; // MI BBCE categorical limit
+        const snapGrossLimit = snapFpl * 2.0; 
         const monthlyGross = data.snapIncome / 12;
         const snapResultEl = document.getElementById('snap-result-value');
 
@@ -217,26 +217,15 @@ export const benefits = {
             snapResultEl.textContent = "$0 / month";
             snapResultEl.classList.replace('text-emerald-400', 'text-slate-500');
         } else {
-            // Standard Deduction 2026 Est.
             const stdDed = data.hhSize <= 3 ? 205 : (data.hhSize === 4 ? 220 : (data.hhSize === 5 ? 255 : 295));
             const adjIncome = Math.max(0, monthlyGross - stdDed);
-            
-            // Michigan Standard Utility Allowance (SUA) - if user pays heat/cool, add fixed amt
             const suaAmt = data.hasSUA ? 680 : 0; 
             const totalShelter = data.shelterCosts + suaAmt;
-            
-            // Excess Shelter Deduction Logic:
-            // Deduct the part of shelter costs that exceeds 50% of Adjusted Income.
             const shelterThreshold = adjIncome / 2;
             const rawExcessShelter = Math.max(0, totalShelter - shelterThreshold);
-            
-            // The Deduction itself is capped (estimated $712 for 2026) UNLESS elderly/disabled
             const shelterCap = 712; 
             const finalShelterDeduction = (data.isDisabled) ? rawExcessShelter : Math.min(rawExcessShelter, shelterCap);
-            
             const netIncome = Math.max(0, adjIncome - finalShelterDeduction);
-            
-            // Max Benefit Estimate (FY 2026 projection: ~$291 base + $211/extra person)
             const maxBenefit = 295 + (data.hhSize - 1) * 215;
             const estimatedBenefit = Math.max(0, maxBenefit - (netIncome * 0.3));
             

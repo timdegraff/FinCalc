@@ -121,15 +121,15 @@ export const burndown = {
             const sliderConfigs = [
                 { key: 'currentAge', label: 'Current Age', min: 18, max: 100, step: 1 },
                 { key: 'retirementAge', label: 'Retire Age', min: 18, max: 100, step: 1 },
-                { key: 'stockGrowth', label: 'Stock %', min: 0, max: 15, step: 0.5 },
+                { key: 'stockGrowth', label: 'Stocks APY %', min: 0, max: 15, step: 0.5 },
                 { key: 'cryptoGrowth', label: 'Bitcoin %', min: 0, max: 50, step: 1 },
                 { key: 'metalsGrowth', label: 'Metals %', min: 0, max: 15, step: 1 },
-                { key: 'inflation', label: 'Inflat %', min: 0, max: 10, step: 0.1 }
+                { key: 'inflation', label: 'Inflation %', min: 0, max: 10, step: 0.1 }
             ];
 
             sliderConfigs.forEach(({ key, label, min, max, step }) => {
                 let val = data.assumptions[key] || 0;
-                // Age Constraint Check for initial render
+                // Age Constraint Check
                 if (key === 'retirementAge') {
                     if (val < data.assumptions.currentAge) val = data.assumptions.currentAge;
                 }
@@ -141,7 +141,26 @@ export const burndown = {
                     <input type="range" data-live-id="${key}" value="${val}" min="${min}" max="${max}" step="${step}" class="input-range">
                 `;
                 div.querySelector('input').oninput = (e) => {
-                    const newVal = parseFloat(e.target.value);
+                    let newVal = parseFloat(e.target.value);
+                    
+                    // Enforce Age Lock
+                    if (key === 'retirementAge') {
+                        if (newVal < data.assumptions.currentAge) {
+                            newVal = data.assumptions.currentAge;
+                            e.target.value = newVal;
+                        }
+                    } else if (key === 'currentAge') {
+                        if (newVal > data.assumptions.retirementAge) {
+                            // Also push retirement age up
+                            data.assumptions.retirementAge = newVal;
+                            const rSlider = sliderContainer.querySelector('[data-live-id="retirementAge"]');
+                            if (rSlider) {
+                                rSlider.value = newVal;
+                                rSlider.previousElementSibling.querySelector('span').textContent = newVal;
+                            }
+                        }
+                    }
+
                     div.querySelector('span').textContent = newVal;
                     data.assumptions[key] = newVal;
                     window.debouncedAutoSave();
@@ -179,11 +198,10 @@ export const burndown = {
     },
 
     calculate: (data) => {
-        const { assumptions, investments = [], income = [], budget = {}, helocs = [] } = data;
+        const { assumptions, investments = [], otherAssets = [], income = [], budget = {}, helocs = [] } = data;
         const state = burndown.scrape();
         const inflationRate = (assumptions.inflation || 3) / 100;
         const filingStatus = assumptions.filingStatus || 'Single';
-        const magiCeilingMult = parseFloat(assumptions.benefitCeiling) || 1.38;
         const currentYear = new Date().getFullYear();
 
         let taxValue = investments.filter(i => i.type === 'Taxable').reduce((s, i) => s + math.fromCurrency(i.value), 0);
@@ -202,6 +220,8 @@ export const burndown = {
             'metals': investments.filter(i => i.type === 'Metals').reduce((s, i) => s + math.fromCurrency(i.value), 0),
             'heloc': 0 
         };
+
+        const fixedOtherAssets = otherAssets.reduce((s, o) => s + math.fromCurrency(o.value), 0) - otherAssets.reduce((s, o) => s + math.fromCurrency(o.loan), 0);
         const helocLimit = helocs.reduce((s, h) => s + math.fromCurrency(h.limit), 0);
         const fpl2026Base = filingStatus === 'Single' ? 16060 : 21710;
         let baseAnnualBudget = state.useSync ? (budget.expenses?.reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0) : state.manualBudget;
@@ -258,7 +278,8 @@ export const burndown = {
             yearResult.isSilver = taxableIncome < fpl * 2.5 && !yearResult.isMedicaid;
             yearResult.balances = { ...bal };
             yearResult.budget = currentYearBudget;
-            yearResult.netWorth = (bal['cash'] + bal['taxable'] + bal['roth-basis'] + bal['roth-earnings'] + bal['401k'] + bal['crypto'] + bal['metals']) - bal['heloc'];
+            // Add fixed other assets to net worth but not balances
+            yearResult.netWorth = (bal['cash'] + bal['taxable'] + bal['roth-basis'] + bal['roth-earnings'] + bal['401k'] + bal['crypto'] + bal['metals'] + fixedOtherAssets) - bal['heloc'];
             results.push(yearResult);
 
             const stockG = (1 + (assumptions.stockGrowth / 100));

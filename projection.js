@@ -10,12 +10,13 @@ const assetColors = {
     'Post-Tax': '#fbbf24',
     'Crypto': '#f59e0b',
     'Metals': '#94a3b8',
-    'Real Estate': '#8b5cf6'
+    'Real Estate': '#8b5cf6',
+    'Other': '#64748b'
 };
 
 export const projection = {
     run: (data) => {
-        const { assumptions, investments = [], realEstate = [], budget = {} } = data;
+        const { assumptions, investments = [], realEstate = [], otherAssets = [], budget = {} } = data;
         const currentYear = new Date().getFullYear();
         const endAge = parseFloat(document.getElementById('input-projection-end')?.value) || 100;
         const duration = endAge - assumptions.currentAge;
@@ -27,7 +28,8 @@ export const projection = {
             'Post-Tax': investments.filter(i => i.type === 'Post-Tax (Roth)').reduce((s, i) => s + math.fromCurrency(i.value), 0),
             'Crypto': investments.filter(i => i.type === 'Crypto').reduce((s, i) => s + math.fromCurrency(i.value), 0),
             'Metals': investments.filter(i => i.type === 'Metals').reduce((s, i) => s + math.fromCurrency(i.value), 0),
-            'Real Estate': realEstate.reduce((s, r) => s + math.fromCurrency(r.value), 0)
+            'Real Estate': realEstate.reduce((s, r) => s + math.fromCurrency(r.value), 0),
+            'Other': otherAssets.reduce((s, o) => s + math.fromCurrency(o.value), 0)
         };
 
         const stockGrowth = (assumptions.stockGrowth || 7) / 100;
@@ -58,6 +60,7 @@ export const projection = {
                 else if (key === 'Metals') buckets[key] *= (1 + metalsGrowth);
                 else if (key === 'Real Estate') buckets[key] *= (1 + (inflationRate + 0.01));
                 else if (key === 'Cash') buckets[key] *= (1 + (inflationRate * 0.5));
+                else if (key === 'Other') { /* 0% Growth as per request */ }
             });
 
             if (age < assumptions.retirementAge) {

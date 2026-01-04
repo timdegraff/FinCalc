@@ -15,6 +15,7 @@ export const assetColors = {
     'Bitcoin': '#f59e0b',
     'Metals': '#eab308',
     'Real Estate': '#6366f1',
+    'Other': '#94a3b8',
     'HELOC': '#ef4444',
     'Debt': '#dc2626'
 };
@@ -68,15 +69,18 @@ export const engine = {
     calculateSummaries: (data) => {
         const inv = data.investments || [];
         const re = data.realEstate || [];
+        const oa = data.otherAssets || [];
         const helocs = data.helocs || [];
         const debts = data.debts || [];
         const inc = data.income || [];
         const budget = data.budget || { savings: [], expenses: [] };
 
         const totalAssets = inv.reduce((s, x) => s + math.fromCurrency(x.value), 0) +
-                           re.reduce((s, x) => s + math.fromCurrency(x.value), 0);
+                           re.reduce((s, x) => s + math.fromCurrency(x.value), 0) +
+                           oa.reduce((s, x) => s + math.fromCurrency(x.value), 0);
                            
         const totalLiabilities = re.reduce((s, x) => s + math.fromCurrency(x.mortgage), 0) +
+                                oa.reduce((s, x) => s + math.fromCurrency(x.loan), 0) +
                                 helocs.reduce((s, x) => s + math.fromCurrency(x.balance), 0) +
                                 debts.reduce((s, x) => s + math.fromCurrency(x.balance), 0);
 

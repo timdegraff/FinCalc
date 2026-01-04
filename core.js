@@ -38,15 +38,15 @@ function attachGlobalListeners() {
                 if (label) label.textContent = e.target.value;
             }
 
-            // Age logic: retirement age cannot be below current age
+            // Retirement age logic: retirement age cannot be below current age
             if (e.target.dataset.id === 'currentAge' || e.target.dataset.id === 'retirementAge') {
                 const container = e.target.closest('#assumptions-container') || e.target.closest('#burndown-live-sliders');
                 if (container) {
                     const cAgeInput = container.querySelector('[data-id="currentAge"]') || container.querySelector('[data-live-id="currentAge"]');
                     const rAgeInput = container.querySelector('[data-id="retirementAge"]') || container.querySelector('[data-live-id="retirementAge"]');
                     if (cAgeInput && rAgeInput) {
-                        const cVal = parseInt(cAgeInput.value);
-                        const rVal = parseInt(rAgeInput.value);
+                        const cVal = Math.round(parseFloat(cAgeInput.value));
+                        const rVal = Math.round(parseFloat(rAgeInput.value));
                         if (rVal < cVal) {
                             rAgeInput.value = cVal;
                             const rLabel = rAgeInput.previousElementSibling?.querySelector('span');
@@ -70,32 +70,49 @@ function attachGlobalListeners() {
 function attachPasteListeners() {
     document.body.addEventListener('paste', (e) => {
         const target = e.target;
-        if (target.dataset.paste === 'spreadsheet') {
+        // If pasting into a spreadsheet-aware field in the budget table
+        if (target.dataset.paste === 'spreadsheet' || target.dataset.id === 'monthly' || target.dataset.id === 'annual') {
             const clipboardData = e.clipboardData || window.clipboardData;
             const pastedData = clipboardData.getData('Text');
             
-            // Check if it's spreadsheet-like data (tabs or multiple lines)
             if (pastedData.includes('\t') || pastedData.includes('\n')) {
                 e.preventDefault();
                 const lines = pastedData.trim().split(/\r?\n/);
-                
-                // If the target field is empty, use the first row of pasted data to fill it
-                // Otherwise, treat all lines as new rows
+                const isExpenseTable = target.closest('#budget-expenses-rows') !== null;
+                const containerId = isExpenseTable ? 'budget-expenses-rows' : 'budget-savings-rows';
+                const rowType = isExpenseTable ? 'budget-expense' : 'budget-savings';
+
                 lines.forEach((line, index) => {
                     const columns = line.split('\t');
-                    const name = columns[0] || '';
-                    const monthly = columns[1] || '0';
-                    
-                    if (index === 0 && !target.value.trim()) {
-                        target.value = name;
-                        const row = target.closest('tr');
-                        const monthlyInput = row.querySelector('[data-id="monthly"]');
-                        if (monthlyInput) {
-                            monthlyInput.value = math.toCurrency(math.fromCurrency(monthly));
-                            handleLinkedBudgetValues(monthlyInput);
+                    let name = '', monthly = 0;
+
+                    if (target.dataset.id === 'monthly') {
+                        // If pasting into monthly, assume first column is monthly value, second is annual?
+                        // Or item | monthly.
+                        if (columns.length > 1 && isNaN(math.fromCurrency(columns[0]))) {
+                             name = columns[0];
+                             monthly = math.fromCurrency(columns[1]);
+                        } else {
+                             monthly = math.fromCurrency(columns[0]);
                         }
                     } else {
-                        window.addRow('budget-expenses-rows', 'budget-expense', { name, monthly: math.fromCurrency(monthly) });
+                        // Standard Item | Amount paste
+                        name = columns[0] || '';
+                        monthly = math.fromCurrency(columns[1] || '0');
+                    }
+                    
+                    const annual = monthly * 12;
+
+                    if (index === 0 && !target.value.trim()) {
+                        const row = target.closest('tr');
+                        const nameInp = row.querySelector('[data-id="name"]');
+                        const monthlyInp = row.querySelector('[data-id="monthly"]');
+                        const annualInp = row.querySelector('[data-id="annual"]');
+                        if (nameInp && name) nameInp.value = name;
+                        if (monthlyInp) monthlyInp.value = math.toCurrency(monthly);
+                        if (annualInp) annualInp.value = math.toCurrency(annual);
+                    } else {
+                        window.addRow(containerId, rowType, { name, monthly, annual });
                     }
                 });
                 window.debouncedAutoSave();
@@ -240,6 +257,13 @@ window.addRow = (containerId, type, data = {}) => {
     }
     element.innerHTML = templates[type](data);
     container.appendChild(element);
+    
+    // Auto-calculate missing budget fields if one is provided
+    if (type === 'budget-expense' || type === 'budget-savings') {
+        if (data.monthly !== undefined && data.annual === undefined) data.annual = data.monthly * 12;
+        if (data.annual !== undefined && data.monthly === undefined) data.monthly = data.annual / 12;
+    }
+
     element.querySelectorAll('[data-id]').forEach(input => {
         const key = input.dataset.id;
         const val = data[key];
@@ -265,14 +289,19 @@ window.updateSidebarChart = (data) => {
     if (!ctx) return;
     const totals = {};
     let totalSum = 0;
-    data.investments.forEach(i => {
+    data.investments?.forEach(i => {
         const val = math.fromCurrency(i.value);
         totals[i.type] = (totals[i.type] || 0) + val;
         totalSum += val;
     });
-    data.realEstate.forEach(r => {
+    data.realEstate?.forEach(r => {
         const val = math.fromCurrency(r.value);
         totals['Real Estate'] = (totals['Real Estate'] || 0) + val;
+        totalSum += val;
+    });
+    data.otherAssets?.forEach(o => {
+        const val = math.fromCurrency(o.value);
+        totals['Other'] = (totals['Other'] || 0) + val;
         totalSum += val;
     });
 
@@ -327,8 +356,8 @@ window.createAssumptionControls = (data) => {
         { id: 'currentAge', label: 'Current Age', min: 18, max: 100, step: 1 },
         { id: 'retirementAge', label: 'Retirement Age', min: 18, max: 100, step: 1 },
         { id: 'stockGrowth', label: 'Stocks APY %', min: 0, max: 15, step: 0.5 },
-        { id: 'cryptoGrowth', label: 'Bitcoin APY %', min: 0, max: 50, step: 1 },
-        { id: 'metalsGrowth', label: 'Metals APY %', min: 0, max: 15, step: 1 },
+        { id: 'cryptoGrowth', label: 'Bitcoin %', min: 0, max: 50, step: 1 },
+        { id: 'metalsGrowth', label: 'Metals %', min: 0, max: 15, step: 1 },
         { id: 'inflation', label: 'Inflation %', min: 0, max: 10, step: 0.1 }
     ];
 
