@@ -65,9 +65,6 @@ function clearDynamicContent() {
     .forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
 }
 
-/**
- * Recursively removes all keys with 'undefined' values to prevent Firestore errors.
- */
 function stripUndefined(obj) {
     if (Array.isArray(obj)) {
         return obj.map(item => stripUndefined(item));
@@ -90,7 +87,6 @@ export async function autoSave(scrape = true) {
     
     if (user && db) {
         try { 
-            // Sanitize the object before sending to Firebase
             const sanitizedData = stripUndefined(window.currentData);
             await setDoc(doc(db, "users", user.uid), sanitizedData, { merge: true }); 
         }
@@ -122,7 +118,7 @@ function scrapeDataFromUI() {
     document.querySelectorAll('#investment-rows tr').forEach(r => data.investments.push(scrapeRow(r)));
     document.querySelectorAll('#real-estate-rows tr').forEach(r => data.realEstate.push(scrapeRow(r)));
     document.querySelectorAll('#other-assets-rows tr').forEach(r => data.otherAssets.push(scrapeRow(r)));
-    document.querySelectorAll('#heloc-rows tr').forEach(r => data.helocs.push(scrapeRow(r, 'heloc'))); // Pass type to scrapeRow
+    document.querySelectorAll('#heloc-rows tr').forEach(r => data.helocs.push(scrapeRow(r, 'heloc')));
     document.querySelectorAll('#debt-rows tr').forEach(r => data.debts.push(scrapeRow(r)));
     document.querySelectorAll('#income-cards > div').forEach(r => {
         const d = scrapeRow(r);
@@ -147,7 +143,6 @@ function scrapeRow(row, rowType = null) {
         if (i.type === 'checkbox') d[k] = i.checked;
         else if (i.dataset.type === 'currency') {
             let val = math.fromCurrency(i.value);
-            // Ensure HELOC balance and limit are non-negative
             if (rowType === 'heloc' && (k === 'balance' || k === 'limit')) {
                 val = Math.max(0, val);
             }
@@ -175,7 +170,6 @@ export function updateSummaries(data) {
     set('sum-budget-annual', s.totalAnnualBudget);
     set('sum-budget-total', s.totalAnnualSavings + s.totalAnnualBudget);
     
-    // Income tab summaries
     set('sum-gross-income', s.totalGrossIncome);
     set('sum-income-adjusted', s.magiBase);
     

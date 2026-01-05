@@ -2,43 +2,53 @@
 export const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
 
 export const assetColors = {
-    'Cash': '#f472b6', // Magenta/Pink
-    'Taxable': '#10b981', // Emerald
+    'Cash': '#f472b6',
+    'Taxable': '#10b981',
     'Brokerage': '#10b981',
-    'Pre-Tax (401k/IRA)': '#3b82f6', // Blue
+    'Pre-Tax (401k/IRA)': '#3b82f6',
     'Pre-Tax': '#3b82f6',
-    'Post-Tax (Roth)': '#a855f7', // Purple
+    'Post-Tax (Roth)': '#a855f7',
     'Post-Tax': '#a855f7',
     'Roth Basis': '#a855f7',
     'Roth Gains': '#9333ea',
-    'Crypto': '#f59e0b', // Amber/Orange
+    'Crypto': '#f59e0b',
     'Bitcoin': '#f59e0b',
-    'Metals': '#eab308', // Yellow
-    'Real Estate': '#6366f1', // Indigo
+    'Metals': '#eab308',
+    'Real Estate': '#6366f1',
     'Other': '#94a3b8',
     'HELOC': '#ef4444',
     'Debt': '#dc2626',
-    'HSA': '#2dd4bf', // Teal
-    '529 Plan': '#fb7185' // Rose
+    'HSA': '#2dd4bf',
+    '529 Plan': '#fb7185'
 };
 
+// 2026 Status: Most states exempt SS. These are approximations.
 export const stateTaxRates = {
-    'Michigan': 0.0425,
-    'Florida': 0.00,
-    'Texas': 0.00,
-    'California': 0.093,
-    'New York': 0.0685,
-    'Washington': 0.00,
-    'Nevada': 0.00,
-    'Tennessee': 0.00,
-    'New Hampshire': 0.00,
-    'South Dakota': 0.00,
-    'Wyoming': 0.00,
-    'Illinois': 0.0495,
-    'Ohio': 0.0399,
-    'Indiana': 0.0305,
-    'Wisconsin': 0.053,
-    'North Carolina': 0.045
+    'Michigan': { rate: 0.0425, taxesSS: false },
+    'Florida': { rate: 0.00, taxesSS: false },
+    'Texas': { rate: 0.00, taxesSS: false },
+    'California': { rate: 0.093, taxesSS: false }, // Progressive, using est avg high
+    'New York': { rate: 0.06, taxesSS: false },
+    'Washington': { rate: 0.00, taxesSS: false },
+    'Nevada': { rate: 0.00, taxesSS: false },
+    'Tennessee': { rate: 0.00, taxesSS: false },
+    'New Hampshire': { rate: 0.00, taxesSS: false },
+    'South Dakota': { rate: 0.00, taxesSS: false },
+    'Wyoming': { rate: 0.00, taxesSS: false },
+    'Illinois': { rate: 0.0495, taxesSS: false },
+    'Ohio': { rate: 0.035, taxesSS: false },
+    'Indiana': { rate: 0.0305, taxesSS: false },
+    'Wisconsin': { rate: 0.053, taxesSS: false },
+    'North Carolina': { rate: 0.045, taxesSS: false },
+    'Colorado': { rate: 0.044, taxesSS: true }, // Taxed > age 65 limits
+    'Connecticut': { rate: 0.06, taxesSS: true },
+    'Minnesota': { rate: 0.07, taxesSS: true },
+    'Montana': { rate: 0.05, taxesSS: true },
+    'New Mexico': { rate: 0.049, taxesSS: true },
+    'Rhode Island': { rate: 0.04, taxesSS: true },
+    'Utah': { rate: 0.0465, taxesSS: true },
+    'Vermont': { rate: 0.06, taxesSS: true },
+    'West Virginia': { rate: 0.04, taxesSS: true }
 };
 
 export const math = {
@@ -90,8 +100,6 @@ export const engine = {
         return table[roundedAge];
     },
 
-    // IRS Uniform Lifetime Table (abbreviated for typical RMD ages)
-    // Starts at age 72 usually, simplified for 75 start in our logic
     calculateRMD: (balance, age) => {
         if (age < 75 || balance <= 0) return 0;
         const distributionPeriod = {
@@ -108,7 +116,7 @@ export const engine = {
     calculateMaxSepp: (balance, age) => {
         if (balance <= 0) return 0;
         const n = engine.getLifeExpectancy(age);
-        const r = 0.05; // Reasonable interest rate assumption for 72(t)
+        const r = 0.05; 
         const numerator = r * Math.pow(1 + r, n);
         const denominator = Math.pow(1 + r, n) - 1;
         const annualPayment = balance * (numerator / denominator);
@@ -123,53 +131,84 @@ export const engine = {
 
     calculateTaxableSocialSecurity: (ssAmount, otherIncome, status = 'Single') => {
         if (ssAmount <= 0) return 0;
-        // Provisional Income = MAGI + 50% of SS
         const provisionalIncome = otherIncome + (ssAmount * 0.5);
         let threshold1, threshold2;
 
-        if (status === 'Single') {
-            threshold1 = 25000;
-            threshold2 = 34000;
-        } else {
+        if (status === 'Married Filing Jointly') {
             threshold1 = 32000;
             threshold2 = 44000;
+        } else { // Single or Head of Household
+            threshold1 = 25000;
+            threshold2 = 34000;
         }
 
         let taxableAmount = 0;
-
         if (provisionalIncome > threshold2) {
             taxableAmount = (0.5 * (threshold2 - threshold1)) + (0.85 * (provisionalIncome - threshold2));
         } else if (provisionalIncome > threshold1) {
             taxableAmount = 0.5 * (provisionalIncome - threshold1);
         }
 
-        // Taxable portion cannot exceed 85% of total benefit
         return Math.min(taxableAmount, ssAmount * 0.85);
     },
 
-    calculateTax: (taxableIncome, status = 'Single', state = 'Michigan', inflationFactor = 1) => {
-        const stdDed = (status === 'Single' ? 15000 : 30000) * inflationFactor;
-        let taxable = Math.max(0, taxableIncome - stdDed);
+    /**
+     * Calculates tax with separation for Ordinary Income vs LTCG
+     */
+    calculateTax: (ordinaryIncome, ltcgIncome, status = 'Single', state = 'Michigan', inflationFactor = 1) => {
+        const stdDedMap = { 'Single': 15000, 'Married Filing Jointly': 30000, 'Head of Household': 22500 };
+        const stdDed = (stdDedMap[status] || 15000) * inflationFactor;
+
+        // 1. Ordinary Income Tax
+        let taxableOrdinary = Math.max(0, ordinaryIncome - stdDed);
+        // If Ordinary didn't use up StdDed, remainder reduces LTCG
+        let ltcgDeductionRemainder = Math.max(0, stdDed - ordinaryIncome);
+        let taxableLtcg = Math.max(0, ltcgIncome - ltcgDeductionRemainder);
+
         let tax = 0;
         
-        // 2026 Brackets (Base)
-        const baseBrackets = status === 'Single' ? 
-            [[11600, 0.10], [47150, 0.12], [100525, 0.22], [191950, 0.24]] :
-            [[23200, 0.10], [94300, 0.12], [201050, 0.22], [383900, 0.24]];
+        // 2026 Ordinary Brackets
+        const brackets = {
+            'Single': [[11600, 0.10], [47150, 0.12], [100525, 0.22], [191950, 0.24]],
+            'Married Filing Jointly': [[23200, 0.10], [94300, 0.12], [201050, 0.22], [383900, 0.24]],
+            'Head of Household': [[16550, 0.10], [63100, 0.12], [100500, 0.22], [191950, 0.24]]
+        };
+        const baseBrackets = brackets[status] || brackets['Single'];
 
         let prev = 0;
+        let remainingOrdinary = taxableOrdinary;
+        
         for (const [limitBase, rate] of baseBrackets) {
             const limit = limitBase * inflationFactor;
-            const range = Math.min(taxable, limit - prev);
+            const range = Math.min(remainingOrdinary, limit - prev);
             tax += range * rate;
-            taxable -= range;
+            remainingOrdinary -= range;
             prev = limit;
-            if (taxable <= 0) break;
+            if (remainingOrdinary <= 0) break;
         }
-        if (taxable > 0) tax += taxable * 0.32;
+        if (remainingOrdinary > 0) tax += remainingOrdinary * 0.32;
 
-        const stateRate = stateTaxRates[state] || 0;
-        tax += (taxableIncome * stateRate);
+        // 2. LTCG Tax (Stacked on top of Ordinary)
+        // 0% Bracket limits (approx 2026)
+        const ltcgZeroLimitMap = { 'Single': 47000, 'Married Filing Jointly': 94000, 'Head of Household': 63000 };
+        const ltcgZeroLimit = (ltcgZeroLimitMap[status] || 47000) * inflationFactor;
+        
+        // Income that fills the buckets before LTCG
+        const incomeStack = taxableOrdinary; 
+        
+        // Amount of LTCG that falls into 0% bucket
+        const zeroBucketSpace = Math.max(0, ltcgZeroLimit - incomeStack);
+        const ltcgInZero = Math.min(taxableLtcg, zeroBucketSpace);
+        const ltcgInFifteen = taxableLtcg - ltcgInZero;
+        
+        // We assume 15% for the rest (High earners hit 20% but ignoring for lean FIRE)
+        tax += (ltcgInFifteen * 0.15);
+
+        // 3. State Tax
+        const stateData = stateTaxRates[state] || { rate: 0, taxesSS: false };
+        let stateTaxable = ordinaryIncome + ltcgIncome; // Most states tax Cap Gains as income
+        // (Note: This simple model doesn't handle specific state deductions perfectly, but applies flat rate)
+        tax += (stateTaxable * stateData.rate);
 
         return tax;
     },
@@ -213,30 +252,23 @@ export const engine = {
                                 debts.reduce((s, x) => s + math.fromCurrency(x.balance), 0);
 
         let total401kContribution = 0;
-        let totalGrossIncome = 0; // This will be gross income after direct expenses, but before pre-tax deferrals
+        let totalGrossIncome = 0; 
         
         inc.forEach(x => {
             let base = math.fromCurrency(x.amount);
             if (x.isMonthly) base *= 12;
-            
             let annualDirectExpenses = math.fromCurrency(x.incomeExpenses);
-            if (x.incomeExpensesMonthly) annualDirectExpenses *= 12; // Convert if monthly
-
+            if (x.incomeExpensesMonthly) annualDirectExpenses *= 12;
             const bonus = base * (parseFloat(x.bonusPct) / 100 || 0);
             const personal401k = base * (parseFloat(x.contribution) / 100 || 0);
             total401kContribution += personal401k;
-            
-            // Total gross income for summary reflects net of direct expenses for each source
             totalGrossIncome += (base + bonus) - annualDirectExpenses; 
         });
 
-        // Sum additional deductions like manual HSA savings from the budget tab
         const hsaSavings = budget.savings?.filter(s => s.type === 'HSA').reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0;
-
         const magiBase = totalGrossIncome - total401kContribution - hsaSavings;
-
         const manualSavingsSum = budget.savings?.filter(x => !x.isLocked).reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0;
-        const totalAnnualSavings = manualSavingsSum + total401kContribution + hsaSavings; // Include HSA in total savings
+        const totalAnnualSavings = manualSavingsSum + total401kContribution + hsaSavings; 
         const totalAnnualBudget = budget.expenses?.reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0;
 
         return {

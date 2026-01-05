@@ -393,7 +393,7 @@ window.createAssumptionControls = (data) => {
                     ${Object.keys(stateTaxRates).sort().map(s => `<option ${data.assumptions?.state === s ? 'selected' : ''}>${s}</option>`).join('')}
                 </select>
             </label>
-            <label class="block"><span class="label-std text-slate-500">Filing Status</span><select data-id="filingStatus" class="input-base w-full mt-1 font-bold"><option>Single</option><option>Married Filing Jointly</option></select></label>
+            <label class="block"><span class="label-std text-slate-500">Filing Status</span><select data-id="filingStatus" class="input-base w-full mt-1 font-bold"><option>Single</option><option>Married Filing Jointly</option><option>Head of Household</option></select></label>
             <div id="assumptions-life"></div>
         </div>
         <div class="space-y-6 lg:border-r lg:border-slate-700/30 lg:px-8"><div class="mb-4 pb-2 border-b border-slate-700/50 flex items-center gap-2"><i class="fas fa-university text-emerald-400"></i><h3 class="label-std text-slate-400">Retirement & Social Security</h3></div><div id="assumptions-retirement"></div></div>

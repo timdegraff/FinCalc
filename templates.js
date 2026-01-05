@@ -6,20 +6,15 @@ export const templates = {
         getEfficiencyBadge: (type, value = 0, costBasis = 0, state = 'Michigan') => {
             const v = math.fromCurrency(value);
             const b = math.fromCurrency(costBasis);
-            const stateRate = stateTaxRates[state] || 0;
+            const stateRate = (stateTaxRates[state] || {}).rate || 0;
             
             if (type === '529 Plan' || type === 'Post-Tax (Roth)') {
-                return `<div class="efficiency-badge inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[9px] font-black uppercase tracking-widest border border-current" title="100% Efficient (${type === '529 Plan' ? 'Tax-Free Education' : 'Tax-Free Withdrawal'})">100%</div>`;
+                return `<div class="efficiency-badge inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[9px] font-black uppercase tracking-widest border border-current" title="100% Efficient">100%</div>`;
             }
 
             if (v > 0 && b >= v) {
                  return `<div class="efficiency-badge inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[9px] font-black uppercase tracking-widest border border-current" title="100% Efficient (No Gains)">100%</div>`;
             }
-
-            const fixedEfficiencies = {
-                'Cash': 1.0,
-                'HSA': 1.0
-            };
 
             const styles = {
                 'Taxable': { color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
@@ -35,22 +30,21 @@ export const templates = {
             const s = styles[type] || styles['Taxable'];
             let label;
 
-            if (fixedEfficiencies[type] !== undefined) {
-                label = Math.round(fixedEfficiencies[type] * 100) + '%';
-            } else if (type === 'Pre-Tax (401k/IRA)') {
+            if (type === 'Pre-Tax (401k/IRA)') {
                 const combinedRate = 0.22 + stateRate;
                 label = Math.round((1 - combinedRate) * 100) + '%';
             } else if (['Taxable', 'Crypto', 'Metals'].includes(type)) {
+                // Assuming LTCG 15% + State
                 const fedRate = (type === 'Metals') ? 0.28 : 0.15;
                 const combinedCapGainsRate = fedRate + stateRate;
                 const gainRatio = v > 0 ? Math.max(0, (v - b) / v) : 0;
                 const efficiency = 1 - (gainRatio * combinedCapGainsRate);
                 label = Math.round(efficiency * 100) + '%';
             } else {
-                label = '92%';
+                label = '100%';
             }
 
-            return `<div class="efficiency-badge inline-flex items-center px-1.5 py-0.5 rounded ${s.bg} ${s.color} text-[9px] font-black uppercase tracking-widest border border-current opacity-80" title="Est. Realizable Value Post-Tax (${state} Tax: ${Math.round(stateRate*1000)/10}%)">${label}</div>`;
+            return `<div class="efficiency-badge inline-flex items-center px-1.5 py-0.5 rounded ${s.bg} ${s.color} text-[9px] font-black uppercase tracking-widest border border-current opacity-80">${label}</div>`;
         },
         getTypeClass: (type) => {
             const map = {
@@ -97,6 +91,7 @@ export const templates = {
             <td class="text-center"><button data-action="remove" class="text-slate-700 hover:text-red-400"><i class="fas fa-times"></i></button></td>
         `;
     },
+    // Income row remains mostly the same, ensuring simplified look
     income: () => `
         <div class="bg-slate-800 rounded-2xl border border-slate-700/50 flex flex-col relative group shadow-lg overflow-hidden">
             <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/40">
@@ -110,7 +105,6 @@ export const templates = {
             </div>
             
             <div class="p-5 space-y-6">
-                <!-- Row 1: Gross & Growth - Perfectly Aligned -->
                 <div class="grid grid-cols-2 gap-6 items-start">
                     <div class="space-y-1.5">
                         <div class="flex justify-between items-center h-4">
@@ -127,7 +121,6 @@ export const templates = {
                     </div>
                 </div>
 
-                <!-- Row 2: 401k & Match & Bonus -->
                 <div class="grid grid-cols-3 gap-4 p-4 bg-slate-900/40 rounded-xl border border-slate-700/30">
                     <div class="space-y-1">
                         <label class="label-std text-slate-500">401k %</label>
@@ -143,16 +136,14 @@ export const templates = {
                     </div>
                 </div>
 
-                <!-- Row 3: Deductions/Expenses -->
                 <div class="space-y-1.5">
                     <div class="flex justify-between items-center h-4">
-                        <label class="label-std text-slate-500">Direct Deductions / Expenses</label>
+                        <label class="label-std text-slate-500">Direct Deductions</label>
                         <button data-action="toggle-freq" data-id="incomeExpensesMonthly" class="text-blue-500 hover:text-blue-400 label-std">Annual</button>
                     </div>
                     <input data-id="incomeExpenses" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-pink-400 font-bold mono-numbers">
                 </div>
 
-                <!-- Row 4: Settings -->
                 <div class="flex flex-wrap items-end justify-between gap-6 pt-2 border-t border-slate-700/30">
                     <div class="flex flex-col gap-1.5">
                         <label class="label-std text-slate-500">Non-Taxable Until (Year)</label>
@@ -160,7 +151,7 @@ export const templates = {
                     </div>
                     <label class="flex items-center gap-3 cursor-pointer h-10">
                         <input data-id="remainsInRetirement" type="checkbox" class="w-4 h-4 accent-blue-500 rounded bg-slate-900 border-slate-700">
-                        <span class="label-std text-slate-500 hover:text-blue-400 transition-colors">Stays in Retirement?</span>
+                        <span class="label-std text-slate-500 hover:text-blue-400 transition-colors">Retirement Income?</span>
                     </label>
                 </div>
             </div>
@@ -189,9 +180,18 @@ export const templates = {
             <td class="px-6 py-3 text-right">${data.isLocked ? '' : '<button data-action="remove" class="text-slate-700 hover:text-red-400 transition-colors"><i class="fas fa-times"></i></button>'}</td>
         `;
     },
-    "budget-expense": () => `
+    "budget-expense": (data) => `
         <td class="px-6 py-3"><input data-id="name" type="text" placeholder="Expense Item" class="input-base bg-transparent border-none w-full font-bold text-white outline-none"></td>
-        <td class="px-6 py-3 text-center"><input data-id="removedInRetirement" type="checkbox" class="w-4 h-4 accent-pink-500 rounded bg-slate-900 border-slate-700"></td>
+        <td class="px-6 py-3 text-center flex flex-col items-center gap-1">
+            <label class="flex items-center gap-2 cursor-pointer" title="Expense stops when you retire">
+                 <span class="text-[8px] uppercase font-bold text-slate-500">Stop</span>
+                 <input data-id="removedInRetirement" type="checkbox" class="w-3 h-3 accent-pink-500 rounded bg-slate-900 border-slate-700">
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer" title="Fixed cost (does not inflate)">
+                 <span class="text-[8px] uppercase font-bold text-slate-500">Fixed</span>
+                 <input data-id="isFixed" type="checkbox" class="w-3 h-3 accent-blue-500 rounded bg-slate-900 border-slate-700">
+            </label>
+        </td>
         <td class="px-6 py-3"><input data-id="monthly" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-400/80 font-bold mono-numbers outline-none"></td>
         <td class="px-6 py-3"><input data-id="annual" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-500 font-black mono-numbers outline-none"></td>
         <td class="px-6 py-3 text-right"><button data-action="remove" class="text-slate-700 hover:text-red-400 transition-colors"><i class="fas fa-times"></i></button></td>
@@ -200,12 +200,14 @@ export const templates = {
         <td><input data-id="name" type="text" placeholder="Property" class="input-base w-full font-bold text-white"></td>
         <td><input data-id="value" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-black mono-numbers"></td>
         <td><input data-id="mortgage" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-500 font-bold mono-numbers"></td>
+        <td><input data-id="principalPayment" data-type="currency" type="text" placeholder="$0" title="Monthly Principal Payment" class="input-base w-full text-right text-blue-400 font-bold mono-numbers opacity-60"></td>
         <td class="text-center"><button data-action="remove" class="text-slate-700 hover:text-red-400"><i class="fas fa-times"></i></button></td>
     `,
     otherAsset: () => `
         <td><input data-id="name" type="text" placeholder="Asset" class="input-base w-full font-bold text-white"></td>
         <td><input data-id="value" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-black mono-numbers"></td>
         <td><input data-id="loan" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-500 font-bold mono-numbers"></td>
+        <td><input data-id="principalPayment" data-type="currency" type="text" placeholder="$0" title="Monthly Principal Payment" class="input-base w-full text-right text-blue-400 font-bold mono-numbers opacity-60"></td>
         <td class="text-center"><button data-action="remove" class="text-slate-700 hover:text-red-400"><i class="fas fa-times"></i></button></td>
     `,
     heloc: (data) => `
@@ -218,6 +220,7 @@ export const templates = {
     debt: () => `
         <td><input data-id="name" type="text" placeholder="Debt" class="input-base w-full font-bold text-white"></td>
         <td><input data-id="balance" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-500 font-black mono-numbers"></td>
+        <td><input data-id="principalPayment" data-type="currency" type="text" placeholder="$0" title="Monthly Principal Payment" class="input-base w-full text-right text-blue-400 font-bold mono-numbers opacity-60"></td>
         <td class="text-center"><button data-action="remove" class="text-slate-700 hover:text-red-400"><i class="fas fa-times"></i></button></td>
     `
 };

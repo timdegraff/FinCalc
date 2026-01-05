@@ -6,7 +6,6 @@ export const benefits = {
         const container = document.getElementById('benefits-module');
         if (!container) return;
         
-        // Aesthetic overhaul to match Assets/Debts tab
         container.innerHTML = `
             <div class="max-w-7xl mx-auto space-y-6">
                 <!-- Header -->
@@ -16,8 +15,8 @@ export const benefits = {
                             <i class="fas fa-hand-holding-heart text-amber-400 text-xl"></i>
                         </div>
                         <div>
-                            <h2 class="text-xl font-black text-white uppercase tracking-tighter">Benefit Optimization</h2>
-                            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">2026 Michigan Eligibility Modeler</p>
+                            <h2 class="text-xl font-bold text-white uppercase tracking-tighter">Benefit Optimization</h2>
+                            <p class="text-[10px] font-medium text-slate-500 uppercase tracking-widest">2026 Michigan Eligibility Modeler</p>
                         </div>
                     </div>
                     <div class="flex items-center gap-4 bg-slate-900 p-2 rounded-xl border border-slate-700">
@@ -35,24 +34,27 @@ export const benefits = {
                     <p class="text-[10px] font-bold uppercase tracking-wide">Note: Income sliders below are for scenario modeling only. They do not affect the main Budget or Burndown calculations.</p>
                 </div>
 
+                <!-- Unified Income Slider -->
+                <div class="card-container bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-lg p-6">
+                    <div class="flex justify-between items-end mb-4">
+                        <div class="space-y-1">
+                             <label class="label-std text-slate-500">Test Annual MAGI (All Benefits)</label>
+                             <div class="text-2xl font-black text-white mono-numbers" data-label="unifiedIncome">$0</div>
+                        </div>
+                        <input type="range" data-benefit-id="unifiedIncome" min="0" max="150000" step="500" value="40000" class="w-2/3 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-teal-500">
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <!-- Healthcare Card -->
                     <div class="card-container bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-lg">
                         <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/30">
-                            <h3 class="text-md font-black text-white flex items-center gap-2 tracking-tighter">
+                            <h3 class="text-sm font-bold text-white flex items-center gap-2 tracking-wide">
                                 <i class="fas fa-hand-holding-medical text-blue-400"></i> <span class="uppercase">Healthcare Stratum</span>
                             </h3>
-                            <span id="health-badge" class="px-2 py-1 bg-slate-700 text-white rounded text-[10px] font-black uppercase">Standard</span>
+                            <span id="health-badge" class="px-2 py-1 bg-slate-700 text-white rounded text-[10px] font-bold uppercase">Standard</span>
                         </div>
                         <div class="p-6 space-y-6">
-                            <div class="flex justify-between items-end">
-                                <div class="space-y-1">
-                                    <label class="label-std text-slate-500">Test Annual MAGI</label>
-                                    <div class="text-2xl font-black text-white mono-numbers" data-label="healthIncome">$0</div>
-                                </div>
-                                <input type="range" data-benefit-id="healthIncome" min="0" max="150000" step="500" value="40000" class="w-1/2 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500">
-                            </div>
-                            
                             <!-- Visual Meter -->
                             <div class="relative h-4 bg-slate-950 rounded-full border border-slate-700 overflow-hidden flex">
                                 <div class="w-[30%] bg-blue-500/60 h-full" title="Medicaid"></div>
@@ -64,9 +66,9 @@ export const benefits = {
 
                             <table class="w-full text-xs border-t border-slate-700 pt-4">
                                 <tbody class="mono-numbers text-slate-300">
-                                    <tr class="border-b border-slate-700/50"><td class="py-2 text-slate-500 font-bold">Premium Estimate</td><td class="py-2 text-right font-black" id="detail-premium">$0</td></tr>
-                                    <tr class="border-b border-slate-700/50"><td class="py-2 text-slate-500 font-bold">Deductible</td><td class="py-2 text-right" id="detail-deductible">$0</td></tr>
-                                    <tr class="border-b border-slate-700/50"><td class="py-2 text-slate-500 font-bold">Plan Type</td><td class="py-2 text-right text-teal-400" id="detail-benefit">Full</td></tr>
+                                    <tr class="border-b border-slate-700/50"><td class="py-2 text-slate-500 font-medium">Premium Estimate</td><td class="py-2 text-right font-bold" id="detail-premium">$0</td></tr>
+                                    <tr class="border-b border-slate-700/50"><td class="py-2 text-slate-500 font-medium">Deductible</td><td class="py-2 text-right" id="detail-deductible">$0</td></tr>
+                                    <tr class="border-b border-slate-700/50"><td class="py-2 text-slate-500 font-medium">Plan Type</td><td class="py-2 text-right text-teal-400" id="detail-benefit">Full</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -75,33 +77,26 @@ export const benefits = {
                     <!-- SNAP Card -->
                     <div class="card-container bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-lg">
                         <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/30">
-                            <h3 class="text-md font-black text-white flex items-center gap-2 tracking-tighter">
+                            <h3 class="text-sm font-bold text-white flex items-center gap-2 tracking-wide">
                                 <i class="fas fa-utensils text-emerald-400"></i> <span class="uppercase">Food Assistance (SNAP)</span>
                             </h3>
-                            <span id="snap-result-value" class="px-2 py-1 bg-slate-700 text-white rounded text-[10px] font-black uppercase">$0 / mo</span>
+                            <span id="snap-result-value" class="px-2 py-1 bg-slate-700 text-white rounded text-[10px] font-bold uppercase">$0 / mo</span>
                         </div>
                         <div class="p-6 space-y-6">
-                            <div class="grid grid-cols-2 gap-4">
-                                <div class="space-y-1">
-                                    <label class="label-std text-slate-500">Test Gross Income</label>
-                                    <div class="text-xl font-black text-white mono-numbers" data-label="snapIncome">$0</div>
-                                    <input type="range" data-benefit-id="snapIncome" min="0" max="100000" step="500" value="13000" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500">
-                                </div>
-                                <div class="space-y-1">
-                                    <label class="label-std text-slate-500">Shelter Cost</label>
-                                    <div class="text-xl font-black text-white mono-numbers" data-label="shelterCosts">$0</div>
-                                    <input type="range" data-benefit-id="shelterCosts" min="0" max="5000" step="50" value="700" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500">
-                                </div>
+                            <div class="space-y-1">
+                                <label class="label-std text-slate-500">Shelter / Utility Cost</label>
+                                <div class="text-xl font-bold text-white mono-numbers" data-label="shelterCosts">$0</div>
+                                <input type="range" data-benefit-id="shelterCosts" min="0" max="5000" step="50" value="700" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500">
                             </div>
 
                             <div class="flex gap-4 border-t border-slate-700 pt-4">
                                 <label class="flex items-center gap-2 cursor-pointer p-2 bg-slate-900 rounded-lg border border-slate-700 hover:border-blue-500 transition-colors w-full justify-center">
                                     <input type="checkbox" data-benefit-id="hasSUA" checked class="w-3 h-3 accent-blue-500">
-                                    <span class="text-[9px] font-black uppercase text-slate-400">Utility Allowance (SUA)</span>
+                                    <span class="text-[9px] font-bold uppercase text-slate-400">Max Deductions (SUA)</span>
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer p-2 bg-slate-900 rounded-lg border border-slate-700 hover:border-emerald-500 transition-colors w-full justify-center">
                                     <input type="checkbox" data-benefit-id="isDisabled" class="w-3 h-3 accent-emerald-500">
-                                    <span class="text-[9px] font-black uppercase text-slate-400">Disabled / Senior</span>
+                                    <span class="text-[9px] font-bold uppercase text-slate-400">Disabled / Senior</span>
                                 </label>
                             </div>
                         </div>
@@ -134,12 +129,11 @@ export const benefits = {
         if (!c) return;
 
         c.querySelectorAll('[data-label="hhSize"]').forEach(el => el.textContent = data.hhSize);
-        c.querySelector('[data-label="healthIncome"]').textContent = math.toCurrency(data.healthIncome);
-        c.querySelector('[data-label="snapIncome"]').textContent = math.toCurrency(data.snapIncome);
+        c.querySelector('[data-label="unifiedIncome"]').textContent = math.toCurrency(data.unifiedIncome);
         c.querySelector('[data-label="shelterCosts"]').textContent = math.toCurrency(data.shelterCosts);
 
         const fpl2026 = 16060 + (data.hhSize - 1) * 5650;
-        const income = data.healthIncome;
+        const income = data.unifiedIncome;
         const ratio = income / fpl2026;
         const maxSliderVal = 150000;
         const pct = (val) => Math.min(100, (val / maxSliderVal) * 100);
@@ -157,35 +151,36 @@ export const benefits = {
 
         if (ratio <= 1.38) {
             healthBadge.textContent = "Medicaid";
-            healthBadge.className = "px-2 py-1 bg-emerald-500 text-white rounded text-[10px] font-black uppercase";
+            healthBadge.className = "px-2 py-1 bg-emerald-500 text-white rounded text-[10px] font-bold uppercase";
             setDetail("$0", "$0", "100% Medical");
         } else if (ratio <= 1.60) {
             healthBadge.textContent = "HMP+";
-            healthBadge.className = "px-2 py-1 bg-purple-500 text-white rounded text-[10px] font-black uppercase";
+            healthBadge.className = "px-2 py-1 bg-purple-500 text-white rounded text-[10px] font-bold uppercase";
             setDetail("$20", "Low", "Full Wellness");
         } else if (ratio <= 2.50) {
             healthBadge.textContent = "Silver CSR";
-            healthBadge.className = "px-2 py-1 bg-blue-500 text-white rounded text-[10px] font-black uppercase";
+            healthBadge.className = "px-2 py-1 bg-blue-500 text-white rounded text-[10px] font-bold uppercase";
             setDetail("$60", "$800", "Subsidized AV");
         } else if (ratio <= 4.00) {
             healthBadge.textContent = "Gold";
-            healthBadge.className = "px-2 py-1 bg-amber-500 text-white rounded text-[10px] font-black uppercase";
+            healthBadge.className = "px-2 py-1 bg-amber-500 text-white rounded text-[10px] font-bold uppercase";
             setDetail("$250", "$1500", "Market");
         } else {
             healthBadge.textContent = "Standard";
-            healthBadge.className = "px-2 py-1 bg-slate-600 text-white rounded text-[10px] font-black uppercase";
+            healthBadge.className = "px-2 py-1 bg-slate-600 text-white rounded text-[10px] font-bold uppercase";
             setDetail("$450+", "High", "No Subsidy");
         }
 
-        const estimatedBenefit = engine.calculateSnapBenefit(data.snapIncome, data.hhSize, data.shelterCosts, data.hasSUA, data.isDisabled);
+        // SNAP Calc
+        const estimatedBenefit = engine.calculateSnapBenefit(data.unifiedIncome, data.hhSize, data.shelterCosts, data.hasSUA, data.isDisabled);
         const snapResultEl = document.getElementById('snap-result-value');
         
         if (estimatedBenefit <= 0) {
             snapResultEl.textContent = "$0 / mo";
-            snapResultEl.className = "px-2 py-1 bg-slate-700 text-slate-400 rounded text-[10px] font-black uppercase";
+            snapResultEl.className = "px-2 py-1 bg-slate-700 text-slate-400 rounded text-[10px] font-bold uppercase";
         } else {
             snapResultEl.textContent = `${math.toCurrency(estimatedBenefit)} / mo`;
-            snapResultEl.className = "px-2 py-1 bg-emerald-500 text-white rounded text-[10px] font-black uppercase";
+            snapResultEl.className = "px-2 py-1 bg-emerald-500 text-white rounded text-[10px] font-bold uppercase";
         }
     },
 
@@ -200,8 +195,7 @@ export const benefits = {
         };
         return {
             hhSize: get('hhSize'),
-            healthIncome: get('healthIncome'),
-            snapIncome: get('snapIncome'),
+            unifiedIncome: get('unifiedIncome'),
             shelterCosts: get('shelterCosts'),
             hasSUA: get('hasSUA', 'bool'),
             isDisabled: get('isDisabled', 'bool')
