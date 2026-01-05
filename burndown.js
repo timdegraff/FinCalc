@@ -327,17 +327,20 @@ export const burndown = {
             'crypto': investments.filter(i => i.type === 'Crypto').reduce((s, i) => s + math.fromCurrency(i.value), 0),
             'metals': investments.filter(i => i.type === 'Metals').reduce((s, i) => s + math.fromCurrency(i.value), 0),
             'hsa': investments.filter(i => i.type === 'HSA').reduce((s, i) => s + math.fromCurrency(i.value), 0),
-            'heloc': 0 
+            'heloc': helocs.reduce((s, h) => s + math.fromCurrency(h.balance), 0)
         };
 
         const hidden529 = investments.filter(i => i.type === '529 Plan').reduce((s, i) => s + math.fromCurrency(i.value), 0);
         const fixedOtherAssets = otherAssets.reduce((s, o) => s + (math.fromCurrency(o.value) - math.fromCurrency(o.loan)), 0);
         const helocLimit = helocs.reduce((s, h) => s + math.fromCurrency(h.limit), 0);
+        const avgHelocRate = (helocs.length > 0 ? helocs.reduce((s, h) => s + (parseFloat(h.rate) || 7.0), 0) / helocs.length : 7.0) / 100;
+
         const fpl2026Base = filingStatus === 'Single' ? 16060 : 32120;
         
         const results = [];
         const duration = 100 - assumptions.currentAge;
 
+        // Pre-calculate potential SEPP limit
         let temp401k = bal['401k'];
         for (let i = 0; i < (assumptions.retirementAge - assumptions.currentAge); i++) {
              const summaries = engine.calculateSummaries(data);
@@ -348,6 +351,7 @@ export const burndown = {
              temp401k *= (1 + stockGrowth);
         }
         const seppFixedAmount = state.useSEPP ? engine.calculateMaxSepp(temp401k, assumptions.retirementAge) : 0;
+        let isSeppStarted = false;
 
         for (let i = 0; i <= duration; i++) {
             const age = assumptions.currentAge + i;
@@ -405,17 +409,28 @@ export const burndown = {
                 engine.calculateSocialSecurity(assumptions.ssMonthly || 0, ssWorkYears, inflationFactor) : 0;
             taxableIncome += ssYearly; 
 
+            const initialNetCashflow = (taxableIncome + nonTaxableIncome - engine.calculateTax(taxableIncome, filingStatus));
+            let remainingNeed = Math.max(0, currentYearBudget - initialNetCashflow);
+
+            // Refined SEPP Bridge logic: 
+            // Trigger start only when budget shortfall exists and age is under 59.5.
             if (isRetired && age < 60 && state.useSEPP) {
-                const canDrawSEPP = Math.min(bal['401k'], seppFixedAmount);
-                bal['401k'] -= canDrawSEPP;
-                taxableIncome += canDrawSEPP;
-                yearResult.seppAmount = canDrawSEPP;
-                yearResult.draws['401k'] = (yearResult.draws['401k'] || 0) + canDrawSEPP;
+                if (remainingNeed > 0 || isSeppStarted) {
+                    isSeppStarted = true;
+                    // Only draw what's needed to meet budget, up to the SEPP limit
+                    const canDrawSEPP = Math.min(bal['401k'], seppFixedAmount, remainingNeed);
+                    if (canDrawSEPP > 0) {
+                        bal['401k'] -= canDrawSEPP;
+                        taxableIncome += canDrawSEPP;
+                        yearResult.seppAmount = canDrawSEPP;
+                        yearResult.draws['401k'] = (yearResult.draws['401k'] || 0) + canDrawSEPP;
+                        remainingNeed -= canDrawSEPP;
+                    }
+                }
             }
 
             const tax = engine.calculateTax(taxableIncome, filingStatus);
-            let netBudgetNeeded = currentYearBudget;
-            let remainingNeed = Math.max(0, netBudgetNeeded - (taxableIncome + nonTaxableIncome - tax));
+            remainingNeed = Math.max(0, currentYearBudget - (taxableIncome + nonTaxableIncome - tax));
 
             const effectivePriority = burndown.priorityOrder.filter(k => k !== 'hsa').concat(['hsa']);
 
@@ -440,6 +455,15 @@ export const burndown = {
                     taxableIncome += (canDraw * gainRatio);
                 }
             });
+
+            // REPAYMENT LOGIC: If we have excess income after meeting budget, pay down HELOC
+            const currentNetCash = (taxableIncome + nonTaxableIncome - engine.calculateTax(taxableIncome, filingStatus));
+            let surplus = Math.max(0, currentNetCash - currentYearBudget);
+            if (surplus > 0 && bal['heloc'] > 0) {
+                const repayment = Math.min(bal['heloc'], surplus);
+                bal['heloc'] -= repayment;
+                surplus -= repayment;
+            }
 
             if (isRetired && state.useRothLadder) {
                 const medicaidLimit = (fpl * 1.38) - 1; 
@@ -485,18 +509,20 @@ export const burndown = {
                 });
             }
 
-            // Standard Asset Growth
             bal['taxable'] *= (1 + stockGrowth);
             bal['401k'] *= (1 + stockGrowth);
             bal['hsa'] *= (1 + stockGrowth); 
             bal['crypto'] *= (1 + cryptoGrowth);
             bal['metals'] *= (1 + metalsGrowth);
             
-            // SPECIAL ROTH LOGIC: Basis stays static, growth from both buckets moves to Earnings
+            // Compound HELOC Debt interest
+            if (bal['heloc'] > 0) {
+                bal['heloc'] *= (1 + avgHelocRate);
+            }
+
             const rothBasisGrowth = bal['roth-basis'] * stockGrowth;
             const rothEarningsGrowth = bal['roth-earnings'] * stockGrowth;
             bal['roth-earnings'] += (rothBasisGrowth + rothEarningsGrowth);
-            // bal['roth-basis'] remains unchanged (unless incremented by savings in !isRetired block)
         }
         return results;
     },
@@ -516,7 +542,7 @@ export const burndown = {
                 return `<td class="p-1.5 text-right border-l border-slate-800/50">
                     <div class="${amt > 0 ? 'font-bold' : 'text-slate-700'}" ${amt > 0 ? `style="color: ${meta.color}"` : ''}>
                         ${formatter.formatCurrency(amt, 0)}
-                        ${isSEPPYear ? '<span class="text-[7px] block opacity-60">SEPP</span>' : ''}
+                        ${isSEPPYear ? '<span class="text-[7px] block opacity-60">72t</span>' : ''}
                     </div>
                     <div class="text-[8px] opacity-40">${formatter.formatCurrency(bal, 0)}</div>
                 </td>`;
