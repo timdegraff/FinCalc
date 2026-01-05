@@ -122,7 +122,7 @@ function scrapeDataFromUI() {
     document.querySelectorAll('#investment-rows tr').forEach(r => data.investments.push(scrapeRow(r)));
     document.querySelectorAll('#real-estate-rows tr').forEach(r => data.realEstate.push(scrapeRow(r)));
     document.querySelectorAll('#other-assets-rows tr').forEach(r => data.otherAssets.push(scrapeRow(r)));
-    document.querySelectorAll('#heloc-rows tr').forEach(r => data.helocs.push(scrapeRow(r)));
+    document.querySelectorAll('#heloc-rows tr').forEach(r => data.helocs.push(scrapeRow(r, 'heloc'))); // Pass type to scrapeRow
     document.querySelectorAll('#debt-rows tr').forEach(r => data.debts.push(scrapeRow(r)));
     document.querySelectorAll('#income-cards > div').forEach(r => {
         const d = scrapeRow(r);
@@ -139,13 +139,20 @@ function scrapeDataFromUI() {
     return data;
 }
 
-function scrapeRow(row) {
+function scrapeRow(row, rowType = null) {
     const d = {};
     row.querySelectorAll('[data-id]').forEach(i => {
         if (i.tagName === 'BUTTON' || i.dataset.id === 'capWarning') return;
         const k = i.dataset.id;
         if (i.type === 'checkbox') d[k] = i.checked;
-        else if (i.dataset.type === 'currency') d[k] = math.fromCurrency(i.value);
+        else if (i.dataset.type === 'currency') {
+            let val = math.fromCurrency(i.value);
+            // Ensure HELOC balance and limit are non-negative
+            if (rowType === 'heloc' && (k === 'balance' || k === 'limit')) {
+                val = Math.max(0, val);
+            }
+            d[k] = val;
+        }
         else if (i.tagName === 'SELECT') d[k] = i.value;
         else if (i.type === 'number') d[k] = parseFloat(i.value) || 0;
         else d[k] = i.value;

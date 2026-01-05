@@ -49,6 +49,8 @@ export const burndown = {
                             </div>
                         </label>
 
+                        <!-- Roth Conversion Ladder: Removed from UI for simplicity, but code is preserved -->
+                        <!-- 
                         <label class="flex items-center gap-4 px-5 py-3 bg-slate-900/50 rounded-2xl border border-slate-700 cursor-pointer group transition-all hover:bg-slate-900">
                             <input type="checkbox" id="toggle-roth-ladder" class="w-5 h-5 accent-teal-500">
                             <div class="flex flex-col">
@@ -56,6 +58,7 @@ export const burndown = {
                                 <span class="text-[8px] text-slate-600 uppercase font-black">Top-off to Benefit Cliff</span>
                             </div>
                         </label>
+                        -->
 
                         <button id="btn-dwz-toggle" class="px-5 py-3 bg-slate-900/50 rounded-2xl border border-slate-700 text-left transition-all hover:bg-slate-900 flex items-center gap-4 group min-w-[180px]">
                             <div class="w-5 h-5 rounded-full border-2 border-slate-700 flex items-center justify-center group-[.active]:border-rose-500 group-[.active]:bg-rose-500/20">
@@ -129,7 +132,7 @@ export const burndown = {
     },
 
     attachListeners: () => {
-        const triggers = ['burndown-strategy', 'toggle-rule-72t', 'toggle-budget-sync', 'toggle-roth-ladder'];
+        const triggers = ['burndown-strategy', 'toggle-rule-72t', 'toggle-budget-sync'/*, 'toggle-roth-ladder'*/]; // 'toggle-roth-ladder' commented out
         triggers.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.onchange = () => {
@@ -187,7 +190,7 @@ export const burndown = {
         const config = [
             {id: 'burndown-strategy', key: 'strategy', type: 'val'},
             {id: 'toggle-rule-72t', key: 'useSEPP', type: 'check'},
-            {id: 'toggle-roth-ladder', key: 'useRothLadder', type: 'check'},
+            // {id: 'toggle-roth-ladder', key: 'useRothLadder', type: 'check'}, // Commented out from load
             {id: 'toggle-budget-sync', key: 'useSync', type: 'check'},
         ];
         config.forEach(c => {
@@ -227,7 +230,7 @@ export const burndown = {
             strategy: document.getElementById('burndown-strategy')?.value || 'standard',
             useSync: document.getElementById('toggle-budget-sync')?.checked ?? true,
             useSEPP: document.getElementById('toggle-rule-72t')?.checked ?? false,
-            useRothLadder: document.getElementById('toggle-roth-ladder')?.checked ?? false,
+            // useRothLadder: document.getElementById('toggle-roth-ladder')?.checked ?? false, // Commented out from scrape
             dieWithZero: document.getElementById('btn-dwz-toggle')?.classList.contains('active') ?? false,
             manualBudget: math.fromCurrency(document.getElementById('input-manual-budget')?.value || "$100,000"),
             isRealDollars
@@ -299,8 +302,8 @@ export const burndown = {
     },
 
     calculate: (data) => {
-        const { assumptions, investments = [], otherAssets = [], realEstate = [], income = [], budget = {}, helocs = [], benefits = {} } = data;
-        const state = burndown.scrape();
+        const { assumptions, investments = [], otherAssets = [], realEstate = [], income = [], budget = {}, helocs = [] } = data;
+        const stateConfig = burndown.scrape(); // Renamed 'state' to 'stateConfig' to avoid conflict with assumptions.state
         const inflationRate = (assumptions.inflation || 3) / 100;
         const stockGrowth = (assumptions.stockGrowth || 8) / 100;
         const cryptoGrowth = (assumptions.cryptoGrowth || 10) / 100;
@@ -310,15 +313,9 @@ export const burndown = {
         const filingStatus = assumptions.filingStatus || 'Single';
         const currentYear = new Date().getFullYear();
 
-        const taxValue = investments.filter(i => i.type === 'Taxable').reduce((s, i) => s + math.fromCurrency(i.value), 0);
-        const taxBasis = investments.filter(i => i.type === 'Taxable').reduce((s, i) => {
-            const b = math.fromCurrency(i.costBasis);
-            return s + (b === 0 ? math.fromCurrency(i.value) : b);
-        }, 0);
-        
         const bal = {
             'cash': investments.filter(i => i.type === 'Cash').reduce((s, i) => s + math.fromCurrency(i.value), 0),
-            'taxable': taxValue,
+            'taxable': investments.filter(i => i.type === 'Taxable').reduce((s, i) => s + math.fromCurrency(i.value), 0),
             'roth-basis': investments.filter(i => i.type === 'Post-Tax (Roth)').reduce((s, i) => s + (math.fromCurrency(i.costBasis) || 0), 0),
             'roth-earnings': investments.filter(i => i.type === 'Post-Tax (Roth)').reduce((s, i) => s + Math.max(0, math.fromCurrency(i.value) - (math.fromCurrency(i.costBasis) || 0)), 0),
             '401k': investments.filter(i => i.type === 'Pre-Tax (401k/IRA)').reduce((s, i) => s + math.fromCurrency(i.value), 0),
@@ -335,13 +332,14 @@ export const burndown = {
         const results = [];
         const duration = 100 - assumptions.currentAge;
 
-        // Pre-calculate 72t bridge limit
-        let temp401k = bal['401k'];
-        for (let i = 0; i < (assumptions.retirementAge - assumptions.currentAge); i++) {
-             temp401k *= (1 + stockGrowth);
+        // Pre-calculate 72t bridge fixed amount based on 401k balance at retirement age
+        let temp401kAtRetirement = bal['401k'];
+        for (let j = 0; j < (assumptions.retirementAge - assumptions.currentAge); j++) {
+             temp401kAtRetirement *= (1 + stockGrowth);
         }
-        const seppFixedAmount = state.useSEPP ? engine.calculateMaxSepp(temp401k, assumptions.retirementAge) : 0;
-        let isSeppStarted = false;
+        const seppFixedAmount = stateConfig.useSEPP ? engine.calculateMaxSepp(temp401kAtRetirement, assumptions.retirementAge) : 0;
+        
+        let isSeppStartedForRun = false; // Flag to track if 72t has started in this specific run
 
         for (let i = 0; i <= duration; i++) {
             const age = assumptions.currentAge + i;
@@ -356,19 +354,20 @@ export const burndown = {
             const fixedOtherAssets = otherAssets.reduce((s, o) => s + (math.fromCurrency(o.value) - math.fromCurrency(o.loan)), 0);
             const currentNW = (bal['cash'] + bal['taxable'] + bal['roth-basis'] + bal['roth-earnings'] + bal['401k'] + bal['crypto'] + bal['metals'] + bal['hsa'] + fixedOtherAssets + currentRE) - bal['heloc'];
 
-            let targetBudget = state.useSync ? 
+            let targetBudget = stateConfig.useSync ? 
                 (budget.expenses || []).reduce((sum, exp) => (isRetired && exp.removedInRetirement) ? sum : sum + math.fromCurrency(exp.annual), 0) : 
-                (state.manualBudget || 100000);
+                (stateConfig.manualBudget || 100000);
             targetBudget *= inflationFactor;
 
-            if (state.strategy === 'perpetual') {
+            if (stateConfig.strategy === 'perpetual') {
                 const safeRate = Math.max(0, stockGrowth - inflationRate);
                 targetBudget = currentNW * safeRate;
             }
 
-            let totalGrossIncomeForYear = 0; // Gross income from all sources after direct expenses
-            let totalPreTaxDeductionsForYear = 0; // 401k and HSA contributions
-            let nonTaxableIncomeForYear = 0; // Income explicitly marked non-taxable
+            // --- 1. Calculate base income for the year (from employment, SS, non-taxable rentals, etc.) ---
+            let baseTaxableIncome = 0; // Income that contributes to MAGI from sources
+            let baseNonTaxableIncome = 0; // Income that does not contribute to MAGI from sources
+            let totalPreTaxDeductions = 0; // 401k/HSA contributions
 
             const activeIncomes = isRetired ? income.filter(inc => inc.remainsInRetirement) : income;
             activeIncomes.forEach(inc => {
@@ -378,113 +377,155 @@ export const burndown = {
 
                 grossBaseAmount *= Math.pow(1 + (inc.increase / 100 || 0), i);
                 const bonusAmount = grossBaseAmount * (parseFloat(inc.bonusPct) / 100 || 0);
-                const incomeBeforeDirectExpenses = grossBaseAmount + bonusAmount;
-                
-                const incomeAfterDirectExpenses = incomeBeforeDirectExpenses - annualDirectExpenses;
+                const incomeAfterDirectExpenses = (grossBaseAmount + bonusAmount) - annualDirectExpenses;
 
                 if (inc.nonTaxableUntil && parseInt(inc.nonTaxableUntil) >= currentYearIter) {
-                    nonTaxableIncomeForYear += incomeAfterDirectExpenses;
+                    baseNonTaxableIncome += incomeAfterDirectExpenses;
                 } else {
-                    totalGrossIncomeForYear += incomeAfterDirectExpenses;
-                    // Deduct 401k contributions from what's considered *gross* for tax purposes (pre-tax)
-                    totalPreTaxDeductionsForYear += grossBaseAmount * (parseFloat(inc.contribution) / 100 || 0);
+                    baseTaxableIncome += incomeAfterDirectExpenses;
+                    totalPreTaxDeductions += grossBaseAmount * (parseFloat(inc.contribution) / 100 || 0); // 401k contrib
                 }
             });
 
-            // Add Social Security to taxable income (it's part of gross income for tax purposes)
-            const ssYearly = (age >= assumptions.ssStartAge) ? 
-                engine.calculateSocialSecurity(assumptions.ssMonthly || 0, assumptions.workYearsAtRetirement || 35, inflationFactor) : 0;
-            totalGrossIncomeForYear += ssYearly; 
+            // Add Social Security (taxable portion)
+            const ssYearly = (age >= assumptions.ssStartAge) ? engine.calculateSocialSecurity(assumptions.ssMonthly || 0, assumptions.workYearsAtRetirement || 35, inflationFactor) : 0;
+            baseTaxableIncome += ssYearly;
 
-            // Include HSA contributions from budget as pre-tax deductions
-            totalPreTaxDeductionsForYear += (budget.savings?.filter(s => s.type === 'HSA').reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0);
+            // Add HSA contributions from budget as pre-tax deductions
+            totalPreTaxDeductions += (budget.savings?.filter(s => s.type === 'HSA').reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0);
 
-            // Calculate MAGI for the year
-            let taxableIncome = totalGrossIncomeForYear - totalPreTaxDeductionsForYear; 
-            let nonTaxableIncome = nonTaxableIncomeForYear; 
+            // Calculate MAGI *before* any asset draws
+            let currentMAGI = baseTaxableIncome - totalPreTaxDeductions;
+            let currentNetNonTaxableIncome = baseNonTaxableIncome;
 
+            // --- 2. Calculate net income from recurring sources and determine initial remaining budget need ---
+            let taxOnBaseMAGI = engine.calculateTax(currentMAGI, filingStatus);
+            let netAvailableFromRecurring = (currentMAGI + currentNetNonTaxableIncome) - taxOnBaseMAGI;
+            let remainingBudgetNeed = Math.max(0, targetBudget - netAvailableFromRecurring);
 
-            // 72t BRIDGE - ONLY START IF NEEDED
-            let currentNet = taxableIncome + nonTaxableIncome - engine.calculateTax(taxableIncome, filingStatus);
-            if (isRetired && age < 60 && state.useSEPP && (currentNet < targetBudget || isSeppStarted)) {
-                isSeppStarted = true;
-                const seppNeeded = Math.min(bal['401k'], seppFixedAmount, Math.max(0, targetBudget - currentNet));
-                if (seppNeeded > 0) {
-                    bal['401k'] -= seppNeeded;
-                    taxableIncome += seppNeeded; // 72t distributions are taxable
-                    yearResult.draws['401k'] = (yearResult.draws['401k'] || 0) + seppNeeded;
-                    yearResult.seppAmount = seppNeeded;
-                }
-            }
+            // --- 3. Asset Decumulation based on Priority Order and Strategy ---
+            let totalTaxableDraws = 0; // Tracks taxable draws *from assets*
+            let totalNonTaxableDraws = 0; // Tracks non-taxable draws *from assets*
 
-            let remainingNeed = Math.max(0, targetBudget - (taxableIncome + nonTaxableIncome - engine.calculateTax(taxableIncome, filingStatus)));
-
-            // STRATEGY LOGIC: Medicaid Cliff (138% FPL)
             const medicaidCeiling = fpl * 1.38;
-            const priorityOrder = burndown.priorityOrder.filter(k => k !== 'hsa').concat(['hsa']);
+            const priorityOrderEffective = burndown.priorityOrder.filter(k => k !== 'hsa').concat(['hsa']); // HSA is internally always last for actual draw if funds are needed
 
-            if (state.strategy === 'medicaid' && isRetired) {
-                // PHASE 1: Use non-taxable assets first to preserve low MAGI
-                priorityOrder.filter(k => !burndown.assetMeta[k].isTaxable).forEach(pk => {
-                    if (remainingNeed <= 0) return;
-                    const limit = pk === 'heloc' ? (helocLimit - bal['heloc']) : bal[pk];
-                    const canDraw = Math.min(limit, remainingNeed);
-                    if (pk === 'heloc') bal['heloc'] += canDraw;
-                    else bal[pk] -= canDraw;
-                    yearResult.draws[pk] = (yearResult.draws[pk] || 0) + canDraw;
-                    remainingNeed -= canDraw;
-                });
-                
-                // PHASE 2: Carefully draw taxable assets up to the Medicaid cliff
-                priorityOrder.filter(k => burndown.assetMeta[k].isTaxable).forEach(pk => {
-                    if (remainingNeed <= 0 || taxableIncome >= medicaidCeiling) return;
-                    const incomeCap = Math.max(0, medicaidCeiling - taxableIncome); // Amount we can still add to MAGI
-                    const drawLimit = pk === 'taxable' ? (bal[pk] * 0.5) : bal[pk]; // simplify taxable gains as 50% for initial draw estimation
-                    const canDraw = Math.min(drawLimit, remainingNeed, incomeCap);
-                    
+            if (stateConfig.strategy === 'medicaid' && isRetired) {
+                // Medicaid Max Strategy
+                // Prioritize non-taxable assets (excluding 401k for now)
+                priorityOrderEffective.filter(k => !burndown.assetMeta[k].isTaxable && k !== '401k').forEach(pk => {
+                    if (remainingBudgetNeed <= 0) return;
+                    const canDraw = Math.min(bal[pk], remainingBudgetNeed);
                     if (canDraw > 0) {
                         bal[pk] -= canDraw;
                         yearResult.draws[pk] = (yearResult.draws[pk] || 0) + canDraw;
-                        taxableIncome += canDraw;
-                        remainingNeed = Math.max(0, targetBudget - (taxableIncome + nonTaxableIncome - engine.calculateTax(taxableIncome, filingStatus)));
+                        remainingBudgetNeed -= canDraw;
+                        totalNonTaxableDraws += canDraw;
                     }
                 });
 
-                // PHASE 3: If still have need, draw from any remaining assets (non-taxable again, then taxable)
-                priorityOrder.forEach(pk => {
-                    if (remainingNeed <= 0) return;
-                    const limit = pk === 'heloc' ? (helocLimit - bal['heloc']) : bal[pk];
-                    const canDraw = Math.min(limit, remainingNeed);
-                    if (pk === 'heloc') bal['heloc'] += canDraw;
-                    else bal[pk] -= canDraw;
-                    yearResult.draws[pk] = (yearResult.draws[pk] || 0) + canDraw;
-                    remainingNeed -= canDraw;
-                    if (burndown.assetMeta[pk].isTaxable) taxableIncome += canDraw; // Track taxable draws
+                // Attempt 72t draw if needed and conditions met, constrained by Medicaid ceiling
+                if (remainingBudgetNeed > 0 && isRetired && age < 60 && stateConfig.useSEPP && bal['401k'] > 0) {
+                    isSeppStartedForRun = true; // Mark 72t as active for this projection run
+                    const currentTotalTaxable = currentMAGI + totalTaxableDraws;
+                    const allowedTaxableDrawBeforeCeiling = Math.max(0, medicaidCeiling - currentTotalTaxable);
+                    
+                    let seppDrawAmount = Math.min(bal['401k'], seppFixedAmount, remainingBudgetNeed);
+                    seppDrawAmount = Math.min(seppDrawAmount, allowedTaxableDrawBeforeCeiling);
+
+                    if (seppDrawAmount > 0) {
+                        bal['401k'] -= seppDrawAmount;
+                        yearResult.draws['401k'] = (yearResult.draws['401k'] || 0) + seppDrawAmount;
+                        yearResult.seppAmount = seppDrawAmount;
+                        remainingBudgetNeed -= seppDrawAmount;
+                        totalTaxableDraws += seppDrawAmount;
+                    }
+                }
+
+                // Draw from other taxable assets, again constrained by Medicaid ceiling
+                priorityOrderEffective.filter(k => burndown.assetMeta[k].isTaxable && k !== '401k').forEach(pk => {
+                    if (remainingBudgetNeed <= 0) return;
+                    const currentTotalTaxable = currentMAGI + totalTaxableDraws;
+                    const allowedTaxableDrawBeforeCeiling = Math.max(0, medicaidCeiling - currentTotalTaxable);
+
+                    const canDrawFromAsset = Math.min(bal[pk], remainingBudgetNeed, allowedTaxableDrawBeforeCeiling);
+
+                    if (canDrawFromAsset > 0) {
+                        bal[pk] -= canDrawFromAsset;
+                        yearResult.draws[pk] = (yearResult.draws[pk] || 0) + canDrawFromAsset;
+                        remainingBudgetNeed -= canDrawFromAsset;
+                        totalTaxableDraws += canDrawFromAsset;
+                    }
                 });
 
-            } else {
-                // STANDARD PRIORITY
-                priorityOrder.forEach(pk => {
-                    if (remainingNeed <= 0) return;
-                    const limit = pk === 'heloc' ? (helocLimit - bal['heloc']) : bal[pk];
-                    const canDraw = Math.min(limit, remainingNeed);
-                    if (pk === 'heloc') bal['heloc'] += canDraw;
-                    else bal[pk] -= canDraw;
-                    yearResult.draws[pk] = (yearResult.draws[pk] || 0) + canDraw;
-                    remainingNeed -= canDraw;
-                    if (burndown.assetMeta[pk].isTaxable) taxableIncome += canDraw;
+                // Finally, if there's still a need, use HELOC or any remaining assets without MAGI constraint
+                priorityOrderEffective.forEach(pk => {
+                    if (remainingBudgetNeed <= 0) return;
+                    // Skip if it's a taxable asset and we've already hit or exceeded Medicaid ceiling
+                    if (burndown.assetMeta[pk].isTaxable && (currentMAGI + totalTaxableDraws) >= medicaidCeiling && pk !== 'heloc') return;
+
+                    const limit = (pk === 'heloc') ? (helocLimit - bal['heloc']) : bal[pk]; // HELOC is treated as a draw source if limits allow
+                    const canDraw = Math.min(limit, remainingBudgetNeed);
+                    
+                    if (canDraw > 0) {
+                        if (pk === 'heloc') bal['heloc'] += canDraw; // Increase HELOC balance
+                        else bal[pk] -= canDraw;
+                        yearResult.draws[pk] = (yearResult.draws[pk] || 0) + canDraw;
+                        remainingBudgetNeed -= canDraw;
+                        if (burndown.assetMeta[pk].isTaxable) totalTaxableDraws += canDraw;
+                        else totalNonTaxableDraws += canDraw;
+                    }
+                });
+
+            } else { // Standard Priority Strategy (and Perpetual Wealth)
+                priorityOrderEffective.forEach(pk => {
+                    if (remainingBudgetNeed <= 0) return;
+
+                    // 72t bridge for 401k, only if enabled, retired, under 60, and *needed*
+                    if (pk === '401k' && isRetired && age < 60 && stateConfig.useSEPP && bal['401k'] > 0) {
+                        // Condition to start SEPP: if not already started, AND there's a need
+                        if (!isSeppStartedForRun && remainingBudgetNeed > 0) {
+                            isSeppStartedForRun = true;
+                        }
+                        
+                        // If SEPP is started (either this year or a previous year in this run)
+                        if (isSeppStartedForRun) {
+                            const seppDraw = Math.min(bal['401k'], seppFixedAmount, remainingBudgetNeed);
+                            if (seppDraw > 0) {
+                                bal['401k'] -= seppDraw;
+                                yearResult.draws['401k'] = (yearResult.draws['401k'] || 0) + seppDraw;
+                                yearResult.seppAmount = seppDraw;
+                                remainingBudgetNeed -= seppDraw;
+                                totalTaxableDraws += seppDraw;
+                                return; // Move to next asset in priority, 401k already handled for this year's need
+                            }
+                        }
+                    }
+                    
+                    const limit = (pk === 'heloc') ? (helocLimit - bal['heloc']) : bal[pk];
+                    const canDraw = Math.min(limit, remainingBudgetNeed);
+                    
+                    if (canDraw > 0) {
+                        if (pk === 'heloc') bal['heloc'] += canDraw;
+                        else bal[pk] -= canDraw;
+                        yearResult.draws[pk] = (yearResult.draws[pk] || 0) + canDraw;
+                        remainingBudgetNeed -= canDraw;
+                        if (burndown.assetMeta[pk].isTaxable) totalTaxableDraws += canDraw;
+                        else totalNonTaxableDraws += canDraw;
+                    }
                 });
             }
 
-            // HELOC PAYDOWN: Use excess non-taxable income to service debt
-            const finalNet = (taxableIncome + nonTaxableIncome - engine.calculateTax(taxableIncome, filingStatus));
-            const surplus = Math.max(0, finalNet - targetBudget);
-            if (surplus > 0 && bal['heloc'] > 0) {
-                const paydown = Math.min(bal['heloc'], surplus);
-                bal['heloc'] -= paydown;
-            }
+            // --- 4. Final Calculations for the year ---
+            // Update MAGI for the year with all draws
+            yearResult.magi = currentMAGI + totalTaxableDraws;
 
-            yearResult.magi = taxableIncome;
+            // HELOC Paydown: Use excess cashflow to reduce HELOC balance (if any surplus)
+            if (remainingBudgetNeed < 0 && bal['heloc'] > 0) { 
+                const paydownAmount = Math.min(bal['heloc'], Math.abs(remainingBudgetNeed));
+                bal['heloc'] = Math.max(0, bal['heloc'] - paydownAmount); // Ensure HELOC balance never goes below zero
+            }
+            
             yearResult.balances = { ...bal };
             yearResult.budget = targetBudget;
             yearResult.netWorth = currentNW;
