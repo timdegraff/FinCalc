@@ -145,7 +145,7 @@ function scrapeRow(row) {
         if (i.tagName === 'BUTTON' || i.dataset.id === 'capWarning') return;
         const k = i.dataset.id;
         if (i.type === 'checkbox') d[k] = i.checked;
-        else if (i.dataset.type === 'currency') d[k] = math.fromCurrency(i.value);
+        else if (i.dataset.type === 'currency') d[k] = math.fromCurrency(input.value);
         else if (i.tagName === 'SELECT') d[k] = i.value;
         else if (i.type === 'number') d[k] = parseFloat(i.value) || 0;
         else d[k] = i.value;
@@ -170,7 +170,7 @@ export function updateSummaries(data) {
     
     // Income tab summaries
     set('sum-gross-income', s.totalGrossIncome);
-    set('sum-income-adjusted', s.grossIncome);
+    set('sum-income-adjusted', s.magiBase);
     
     const r401k = Array.from(document.querySelectorAll('#budget-savings-rows tr')).find(r => r.querySelector('[data-id="monthly"]')?.readOnly);
     if (r401k) {

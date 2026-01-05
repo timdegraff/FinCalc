@@ -171,6 +171,8 @@ export const engine = {
 
         let total401kContribution = 0;
         let totalGrossIncome = 0;
+        let hsaSavings = 0;
+        
         inc.forEach(x => {
             let base = math.fromCurrency(x.amount);
             if (x.isMonthly) base *= 12;
@@ -182,16 +184,23 @@ export const engine = {
             totalGrossIncome += (base + bonus);
         });
 
-        // FIX: Sum only non-locked savings to avoid double-counting the auto-calculated 401k row
+        // Sum additional deductions like manual HSA savings from the budget tab
+        budget.savings?.forEach(s => {
+            if (s.type === 'HSA' || s.type === 'Pre-Tax (401k/IRA)') {
+                hsaSavings += math.fromCurrency(s.annual);
+            }
+        });
+
+        const magiBase = totalGrossIncome - total401kContribution - (budget.savings?.filter(s => s.type === 'HSA').reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0);
+
         const manualSavingsSum = budget.savings?.filter(x => !x.isLocked).reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0;
         const totalAnnualSavings = manualSavingsSum + total401kContribution;
-        
         const totalAnnualBudget = budget.expenses?.reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0;
 
         return {
             netWorth: totalAssets - totalLiabilities,
             totalAssets, totalLiabilities, totalGrossIncome,
-            grossIncome: totalGrossIncome, // Keeping field name for compatibility
+            magiBase,
             total401kContribution, totalAnnualSavings, totalAnnualBudget
         };
     }
