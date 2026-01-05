@@ -540,7 +540,7 @@ export const burndown = {
             </tr>`;
         }).join('');
         
-        return `<table class="w-full text-left border-collapse table-auto">
+        return `<table class="w-full text-left border-collapse table-auto" style="font-family: 'Inter', sans-serif;">
             <thead class="sticky top-0 bg-slate-800 text-slate-500 label-std z-20">
                 <tr>
                     <th class="p-2 border-r border-slate-700 w-10">Age</th>
