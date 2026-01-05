@@ -166,35 +166,34 @@ export const engine = {
                            
         const totalLiabilities = re.reduce((s, x) => s + math.fromCurrency(x.mortgage), 0) +
                                 oa.reduce((s, x) => s + math.fromCurrency(x.loan), 0) +
-                                helocs.reduce((s, x) => s + math.fromCurrency(x.balance), 0) +
+                                helocs.reduce((s, h) => s + math.fromCurrency(h.balance), 0) +
                                 debts.reduce((s, x) => s + math.fromCurrency(x.balance), 0);
 
         let total401kContribution = 0;
-        let totalGrossIncome = 0;
-        let hsaSavings = 0;
+        let totalGrossIncome = 0; // This will be gross income after direct expenses, but before pre-tax deferrals
         
         inc.forEach(x => {
             let base = math.fromCurrency(x.amount);
             if (x.isMonthly) base *= 12;
-            let writes = math.fromCurrency(x.incomeExpenses);
-            if (x.incomeExpensesMonthly) writes *= 12;
+            
+            let annualDirectExpenses = math.fromCurrency(x.incomeExpenses);
+            if (x.incomeExpensesMonthly) annualDirectExpenses *= 12; // Convert if monthly
+
             const bonus = base * (parseFloat(x.bonusPct) / 100 || 0);
             const personal401k = base * (parseFloat(x.contribution) / 100 || 0);
             total401kContribution += personal401k;
-            totalGrossIncome += (base + bonus);
+            
+            // Total gross income for summary reflects net of direct expenses for each source
+            totalGrossIncome += (base + bonus) - annualDirectExpenses; 
         });
 
         // Sum additional deductions like manual HSA savings from the budget tab
-        budget.savings?.forEach(s => {
-            if (s.type === 'HSA' || s.type === 'Pre-Tax (401k/IRA)') {
-                hsaSavings += math.fromCurrency(s.annual);
-            }
-        });
+        const hsaSavings = budget.savings?.filter(s => s.type === 'HSA').reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0;
 
-        const magiBase = totalGrossIncome - total401kContribution - (budget.savings?.filter(s => s.type === 'HSA').reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0);
+        const magiBase = totalGrossIncome - total401kContribution - hsaSavings;
 
         const manualSavingsSum = budget.savings?.filter(x => !x.isLocked).reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0;
-        const totalAnnualSavings = manualSavingsSum + total401kContribution;
+        const totalAnnualSavings = manualSavingsSum + total401kContribution + hsaSavings; // Include HSA in total savings
         const totalAnnualBudget = budget.expenses?.reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0;
 
         return {

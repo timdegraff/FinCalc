@@ -15,106 +15,105 @@ export const burndown = {
                 <!-- Strategy Control Bar -->
                 <div class="card-container p-6 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl">
                     <div class="flex flex-wrap items-center justify-between gap-8 mb-8">
-                        <div class="flex items-center gap-6">
+                        <div class="flex flex-col">
+                            <h3 class="text-2xl font-black text-white flex items-center gap-3 uppercase tracking-tighter">
+                                <i class="fas fa-microchip text-purple-400"></i> Strategy Engine
+                            </h3>
+                            <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">Decumulation Logic Orchestrator</span>
+                        </div>
+                        
+                        <div class="h-10 w-[1px] bg-slate-700 mx-2"></div>
+                        
+                        <div class="flex flex-col gap-1.5">
+                            <label class="label-std text-slate-500">Draw Strategy</label>
+                            <select id="burndown-strategy" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-xs font-black text-blue-400 outline-none focus:border-blue-500 transition-all cursor-pointer">
+                                <option value="standard">Standard (Priority Order)</option>
+                                <option value="medicaid">Medicaid Max (Limit Income to 138% FPL)</option>
+                                <option value="perpetual">Wealth Preservation (Real Flat Principal)</option>
+                            </select>
+                        </div>
+
+                        <div id="swr-indicator" class="hidden flex flex-col items-center justify-center px-6 border-l border-slate-700">
+                            <span class="label-std text-slate-500">Safe Draw (SWR)</span>
+                            <span id="swr-value" class="text-teal-400 font-black mono-numbers text-xl">0%</span>
+                        </div>
+                    </div>
+
+                    <!-- ADVANCED FIRE TOGGLES -->
+                    <div class="flex flex-wrap items-center gap-4">
+                        <label class="flex items-center gap-4 px-5 py-3 bg-slate-900/50 rounded-2xl border border-slate-700 cursor-pointer group transition-all hover:bg-slate-900">
+                            <input type="checkbox" id="toggle-rule-72t" class="w-5 h-5 accent-blue-500">
                             <div class="flex flex-col">
-                                <h3 class="text-2xl font-black text-white flex items-center gap-3 uppercase tracking-tighter">
-                                    <i class="fas fa-microchip text-purple-400"></i> Strategy Engine
-                                </h3>
-                                <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">Decumulation Logic Orchestrator</span>
+                                <span class="label-std text-slate-300 group-hover:text-blue-400 transition-colors">SEPP (72t) Bridge</span>
+                                <span class="text-[8px] text-slate-600 uppercase font-black">Penalty-Free Early Draw</span>
                             </div>
-                            
-                            <div class="h-10 w-[1px] bg-slate-700 mx-2"></div>
-                            
-                            <div class="flex flex-col gap-1.5">
-                                <label class="label-std text-slate-500">Draw Strategy</label>
-                                <select id="burndown-strategy" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-xs font-black text-blue-400 outline-none focus:border-blue-500 transition-all cursor-pointer">
-                                    <option value="standard">Standard (Priority Order)</option>
-                                    <option value="medicaid">Medicaid Max (Limit Income to 138% FPL)</option>
-                                    <option value="perpetual">Wealth Preservation (Real Flat Principal)</option>
-                                </select>
+                        </label>
+
+                        <label class="flex items-center gap-4 px-5 py-3 bg-slate-900/50 rounded-2xl border border-slate-700 cursor-pointer group transition-all hover:bg-slate-900">
+                            <input type="checkbox" id="toggle-roth-ladder" class="w-5 h-5 accent-teal-500">
+                            <div class="flex flex-col">
+                                <span class="label-std text-slate-300 group-hover:text-teal-400 transition-colors">Roth Conversion Ladder</span>
+                                <span class="text-[8px] text-slate-600 uppercase font-black">Top-off to Benefit Cliff</span>
                             </div>
+                        </label>
 
-                            <div id="swr-indicator" class="hidden flex flex-col items-center justify-center px-6 border-l border-slate-700">
-                                <span class="label-std text-slate-500">Safe Draw (SWR)</span>
-                                <span id="swr-value" class="text-teal-400 font-black mono-numbers text-xl">0%</span>
+                        <button id="btn-dwz-toggle" class="px-5 py-3 bg-slate-900/50 rounded-2xl border border-slate-700 text-left transition-all hover:bg-slate-900 flex items-center gap-4 group min-w-[180px]">
+                            <div class="w-5 h-5 rounded-full border-2 border-slate-700 flex items-center justify-center group-[.active]:border-rose-500 group-[.active]:bg-rose-500/20">
+                                <div class="w-2 h-2 rounded-full bg-slate-700 group-[.active]:bg-rose-500"></div>
                             </div>
-                        </div>
-
-                        <!-- ADVANCED FIRE TOGGLES -->
-                        <div class="flex flex-wrap items-center gap-4">
-                            <label class="flex items-center gap-4 px-5 py-3 bg-slate-900/50 rounded-2xl border border-slate-700 cursor-pointer group transition-all hover:bg-slate-900">
-                                <input type="checkbox" id="toggle-rule-72t" class="w-5 h-5 accent-blue-500">
-                                <div class="flex flex-col">
-                                    <span class="label-std text-slate-300 group-hover:text-blue-400 transition-colors">SEPP (72t) Bridge</span>
-                                    <span class="text-[8px] text-slate-600 uppercase font-black">Penalty-Free Early Draw</span>
-                                </div>
-                            </label>
-
-                            <label class="flex items-center gap-4 px-5 py-3 bg-slate-900/50 rounded-2xl border border-slate-700 cursor-pointer group transition-all hover:bg-slate-900">
-                                <input type="checkbox" id="toggle-roth-ladder" class="w-5 h-5 accent-teal-500">
-                                <div class="flex flex-col">
-                                    <span class="label-std text-slate-300 group-hover:text-teal-400 transition-colors">Roth Conversion Ladder</span>
-                                    <span class="text-[8px] text-slate-600 uppercase font-black">Top-off to Benefit Cliff</span>
-                                </div>
-                            </label>
-
-                            <button id="btn-dwz-toggle" class="px-5 py-3 bg-slate-900/50 rounded-2xl border border-slate-700 text-left transition-all hover:bg-slate-900 flex items-center gap-4 group min-w-[180px]">
-                                <div class="w-5 h-5 rounded-full border-2 border-slate-700 flex items-center justify-center group-[.active]:border-rose-500 group-[.active]:bg-rose-500/20">
-                                    <div class="w-2 h-2 rounded-full bg-slate-700 group-[.active]:bg-rose-500"></div>
-                                </div>
-                                <div class="flex flex-col">
-                                    <span id="dwz-label" class="label-std text-slate-500 group-[.active]:text-rose-400 transition-colors">Generational Wealth</span>
-                                    <span id="dwz-sub" class="text-[8px] text-slate-600 uppercase font-black">Hold Assets for Heirs</span>
-                                </div>
-                            </button>
-                            
-                            <button id="toggle-burndown-real" class="px-5 py-3 bg-slate-900/50 border border-slate-700 rounded-2xl label-std font-black text-slate-400 hover:text-white transition-all flex items-center gap-3">
-                                <i class="fas fa-calendar-alt"></i> Nominal Dollars
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Budget Source Section -->
-                    <div class="flex items-center justify-between gap-6 bg-slate-900/30 p-5 rounded-[1.5rem] border border-slate-700/50">
-                        <div class="flex items-center gap-4">
-                            <div class="flex flex-col gap-1">
-                                <label class="label-std text-slate-500">Budget Source Logic</label>
-                                <div class="flex items-center gap-4">
-                                    <label class="flex items-center gap-3 cursor-pointer bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-700 hover:border-blue-500 transition-all">
-                                        <input type="checkbox" id="toggle-budget-sync" checked class="w-4 h-4 accent-blue-500">
-                                        <span class="text-[10px] text-slate-300 font-bold uppercase tracking-widest">Sync from Budget Tab</span>
-                                    </label>
-                                    <div id="manual-budget-container" class="hidden flex items-center gap-3">
-                                        <span class="text-[10px] text-slate-500 font-black uppercase">Manual Annual:</span>
-                                        <input type="text" id="input-manual-budget" data-type="currency" value="$100,000" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-teal-400 font-black outline-none w-32 mono-numbers">
-                                    </div>
-                                </div>
+                            <div class="flex flex-col">
+                                <span id="dwz-label" class="label-std text-slate-500 group-[.active]:text-rose-400 transition-colors">Generational Wealth</span>
+                                <span id="dwz-sub" class="text-[8px] text-slate-600 uppercase font-black">Hold Assets for Heirs</span>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Spending Phases & SS Years -->
-                    <div id="burndown-live-sliders" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-6 border-t border-slate-700/50 mt-8 pt-8">
-                        <!-- Populated by JS -->
+                        </button>
+                        
+                        <button id="toggle-burndown-real" class="px-5 py-3 bg-slate-900/50 border border-slate-700 rounded-2xl label-std font-black text-slate-400 hover:text-white transition-all flex items-center gap-3">
+                            <i class="fas fa-calendar-alt"></i> Nominal Dollars
+                        </button>
                     </div>
                 </div>
 
-                <!-- Priority Reordering -->
-                <div class="card-container p-5 bg-slate-800/80 rounded-2xl border border-slate-700 backdrop-blur-sm">
-                    <div class="flex items-center gap-6">
-                        <span class="label-std text-slate-500 font-black">Draw Order Priority:</span>
-                        <div id="draw-priority-list" class="flex flex-wrap gap-3">
-                            <!-- Draggable items -->
+                <!-- Budget Source Section -->
+                <div class="flex items-center justify-between gap-6 bg-slate-900/30 p-5 rounded-[1.5rem] border border-slate-700/50">
+                    <div class="flex items-center gap-4">
+                        <div class="flex flex-col gap-1">
+                            <label class="label-std text-slate-500">Budget Source Logic</label>
+                            <div class="flex items-center gap-4">
+                                <label class="flex items-center gap-3 cursor-pointer bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-700 hover:border-blue-500 transition-all">
+                                    <input type="checkbox" id="toggle-budget-sync" checked class="w-4 h-4 accent-blue-500">
+                                    <span class="text-[10px] text-slate-300 font-bold uppercase tracking-widest">Sync from Budget Tab</span>
+                                </label>
+                                <div id="manual-budget-container" class="hidden flex items-center gap-3">
+                                    <span class="text-[10px] text-slate-500 font-black uppercase">Manual Annual:</span>
+                                    <input type="text" id="input-manual-budget" data-type="currency" value="$100,000" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-teal-400 font-black outline-none w-32 mono-numbers">
+                                </div>
+                            </div>
                         </div>
-                        <span class="text-[9px] text-slate-600 italic ml-auto font-bold uppercase tracking-widest"><i class="fas fa-shield-alt mr-1"></i> HSA forced to bottom internally</span>
                     </div>
                 </div>
 
-                <!-- Main Table -->
-                <div class="card-container p-6 bg-slate-900/50 rounded-3xl border border-slate-800 overflow-hidden shadow-inner">
-                    <div id="burndown-table-container" class="max-h-[75vh] overflow-auto rounded-2xl border border-slate-800 mono-numbers"></div>
+                <!-- Spending Phases & SS Years -->
+                <div id="burndown-live-sliders" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-6 border-t border-slate-700/50 mt-8 pt-8">
+                    <!-- Populated by JS -->
                 </div>
             </div>
+
+            <!-- Priority Reordering -->
+            <div class="card-container p-5 bg-slate-800/80 rounded-2xl border border-slate-700 backdrop-blur-sm">
+                <div class="flex items-center gap-6">
+                    <span class="label-std text-slate-500 font-black">Draw Order Priority:</span>
+                    <div id="draw-priority-list" class="flex flex-wrap gap-3">
+                        <!-- Draggable items -->
+                    </div>
+                    <span class="text-[9px] text-slate-600 italic ml-auto font-bold uppercase tracking-widest"><i class="fas fa-shield-alt mr-1"></i> HSA forced to bottom internally</span>
+                </div>
+            </div>
+
+            <!-- Main Table -->
+            <div class="card-container p-6 bg-slate-900/50 rounded-3xl border border-slate-800 overflow-hidden shadow-inner">
+                <div id="burndown-table-container" class="max-h-[75vh] overflow-auto rounded-2xl border border-slate-800 mono-numbers"></div>
+            </div>
+        </div>
         `;
         burndown.attachListeners();
     },
@@ -367,17 +366,43 @@ export const burndown = {
                 targetBudget = currentNW * safeRate;
             }
 
-            let taxableIncome = 0;
-            let nonTaxableIncome = 0;
+            let totalGrossIncomeForYear = 0; // Gross income from all sources after direct expenses
+            let totalPreTaxDeductionsForYear = 0; // 401k and HSA contributions
+            let nonTaxableIncomeForYear = 0; // Income explicitly marked non-taxable
+
             const activeIncomes = isRetired ? income.filter(inc => inc.remainsInRetirement) : income;
             activeIncomes.forEach(inc => {
-                let amt = math.fromCurrency(inc.amount) * (inc.isMonthly ? 12 : 1) * Math.pow(1 + (inc.increase / 100 || 0), i);
-                if (inc.nonTaxableUntil && parseInt(inc.nonTaxableUntil) >= currentYearIter) nonTaxableIncome += amt;
-                else taxableIncome += amt;
+                let grossBaseAmount = math.fromCurrency(inc.amount) * (inc.isMonthly ? 12 : 1);
+                let annualDirectExpenses = math.fromCurrency(inc.incomeExpenses);
+                if (inc.incomeExpensesMonthly) annualDirectExpenses *= 12;
+
+                grossBaseAmount *= Math.pow(1 + (inc.increase / 100 || 0), i);
+                const bonusAmount = grossBaseAmount * (parseFloat(inc.bonusPct) / 100 || 0);
+                const incomeBeforeDirectExpenses = grossBaseAmount + bonusAmount;
+                
+                const incomeAfterDirectExpenses = incomeBeforeDirectExpenses - annualDirectExpenses;
+
+                if (inc.nonTaxableUntil && parseInt(inc.nonTaxableUntil) >= currentYearIter) {
+                    nonTaxableIncomeForYear += incomeAfterDirectExpenses;
+                } else {
+                    totalGrossIncomeForYear += incomeAfterDirectExpenses;
+                    // Deduct 401k contributions from what's considered *gross* for tax purposes (pre-tax)
+                    totalPreTaxDeductionsForYear += grossBaseAmount * (parseFloat(inc.contribution) / 100 || 0);
+                }
             });
+
+            // Add Social Security to taxable income (it's part of gross income for tax purposes)
             const ssYearly = (age >= assumptions.ssStartAge) ? 
                 engine.calculateSocialSecurity(assumptions.ssMonthly || 0, assumptions.workYearsAtRetirement || 35, inflationFactor) : 0;
-            taxableIncome += ssYearly; 
+            totalGrossIncomeForYear += ssYearly; 
+
+            // Include HSA contributions from budget as pre-tax deductions
+            totalPreTaxDeductionsForYear += (budget.savings?.filter(s => s.type === 'HSA').reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0);
+
+            // Calculate MAGI for the year
+            let taxableIncome = totalGrossIncomeForYear - totalPreTaxDeductionsForYear; 
+            let nonTaxableIncome = nonTaxableIncomeForYear; 
+
 
             // 72t BRIDGE - ONLY START IF NEEDED
             let currentNet = taxableIncome + nonTaxableIncome - engine.calculateTax(taxableIncome, filingStatus);
@@ -386,7 +411,7 @@ export const burndown = {
                 const seppNeeded = Math.min(bal['401k'], seppFixedAmount, Math.max(0, targetBudget - currentNet));
                 if (seppNeeded > 0) {
                     bal['401k'] -= seppNeeded;
-                    taxableIncome += seppNeeded;
+                    taxableIncome += seppNeeded; // 72t distributions are taxable
                     yearResult.draws['401k'] = (yearResult.draws['401k'] || 0) + seppNeeded;
                     yearResult.seppAmount = seppNeeded;
                 }
@@ -399,18 +424,7 @@ export const burndown = {
             const priorityOrder = burndown.priorityOrder.filter(k => k !== 'hsa').concat(['hsa']);
 
             if (state.strategy === 'medicaid' && isRetired) {
-                // PHASE 1: Use taxable assets ONLY until we hit the cliff
-                priorityOrder.filter(k => burndown.assetMeta[k].isTaxable).forEach(pk => {
-                    if (remainingNeed <= 0 || taxableIncome >= medicaidCeiling) return;
-                    const incomeCap = Math.max(0, medicaidCeiling - taxableIncome);
-                    const drawLimit = pk === 'taxable' ? (bal[pk] * 0.5) : bal[pk]; // simplify taxable gains as 50%
-                    const canDraw = Math.min(drawLimit, remainingNeed, incomeCap);
-                    bal[pk] -= canDraw;
-                    yearResult.draws[pk] = (yearResult.draws[pk] || 0) + canDraw;
-                    taxableIncome += canDraw;
-                    remainingNeed = Math.max(0, targetBudget - (taxableIncome + nonTaxableIncome - engine.calculateTax(taxableIncome, filingStatus)));
-                });
-                // PHASE 2: Exhaust ALL non-taxable assets to bridge the gap
+                // PHASE 1: Use non-taxable assets first to preserve low MAGI
                 priorityOrder.filter(k => !burndown.assetMeta[k].isTaxable).forEach(pk => {
                     if (remainingNeed <= 0) return;
                     const limit = pk === 'heloc' ? (helocLimit - bal['heloc']) : bal[pk];
@@ -420,15 +434,34 @@ export const burndown = {
                     yearResult.draws[pk] = (yearResult.draws[pk] || 0) + canDraw;
                     remainingNeed -= canDraw;
                 });
-                // PHASE 3: Safety Valve (If still have need, forced to touch taxable again)
+                
+                // PHASE 2: Carefully draw taxable assets up to the Medicaid cliff
                 priorityOrder.filter(k => burndown.assetMeta[k].isTaxable).forEach(pk => {
-                    if (remainingNeed <= 0) return;
-                    const canDraw = Math.min(bal[pk], remainingNeed);
-                    bal[pk] -= canDraw;
-                    yearResult.draws[pk] = (yearResult.draws[pk] || 0) + canDraw;
-                    taxableIncome += canDraw;
-                    remainingNeed = Math.max(0, targetBudget - (taxableIncome + nonTaxableIncome - engine.calculateTax(taxableIncome, filingStatus)));
+                    if (remainingNeed <= 0 || taxableIncome >= medicaidCeiling) return;
+                    const incomeCap = Math.max(0, medicaidCeiling - taxableIncome); // Amount we can still add to MAGI
+                    const drawLimit = pk === 'taxable' ? (bal[pk] * 0.5) : bal[pk]; // simplify taxable gains as 50% for initial draw estimation
+                    const canDraw = Math.min(drawLimit, remainingNeed, incomeCap);
+                    
+                    if (canDraw > 0) {
+                        bal[pk] -= canDraw;
+                        yearResult.draws[pk] = (yearResult.draws[pk] || 0) + canDraw;
+                        taxableIncome += canDraw;
+                        remainingNeed = Math.max(0, targetBudget - (taxableIncome + nonTaxableIncome - engine.calculateTax(taxableIncome, filingStatus)));
+                    }
                 });
+
+                // PHASE 3: If still have need, draw from any remaining assets (non-taxable again, then taxable)
+                priorityOrder.forEach(pk => {
+                    if (remainingNeed <= 0) return;
+                    const limit = pk === 'heloc' ? (helocLimit - bal['heloc']) : bal[pk];
+                    const canDraw = Math.min(limit, remainingNeed);
+                    if (pk === 'heloc') bal['heloc'] += canDraw;
+                    else bal[pk] -= canDraw;
+                    yearResult.draws[pk] = (yearResult.draws[pk] || 0) + canDraw;
+                    remainingNeed -= canDraw;
+                    if (burndown.assetMeta[pk].isTaxable) taxableIncome += canDraw; // Track taxable draws
+                });
+
             } else {
                 // STANDARD PRIORITY
                 priorityOrder.forEach(pk => {
