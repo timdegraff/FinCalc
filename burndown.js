@@ -362,8 +362,9 @@ export const burndown = {
                 bal['401k'] += summaries.total401kContribution;
                 (budget.savings || []).forEach(s => {
                     const amt = math.fromCurrency(s.annual);
-                    if (s.type === 'Taxable') bal['taxable'] += amt;
-                    else if (s.type === 'Post-Tax (Roth)') bal['roth-basis'] += amt;
+                    const type = s.type;
+                    if (type === 'Taxable') bal['taxable'] += amt;
+                    else if (type === 'Post-Tax (Roth)') bal['roth-basis'] += amt;
                     else if (type === 'Cash') bal['cash'] += amt;
                     else if (type === 'HSA') bal['hsa'] += amt;
                     else if (type === 'Crypto') bal['crypto'] += amt;
