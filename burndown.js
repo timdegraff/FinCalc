@@ -28,10 +28,9 @@ export const burndown = {
                             <div class="flex flex-col gap-1.5">
                                 <label class="label-std text-slate-500">Draw Strategy</label>
                                 <select id="burndown-strategy" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-xs font-black text-blue-400 outline-none focus:border-blue-500 transition-all cursor-pointer">
-                                    <option value="standard">Meet Target Budget</option>
-                                    <option value="medicaid">Target 138% FPL (Medicaid)</option>
-                                    <option value="silver">Target 250% FPL (Silver)</option>
-                                    <option value="perpetual">Wealth Preservation (Real Flat)</option>
+                                    <option value="standard">Standard (Priority Order)</option>
+                                    <option value="medicaid">Medicaid Max (Limit Income to 138% FPL)</option>
+                                    <option value="perpetual">Wealth Preservation (Real Flat Principal)</option>
                                 </select>
                             </div>
 
@@ -237,15 +236,15 @@ export const burndown = {
     },
 
     assetMeta: {
-        'cash': { label: 'Cash', short: 'Cash', color: assetColors['Cash'] },
-        'taxable': { label: 'Taxable Brokerage', short: 'Brokerage', color: assetColors['Taxable'] },
-        'roth-basis': { label: 'Roth Basis', short: 'Roth Basis', color: assetColors['Post-Tax (Roth)'] },
-        'heloc': { label: 'HELOC', short: 'HELOC', color: assetColors['HELOC'] },
-        '401k': { label: '401k/IRA', short: '401k/IRA', color: assetColors['Pre-Tax (401k/IRA)'] },
-        'roth-earnings': { label: 'Roth Gains', short: 'Roth Gains', color: assetColors['Roth Gains'] },
-        'crypto': { label: 'Bitcoin', short: 'Bitcoin', color: assetColors['Crypto'] },
-        'metals': { label: 'Metals', short: 'Metals', color: assetColors['Metals'] },
-        'hsa': { label: 'HSA', short: 'HSA', color: assetColors['HSA'] }
+        'cash': { label: 'Cash', short: 'Cash', color: assetColors['Cash'], isTaxable: false },
+        'taxable': { label: 'Taxable Brokerage', short: 'Brokerage', color: assetColors['Taxable'], isTaxable: true },
+        'roth-basis': { label: 'Roth Basis', short: 'Roth Basis', color: assetColors['Post-Tax (Roth)'], isTaxable: false },
+        'heloc': { label: 'HELOC', short: 'HELOC', color: assetColors['HELOC'], isTaxable: false },
+        '401k': { label: '401k/IRA', short: '401k/IRA', color: assetColors['Pre-Tax (401k/IRA)'], isTaxable: true },
+        'roth-earnings': { label: 'Roth Gains', short: 'Roth Gains', color: assetColors['Roth Gains'], isTaxable: false },
+        'crypto': { label: 'Bitcoin', short: 'Bitcoin', color: assetColors['Crypto'], isTaxable: true },
+        'metals': { label: 'Metals', short: 'Metals', color: assetColors['Metals'], isTaxable: true },
+        'hsa': { label: 'HSA', short: 'HSA', color: assetColors['HSA'], isTaxable: false }
     },
 
     run: () => {
@@ -330,24 +329,16 @@ export const burndown = {
             'heloc': helocs.reduce((s, h) => s + math.fromCurrency(h.balance), 0)
         };
 
-        const hidden529 = investments.filter(i => i.type === '529 Plan').reduce((s, i) => s + math.fromCurrency(i.value), 0);
-        const fixedOtherAssets = otherAssets.reduce((s, o) => s + (math.fromCurrency(o.value) - math.fromCurrency(o.loan)), 0);
         const helocLimit = helocs.reduce((s, h) => s + math.fromCurrency(h.limit), 0);
         const avgHelocRate = (helocs.length > 0 ? helocs.reduce((s, h) => s + (parseFloat(h.rate) || 7.0), 0) / helocs.length : 7.0) / 100;
-
         const fpl2026Base = filingStatus === 'Single' ? 16060 : 32120;
         
         const results = [];
         const duration = 100 - assumptions.currentAge;
 
-        // Pre-calculate potential SEPP limit
+        // Pre-calculate 72t bridge limit
         let temp401k = bal['401k'];
         for (let i = 0; i < (assumptions.retirementAge - assumptions.currentAge); i++) {
-             const summaries = engine.calculateSummaries(data);
-             temp401k += summaries.total401kContribution;
-             (budget.savings || []).forEach(s => {
-                 if (s.type === 'Pre-Tax (401k/IRA)') temp401k += math.fromCurrency(s.annual);
-             });
              temp401k *= (1 + stockGrowth);
         }
         const seppFixedAmount = state.useSEPP ? engine.calculateMaxSepp(temp401k, assumptions.retirementAge) : 0;
@@ -361,168 +352,123 @@ export const burndown = {
             const inflationFactor = Math.pow(1 + inflationRate, i);
             const fpl = fpl2026Base * inflationFactor;
 
-            // Start of year Net Worth Capture
+            // NW Capture
             const currentRE = realEstate.reduce((s, r) => s + (math.fromCurrency(r.value) * Math.pow(1 + realEstateGrowth, i) - math.fromCurrency(r.mortgage)), 0);
-            const currentNW = (bal['cash'] + bal['taxable'] + bal['roth-basis'] + bal['roth-earnings'] + bal['401k'] + bal['crypto'] + bal['metals'] + bal['hsa'] + hidden529 + fixedOtherAssets + currentRE) - bal['heloc'];
+            const fixedOtherAssets = otherAssets.reduce((s, o) => s + (math.fromCurrency(o.value) - math.fromCurrency(o.loan)), 0);
+            const currentNW = (bal['cash'] + bal['taxable'] + bal['roth-basis'] + bal['roth-earnings'] + bal['401k'] + bal['crypto'] + bal['metals'] + bal['hsa'] + fixedOtherAssets + currentRE) - bal['heloc'];
 
-            let baseAnnualBudget = state.useSync ? 
+            let targetBudget = state.useSync ? 
                 (budget.expenses || []).reduce((sum, exp) => (isRetired && exp.removedInRetirement) ? sum : sum + math.fromCurrency(exp.annual), 0) : 
                 (state.manualBudget || 100000);
-            
-            let phaseMultiplier = 1.0;
-            if (age >= 80) phaseMultiplier = (assumptions.noGoFactor || 0.7);
-            else if (age >= 62) phaseMultiplier = (assumptions.slowGoFactor || 0.8);
-            
-            let currentYearBudget = baseAnnualBudget * inflationFactor * phaseMultiplier;
+            targetBudget *= inflationFactor;
 
-            if (state.dieWithZero && isRetired) {
-                const yearsLeft = 100 - age;
-                if (yearsLeft > 0) currentYearBudget = Math.max(currentYearBudget, currentNW / yearsLeft);
-            }
-
-            if (isRetired) {
-                if (state.strategy === 'medicaid') currentYearBudget = (fpl * 1.38) - 100; 
-                else if (state.strategy === 'silver') currentYearBudget = (fpl * 2.50) - 100;
-                else if (state.strategy === 'perpetual') {
-                    const safeRate = Math.max(0, stockGrowth - inflationRate);
-                    currentYearBudget = currentNW * safeRate;
-                }
+            if (state.strategy === 'perpetual') {
+                const safeRate = Math.max(0, stockGrowth - inflationRate);
+                targetBudget = currentNW * safeRate;
             }
 
             let taxableIncome = 0;
             let nonTaxableIncome = 0;
-            let persistentIncomeTotal = 0;
-
             const activeIncomes = isRetired ? income.filter(inc => inc.remainsInRetirement) : income;
             activeIncomes.forEach(inc => {
-                let amt = math.fromCurrency(inc.amount) * (inc.isMonthly ? 12 : 1);
-                amt -= (math.fromCurrency(inc.incomeExpenses) * (inc.incomeExpensesMonthly ? 12 : 1));
-                amt *= Math.pow(1 + (inc.increase / 100 || 0), i);
-                if (isRetired) persistentIncomeTotal += Math.max(0, amt);
-                const isNonTaxableYear = inc.nonTaxableUntil && parseInt(inc.nonTaxableUntil) >= currentYearIter;
-                if (isNonTaxableYear) nonTaxableIncome += Math.max(0, amt);
-                else taxableIncome += Math.max(0, amt);
+                let amt = math.fromCurrency(inc.amount) * (inc.isMonthly ? 12 : 1) * Math.pow(1 + (inc.increase / 100 || 0), i);
+                if (inc.nonTaxableUntil && parseInt(inc.nonTaxableUntil) >= currentYearIter) nonTaxableIncome += amt;
+                else taxableIncome += amt;
             });
-
-            const ssWorkYears = assumptions.workYearsAtRetirement || 35;
             const ssYearly = (age >= assumptions.ssStartAge) ? 
-                engine.calculateSocialSecurity(assumptions.ssMonthly || 0, ssWorkYears, inflationFactor) : 0;
+                engine.calculateSocialSecurity(assumptions.ssMonthly || 0, assumptions.workYearsAtRetirement || 35, inflationFactor) : 0;
             taxableIncome += ssYearly; 
 
-            const initialNetCashflow = (taxableIncome + nonTaxableIncome - engine.calculateTax(taxableIncome, filingStatus));
-            let remainingNeed = Math.max(0, currentYearBudget - initialNetCashflow);
-
-            // Refined SEPP Bridge logic: 
-            // Trigger start only when budget shortfall exists and age is under 59.5.
-            if (isRetired && age < 60 && state.useSEPP) {
-                if (remainingNeed > 0 || isSeppStarted) {
-                    isSeppStarted = true;
-                    // Only draw what's needed to meet budget, up to the SEPP limit
-                    const canDrawSEPP = Math.min(bal['401k'], seppFixedAmount, remainingNeed);
-                    if (canDrawSEPP > 0) {
-                        bal['401k'] -= canDrawSEPP;
-                        taxableIncome += canDrawSEPP;
-                        yearResult.seppAmount = canDrawSEPP;
-                        yearResult.draws['401k'] = (yearResult.draws['401k'] || 0) + canDrawSEPP;
-                        remainingNeed -= canDrawSEPP;
-                    }
+            // 72t BRIDGE - ONLY START IF NEEDED
+            let currentNet = taxableIncome + nonTaxableIncome - engine.calculateTax(taxableIncome, filingStatus);
+            if (isRetired && age < 60 && state.useSEPP && (currentNet < targetBudget || isSeppStarted)) {
+                isSeppStarted = true;
+                const seppNeeded = Math.min(bal['401k'], seppFixedAmount, Math.max(0, targetBudget - currentNet));
+                if (seppNeeded > 0) {
+                    bal['401k'] -= seppNeeded;
+                    taxableIncome += seppNeeded;
+                    yearResult.draws['401k'] = (yearResult.draws['401k'] || 0) + seppNeeded;
+                    yearResult.seppAmount = seppNeeded;
                 }
             }
 
-            const tax = engine.calculateTax(taxableIncome, filingStatus);
-            remainingNeed = Math.max(0, currentYearBudget - (taxableIncome + nonTaxableIncome - tax));
+            let remainingNeed = Math.max(0, targetBudget - (taxableIncome + nonTaxableIncome - engine.calculateTax(taxableIncome, filingStatus)));
 
-            const effectivePriority = burndown.priorityOrder.filter(k => k !== 'hsa').concat(['hsa']);
+            // STRATEGY LOGIC: Medicaid Cliff (138% FPL)
+            const medicaidCeiling = fpl * 1.38;
+            const priorityOrder = burndown.priorityOrder.filter(k => k !== 'hsa').concat(['hsa']);
 
-            effectivePriority.forEach(pk => {
-                if (remainingNeed <= 0) return;
-                const limit = pk === 'heloc' ? (helocLimit - bal['heloc']) : bal[pk];
-                const canDraw = Math.min(limit, remainingNeed);
-                if (pk === 'heloc') bal['heloc'] += canDraw;
-                else bal[pk] -= canDraw;
-                yearResult.draws[pk] = (yearResult.draws[pk] || 0) + canDraw;
-                remainingNeed -= canDraw;
-                
-                if (pk === '401k') {
+            if (state.strategy === 'medicaid' && isRetired) {
+                // PHASE 1: Use taxable assets ONLY until we hit the cliff
+                priorityOrder.filter(k => burndown.assetMeta[k].isTaxable).forEach(pk => {
+                    if (remainingNeed <= 0 || taxableIncome >= medicaidCeiling) return;
+                    const incomeCap = Math.max(0, medicaidCeiling - taxableIncome);
+                    const drawLimit = pk === 'taxable' ? (bal[pk] * 0.5) : bal[pk]; // simplify taxable gains as 50%
+                    const canDraw = Math.min(drawLimit, remainingNeed, incomeCap);
+                    bal[pk] -= canDraw;
+                    yearResult.draws[pk] = (yearResult.draws[pk] || 0) + canDraw;
                     taxableIncome += canDraw;
-                    if (age < 59.5) {
-                        const penalizedAmt = state.useSEPP ? Math.max(0, canDraw - (yearResult.seppAmount || 0)) : canDraw;
-                        yearResult.penalty += Math.max(0, penalizedAmt * 0.10);
-                    }
-                }
-                if (pk === 'taxable') {
-                    const gainRatio = taxValue > 0 ? Math.max(0, (taxValue - taxBasis) / taxValue) : 0.5;
-                    taxableIncome += (canDraw * gainRatio);
-                }
-            });
-
-            // REPAYMENT LOGIC: If we have excess income after meeting budget, pay down HELOC
-            const currentNetCash = (taxableIncome + nonTaxableIncome - engine.calculateTax(taxableIncome, filingStatus));
-            let surplus = Math.max(0, currentNetCash - currentYearBudget);
-            if (surplus > 0 && bal['heloc'] > 0) {
-                const repayment = Math.min(bal['heloc'], surplus);
-                bal['heloc'] -= repayment;
-                surplus -= repayment;
-            }
-
-            if (isRetired && state.useRothLadder) {
-                const medicaidLimit = (fpl * 1.38) - 1; 
-                if (taxableIncome < medicaidLimit) {
-                    const topOffAmt = Math.min(bal['401k'], medicaidLimit - taxableIncome);
-                    if (topOffAmt > 0) {
-                        bal['401k'] -= topOffAmt;
-                        bal['roth-earnings'] += topOffAmt; 
-                        taxableIncome += topOffAmt; 
-                        yearResult.rothConversion = topOffAmt;
-                    }
-                }
-            }
-
-            const snapBenefit = engine.calculateSnapBenefit(taxableIncome + nonTaxableIncome, benefits.hhSize || 1, (benefits.shelterCosts || 0) * inflationFactor, benefits.hasSUA, benefits.isDisabled, inflationFactor);
-            const snapYearly = snapBenefit * 12;
-            yearResult.snapBenefit = snapYearly;
-
-            yearResult.magi = Math.max(0, taxableIncome);
-            yearResult.persistentIncome = persistentIncomeTotal;
-            yearResult.balances = { ...bal };
-            yearResult.budget = currentYearBudget;
-            yearResult.netWorth = currentNW;
-            yearResult.isMedicaid = yearResult.magi <= fpl * 1.38;
-            yearResult.isSilver = yearResult.magi <= fpl * 2.5 && !yearResult.isMedicaid;
-
-            results.push(yearResult);
-
-            // POST-CAPTURE Accumulation and Growth (for NEXT year)
-            if (!isRetired) {
-                const summaries = engine.calculateSummaries(data);
-                bal['401k'] += summaries.total401kContribution;
-                (budget.savings || []).forEach(s => {
-                    const amt = math.fromCurrency(s.annual);
-                    const type = s.type;
-                    if (type === 'Taxable') bal['taxable'] += amt;
-                    else if (type === 'Post-Tax (Roth)') bal['roth-basis'] += amt;
-                    else if (type === 'Cash') bal['cash'] += amt;
-                    else if (type === 'HSA') bal['hsa'] += amt;
-                    else if (type === 'Crypto') bal['crypto'] += amt;
-                    else if (type === 'Metals') bal['metals'] += amt;
-                    else if (type === 'Pre-Tax (401k/IRA)') bal['401k'] += amt;
+                    remainingNeed = Math.max(0, targetBudget - (taxableIncome + nonTaxableIncome - engine.calculateTax(taxableIncome, filingStatus)));
+                });
+                // PHASE 2: Exhaust ALL non-taxable assets to bridge the gap
+                priorityOrder.filter(k => !burndown.assetMeta[k].isTaxable).forEach(pk => {
+                    if (remainingNeed <= 0) return;
+                    const limit = pk === 'heloc' ? (helocLimit - bal['heloc']) : bal[pk];
+                    const canDraw = Math.min(limit, remainingNeed);
+                    if (pk === 'heloc') bal['heloc'] += canDraw;
+                    else bal[pk] -= canDraw;
+                    yearResult.draws[pk] = (yearResult.draws[pk] || 0) + canDraw;
+                    remainingNeed -= canDraw;
+                });
+                // PHASE 3: Safety Valve (If still have need, forced to touch taxable again)
+                priorityOrder.filter(k => burndown.assetMeta[k].isTaxable).forEach(pk => {
+                    if (remainingNeed <= 0) return;
+                    const canDraw = Math.min(bal[pk], remainingNeed);
+                    bal[pk] -= canDraw;
+                    yearResult.draws[pk] = (yearResult.draws[pk] || 0) + canDraw;
+                    taxableIncome += canDraw;
+                    remainingNeed = Math.max(0, targetBudget - (taxableIncome + nonTaxableIncome - engine.calculateTax(taxableIncome, filingStatus)));
+                });
+            } else {
+                // STANDARD PRIORITY
+                priorityOrder.forEach(pk => {
+                    if (remainingNeed <= 0) return;
+                    const limit = pk === 'heloc' ? (helocLimit - bal['heloc']) : bal[pk];
+                    const canDraw = Math.min(limit, remainingNeed);
+                    if (pk === 'heloc') bal['heloc'] += canDraw;
+                    else bal[pk] -= canDraw;
+                    yearResult.draws[pk] = (yearResult.draws[pk] || 0) + canDraw;
+                    remainingNeed -= canDraw;
+                    if (burndown.assetMeta[pk].isTaxable) taxableIncome += canDraw;
                 });
             }
 
-            bal['taxable'] *= (1 + stockGrowth);
-            bal['401k'] *= (1 + stockGrowth);
-            bal['hsa'] *= (1 + stockGrowth); 
-            bal['crypto'] *= (1 + cryptoGrowth);
-            bal['metals'] *= (1 + metalsGrowth);
-            
-            // Compound HELOC Debt interest
-            if (bal['heloc'] > 0) {
-                bal['heloc'] *= (1 + avgHelocRate);
+            // HELOC PAYDOWN: Use excess non-taxable income to service debt
+            const finalNet = (taxableIncome + nonTaxableIncome - engine.calculateTax(taxableIncome, filingStatus));
+            const surplus = Math.max(0, finalNet - targetBudget);
+            if (surplus > 0 && bal['heloc'] > 0) {
+                const paydown = Math.min(bal['heloc'], surplus);
+                bal['heloc'] -= paydown;
             }
 
-            const rothBasisGrowth = bal['roth-basis'] * stockGrowth;
-            const rothEarningsGrowth = bal['roth-earnings'] * stockGrowth;
-            bal['roth-earnings'] += (rothBasisGrowth + rothEarningsGrowth);
+            yearResult.magi = taxableIncome;
+            yearResult.balances = { ...bal };
+            yearResult.budget = targetBudget;
+            yearResult.netWorth = currentNW;
+            yearResult.isMedicaid = yearResult.magi <= medicaidCeiling;
+            yearResult.isSilver = yearResult.magi <= fpl * 2.5 && !yearResult.isMedicaid;
+            results.push(yearResult);
+
+            // GROWTH FOR NEXT YEAR
+            bal['taxable'] *= (1 + stockGrowth);
+            bal['401k'] *= (1 + stockGrowth);
+            bal['hsa'] *= (1 + stockGrowth);
+            bal['crypto'] *= (1 + cryptoGrowth);
+            bal['metals'] *= (1 + metalsGrowth);
+            if (bal['heloc'] > 0) bal['heloc'] *= (1 + avgHelocRate);
+            
+            const rothGrowth = (bal['roth-basis'] + bal['roth-earnings']) * stockGrowth;
+            bal['roth-earnings'] += rothGrowth;
         }
         return results;
     },
@@ -538,35 +484,24 @@ export const burndown = {
                 const amt = (r.draws[k] || 0) / inf;
                 const bal = r.balances[k] / inf;
                 const meta = burndown.assetMeta[k];
-                const isSEPPYear = k === '401k' && (r.seppAmount || 0) > 0;
+                const isSpecial = k === '401k' && (r.seppAmount || 0) > 0;
                 return `<td class="p-1.5 text-right border-l border-slate-800/50">
                     <div class="${amt > 0 ? 'font-bold' : 'text-slate-700'}" ${amt > 0 ? `style="color: ${meta.color}"` : ''}>
                         ${formatter.formatCurrency(amt, 0)}
-                        ${isSEPPYear ? '<span class="text-[7px] block opacity-60">72t</span>' : ''}
+                        ${isSpecial ? '<span class="text-[7px] block opacity-60">72t</span>' : ''}
                     </div>
                     <div class="text-[8px] opacity-40">${formatter.formatCurrency(bal, 0)}</div>
                 </td>`;
             }).join('');
             
-            let benefitBadge = '';
-            if (r.isMedicaid) benefitBadge = `<span class="px-2 py-1 rounded-lg bg-emerald-500 text-white text-[9px] font-black uppercase shadow-lg shadow-emerald-900/40">Medicaid</span>`;
-            else if (r.isSilver) benefitBadge = `<span class="px-2 py-1 rounded-lg bg-blue-500 text-white text-[9px] font-black uppercase shadow-lg shadow-blue-900/40">Silver ACA</span>`;
-            else benefitBadge = `<span class="px-2 py-1 rounded-lg bg-slate-700 text-slate-400 text-[9px] font-black uppercase">Standard</span>`;
-            
-            if (r.snapBenefit > 0) {
-                benefitBadge += `<div class="text-[8px] text-emerald-400 font-bold uppercase mt-1">SNAP: ${formatter.formatCurrency(r.snapBenefit / inf, 0)}</div>`;
-            }
-
-            const penaltyDisplay = r.penalty > 0 ? `<div class="text-[8px] text-red-500 font-bold uppercase">Penalty: ${formatter.formatCurrency(r.penalty / inf, 0)}</div>` : '';
-            const rothLadderDisplay = r.rothConversion > 0 ? `<div class="text-[8px] text-purple-400 font-bold uppercase mt-1">Ladder: ${formatter.formatCurrency(r.rothConversion / inf, 0)}</div>` : '';
+            let badge = r.isMedicaid ? `<span class="px-2 py-1 rounded bg-emerald-500 text-white text-[9px] font-black uppercase">Medicaid</span>` :
+                        (r.isSilver ? `<span class="px-2 py-1 rounded bg-blue-500 text-white text-[9px] font-black uppercase">Silver</span>` : `<span class="px-2 py-1 rounded bg-slate-700 text-slate-400 text-[9px] font-black">Standard</span>`);
             
             return `<tr class="border-b border-slate-800/50 hover:bg-slate-800/10 text-[10px]">
                 <td class="p-2 text-center font-bold border-r border-slate-700 bg-slate-800/20">${r.age}</td>
                 <td class="p-2 text-right text-slate-400">${formatter.formatCurrency(r.budget / inf, 0)}</td>
                 <td class="p-2 text-right font-black text-white">${formatter.formatCurrency(r.magi / inf, 0)}</td>
-                <td class="p-2 text-right text-blue-300">${r.persistentIncome > 0 ? formatter.formatCurrency(r.persistentIncome / inf, 0) : '—'}</td>
-                <td class="p-2 text-center border-x border-slate-800/50">${benefitBadge}</td>
-                <td class="p-2 text-center">${penaltyDisplay || rothLadderDisplay || '—'}</td>
+                <td class="p-2 text-center border-x border-slate-800/50">${badge}</td>
                 ${draws}
                 <td class="p-2 text-right font-black border-l border-slate-700 text-teal-400 bg-slate-800/20">${formatter.formatCurrency(r.netWorth / inf, 0)}</td>
             </tr>`;
@@ -576,11 +511,9 @@ export const burndown = {
             <thead class="sticky top-0 bg-slate-800 text-slate-500 label-std z-20">
                 <tr>
                     <th class="p-2 border-r border-slate-700 w-10">Age</th>
-                    <th class="p-2 text-right">Target</th>
+                    <th class="p-2 text-right">Budget</th>
                     <th class="p-2 text-right">MAGI</th>
-                    <th class="p-2 text-right">Fixed</th>
-                    <th class="p-2 text-center border-x border-slate-800/50">FIRE Status</th>
-                    <th class="p-2 text-center">Efficiency</th>
+                    <th class="p-2 text-center border-x border-slate-800/50">Status</th>
                     ${headerCells}
                     <th class="p-2 text-right border-l border-slate-700">Net Worth</th>
                 </tr>
