@@ -357,22 +357,7 @@ export const burndown = {
             const inflationFactor = Math.pow(1 + inflationRate, i);
             const fpl = fpl2026Base * inflationFactor;
 
-            if (!isRetired) {
-                const summaries = engine.calculateSummaries(data);
-                bal['401k'] += summaries.total401kContribution;
-                (budget.savings || []).forEach(s => {
-                    const amt = math.fromCurrency(s.annual);
-                    const type = s.type;
-                    if (type === 'Taxable') bal['taxable'] += amt;
-                    else if (type === 'Post-Tax (Roth)') bal['roth-basis'] += amt;
-                    else if (type === 'Cash') bal['cash'] += amt;
-                    else if (type === 'HSA') bal['hsa'] += amt;
-                    else if (type === 'Crypto') bal['crypto'] += amt;
-                    else if (type === 'Metals') bal['metals'] += amt;
-                    else if (type === 'Pre-Tax (401k/IRA)') bal['401k'] += amt;
-                });
-            }
-
+            // Start of year Net Worth Capture
             const currentRE = realEstate.reduce((s, r) => s + (math.fromCurrency(r.value) * Math.pow(1 + realEstateGrowth, i) - math.fromCurrency(r.mortgage)), 0);
             const currentNW = (bal['cash'] + bal['taxable'] + bal['roth-basis'] + bal['roth-earnings'] + bal['401k'] + bal['crypto'] + bal['metals'] + bal['hsa'] + hidden529 + fixedOtherAssets + currentRE) - bal['heloc'];
 
@@ -469,7 +454,6 @@ export const burndown = {
                 }
             }
 
-            // SNAP Benefit is calculated based on taxable + nonTaxable income (Final MAGI)
             const snapBenefit = engine.calculateSnapBenefit(taxableIncome + nonTaxableIncome, benefits.hhSize || 1, (benefits.shelterCosts || 0) * inflationFactor, benefits.hasSUA, benefits.isDisabled, inflationFactor);
             const snapYearly = snapBenefit * 12;
             yearResult.snapBenefit = snapYearly;
@@ -478,19 +462,41 @@ export const burndown = {
             yearResult.persistentIncome = persistentIncomeTotal;
             yearResult.balances = { ...bal };
             yearResult.budget = currentYearBudget;
-            yearResult.netWorth = currentNW - yearResult.penalty;
+            yearResult.netWorth = currentNW;
             yearResult.isMedicaid = yearResult.magi <= fpl * 1.38;
             yearResult.isSilver = yearResult.magi <= fpl * 2.5 && !yearResult.isMedicaid;
 
             results.push(yearResult);
 
+            // POST-CAPTURE Accumulation and Growth (for NEXT year)
+            if (!isRetired) {
+                const summaries = engine.calculateSummaries(data);
+                bal['401k'] += summaries.total401kContribution;
+                (budget.savings || []).forEach(s => {
+                    const amt = math.fromCurrency(s.annual);
+                    const type = s.type;
+                    if (type === 'Taxable') bal['taxable'] += amt;
+                    else if (type === 'Post-Tax (Roth)') bal['roth-basis'] += amt;
+                    else if (type === 'Cash') bal['cash'] += amt;
+                    else if (type === 'HSA') bal['hsa'] += amt;
+                    else if (type === 'Crypto') bal['crypto'] += amt;
+                    else if (type === 'Metals') bal['metals'] += amt;
+                    else if (type === 'Pre-Tax (401k/IRA)') bal['401k'] += amt;
+                });
+            }
+
+            // Standard Asset Growth
             bal['taxable'] *= (1 + stockGrowth);
             bal['401k'] *= (1 + stockGrowth);
-            bal['roth-basis'] *= (1 + stockGrowth);
-            bal['roth-earnings'] *= (1 + stockGrowth);
             bal['hsa'] *= (1 + stockGrowth); 
             bal['crypto'] *= (1 + cryptoGrowth);
             bal['metals'] *= (1 + metalsGrowth);
+            
+            // SPECIAL ROTH LOGIC: Basis stays static, growth from both buckets moves to Earnings
+            const rothBasisGrowth = bal['roth-basis'] * stockGrowth;
+            const rothEarningsGrowth = bal['roth-earnings'] * stockGrowth;
+            bal['roth-earnings'] += (rothBasisGrowth + rothEarningsGrowth);
+            // bal['roth-basis'] remains unchanged (unless incremented by savings in !isRetired block)
         }
         return results;
     },
