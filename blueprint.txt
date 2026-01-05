@@ -1,3 +1,4 @@
+
 ================================================================================
 TO DO LIST
 ================================================================================
@@ -38,12 +39,39 @@ CORE PHILOSOPHY & UI PREFERENCES
     - Purple (#a855f7): Post-Tax / Roth.
     - Indigo (#6366f1): Real Estate.
     - Rose (#fb7185): 529 Plan.
+    * NOTE: All Liabilities/Debt items must use Text-Red-400 or Text-Pink-400.
 3.  REAL-TIME: Every slider and input must trigger an immediate re-calculation. 
     Persistence is handled via debounced Firebase saves on BOTH 'input' and 'change' events.
 4.  ACCURACY: Tax brackets and benefit thresholds (FPL) are modeled on 2026 
     projections for Michigan.
 5.  PRECISION: MAGI calculation is king. The system must accurately distinguish 
     between taxable and non-taxable income for benefit optimization.
+
+--------------------------------------------------------------------------------
+SPECIFIC USER PREFERENCES (DO NOT CHANGE WITHOUT PERMISSION)
+--------------------------------------------------------------------------------
+1.  PROJECTION TABLE:
+    - Must ALWAYS simulate up to age 100, even if the chart ends earlier.
+    - Granularity: Must show every single year for the first 10 years (from current age).
+    - After the first 10 years, show data every 5 years (when age % 5 === 0).
+    - Chart duration is controlled separately by the "End Age" slider.
+
+2.  BENEFITS LOGIC:
+    - MAGI Slider increments must be 1000, not 500.
+    - Medicaid logic must include a "Pregnant" toggle. 
+      - Standard limit: 138% FPL.
+      - Pregnant limit: 195% FPL.
+    - Shelter & Utility Costs in SNAP card must be editable regardless of "Max Ded" checkbox.
+    - Healthcare card uses a Red Cross icon and dynamic visual feedback (Green -> Slate).
+
+3.  BUDGET UI:
+    - "Stop in Retirement" and "Fixed Cost" checkboxes must be side-by-side with a gap, 
+      not stacked vertically.
+
+4.  ASSUMPTIONS / BURNDOWN SPLIT:
+    - Retirement spending sliders (SlowGo, MidGo, NoGo) belong in the Assumptions tab, 
+      not the Burndown tab.
+    - Defaults: Early (110%), Mid (100%), Late (85%).
 
 --------------------------------------------------------------------------------
 BURNDOWN CHART & STRATEGY ENGINE (KEY FEATURES)

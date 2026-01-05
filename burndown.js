@@ -264,30 +264,6 @@ export const burndown = {
         const data = window.currentData;
         if (!data || !data.assumptions) return;
         
-        const sliderContainer = document.getElementById('burndown-live-sliders');
-        if (sliderContainer && sliderContainer.innerHTML.trim() === '') {
-            const sliderConfigs = [
-                { key: 'workYearsAtRetirement', label: 'SS Work Years', min: 10, max: 45, step: 1 },
-                { key: 'slowGoFactor', label: 'Early Ret (Age <65) Spend %', min: 0.5, max: 1.5, step: 0.1, isPct: true },
-                { key: 'midGoFactor', label: 'Mid Ret (Age 65-80) Spend %', min: 0.5, max: 1.5, step: 0.1, isPct: true },
-                { key: 'noGoFactor', label: 'Late Ret (Age 80+) Spend %', min: 0.5, max: 1.5, step: 0.1, isPct: true },
-                { key: 'stockGrowth', label: 'Stocks APY %', min: 0, max: 15, step: 0.5 },
-                { key: 'inflation', label: 'Inflation %', min: 0, max: 10, step: 0.1 }
-            ];
-            sliderConfigs.forEach(({ key, label, min, max, step, isPct }) => {
-                let val = data.assumptions[key] || (isPct ? 1.0 : 0);
-                if (key === 'workYearsAtRetirement' && val === 0) val = 35;
-                const div = document.createElement('div');
-                div.className = 'space-y-1.5';
-                const displayVal = isPct ? `${Math.round(val * 100)}%` : (key.includes('Growth') || key === 'inflation' ? `${val}%` : val);
-                div.innerHTML = `
-                    <label class="flex justify-between label-std text-slate-500 text-[9px]">${label} <span class="text-blue-400 font-black mono-numbers">${displayVal}</span></label>
-                    <input type="range" data-live-id="${key}" data-id="${key}" value="${val}" min="${min}" max="${max}" step="${step}" class="input-range">
-                `;
-                sliderContainer.appendChild(div);
-            });
-        }
-
         const priorityList = document.getElementById('draw-priority-list');
         if (priorityList) {
             priorityList.innerHTML = burndown.priorityOrder.map(k => {
@@ -570,7 +546,7 @@ export const burndown = {
             yearResult.magi = totalMagi;
             yearResult.netWorth = currentNW;
             
-            const medicaidCeiling = fpl * 1.38;
+            const medicaidCeiling = fpl * (data.isPregnant ? 1.95 : 1.38);
             yearResult.isMedicaid = (age < 65) && (totalMagi <= medicaidCeiling);
             yearResult.isSilver = (age < 65) && (totalMagi <= fpl * 2.5 && !yearResult.isMedicaid);
             results.push(yearResult);

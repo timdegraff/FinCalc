@@ -34,7 +34,7 @@ export const benefits = {
                              <label class="label-std text-slate-500">Test Annual MAGI</label>
                              <div class="text-2xl font-black text-white mono-numbers" data-label="unifiedIncome">$0</div>
                         </div>
-                        <input type="range" data-benefit-id="unifiedIncome" min="0" max="150000" step="500" value="40000" class="w-2/3 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-teal-500">
+                        <input type="range" data-benefit-id="unifiedIncome" min="0" max="150000" step="1000" value="40000" class="w-2/3 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-teal-500">
                     </div>
                 </div>
 
@@ -45,7 +45,13 @@ export const benefits = {
                             <h3 class="text-xs font-bold text-white flex items-center gap-2 tracking-wide">
                                 <i class="fas fa-plus-square text-red-500 text-sm"></i> <span class="uppercase">Healthcare Stratum</span>
                             </h3>
-                            <span id="health-cost-badge" class="px-2 py-0.5 bg-slate-700 text-slate-400 rounded text-[9px] font-bold uppercase tracking-widest">$0 / mo</span>
+                            <div class="flex items-center gap-2">
+                                <label class="flex items-center gap-1.5 cursor-pointer bg-slate-900 px-2 py-0.5 rounded border border-slate-700 hover:border-pink-500/50">
+                                    <input type="checkbox" data-benefit-id="isPregnant" class="w-2.5 h-2.5 accent-pink-500">
+                                    <span class="text-[8px] font-bold uppercase text-slate-400">Pregnant?</span>
+                                </label>
+                                <span id="health-cost-badge" class="px-2 py-0.5 bg-slate-700 text-slate-400 rounded text-[9px] font-bold uppercase tracking-widest">$0 / mo</span>
+                            </div>
                         </div>
                         <div class="p-5 flex flex-col h-full justify-between">
                             <div class="text-center py-2">
@@ -171,8 +177,11 @@ export const benefits = {
             }
         };
 
-        if (ratio <= 1.38) {
-            setHealth("Medicaid", "100% Full Coverage", "$0", "$0", "text-emerald-400", "border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.15)]");
+        // Medicaid Limit Logic (Pregnant vs Standard)
+        const medicaidLimit = data.isPregnant ? 1.95 : 1.38;
+
+        if (ratio <= medicaidLimit) {
+            setHealth("Medicaid", data.isPregnant ? "Pregnancy Coverage" : "100% Full Coverage", "$0", "$0", "text-emerald-400", "border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.15)]");
         } else if (ratio <= 1.60) {
             setHealth("HMP+", "Small Copayments", "$20", "Low", "text-emerald-300", "border-emerald-500/30");
         } else if (ratio <= 2.50) {
@@ -213,7 +222,8 @@ export const benefits = {
             unifiedIncome: get('unifiedIncome'),
             shelterCosts: get('shelterCosts'),
             hasSUA: get('hasSUA', 'bool'),
-            isDisabled: get('isDisabled', 'bool')
+            isDisabled: get('isDisabled', 'bool'),
+            isPregnant: get('isPregnant', 'bool')
         };
     },
 

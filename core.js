@@ -1,5 +1,4 @@
 
-import { GoogleGenAI } from '@google/genai';
 import { signInWithGoogle, logoutUser } from './auth.js';
 import { templates } from './templates.js';
 import { autoSave, updateSummaries } from './data.js';
@@ -15,7 +14,6 @@ export function initializeUI() {
     attachNavigationListeners();
     attachDynamicRowListeners();
     attachSortingListeners();
-    attachCoPilotListeners();
     attachPasteListeners();
     initializeDragAndDrop();
     showTab('assets-debts');
@@ -159,6 +157,7 @@ function syncAllInputs(id, val) {
             if (label) {
                 if (id === 'ssMonthly') label.textContent = math.toCurrency(parseFloat(val));
                 else if (id.toLowerCase().includes('growth') || id === 'inflation') label.textContent = `${val}%`;
+                else if (id.toLowerCase().includes('factor')) label.textContent = `${Math.round(val * 100)}%`;
                 else label.textContent = val;
             }
         });
@@ -217,28 +216,6 @@ function checkIrsLimits(row) {
     const limit = 23500; 
     const warning = row.querySelector('[data-id="capWarning"]');
     if (warning) warning.classList.toggle('hidden', personal401k <= limit);
-}
-
-function attachCoPilotListeners() {
-    const pilotBtn = document.getElementById('ai-pilot-btn');
-    if (pilotBtn) {
-        pilotBtn.onclick = async () => {
-            const modal = document.getElementById('ai-modal');
-            const container = document.getElementById('ai-response-container');
-            modal.classList.remove('hidden');
-            container.innerHTML = `<div class="flex flex-col items-center justify-center py-20 gap-4"><div class="animate-spin text-teal-400 text-4xl"><i class="fas fa-circle-notch"></i></div><p class="font-bold text-slate-500">Reviewing strategy...</p></div>`;
-            try {
-                const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-                const prompt = `Financial data summary: ${JSON.stringify(window.currentData)}. Give 3 short optimization tips for 2026 Michigan benefits/taxes.`;
-                const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
-                container.innerHTML = response.text.replace(/\n/g, '<br>');
-            } catch (e) {
-                container.innerHTML = `<p class="text-red-400">AI Error: ${e.message}</p>`;
-            }
-        };
-    }
-    const closeModal = document.getElementById('close-ai-modal');
-    if (closeModal) closeModal.onclick = () => document.getElementById('ai-modal').classList.add('hidden');
 }
 
 function handleLinkedBudgetValues(target) {
@@ -396,7 +373,10 @@ window.createAssumptionControls = (data) => {
             <label class="block"><span class="label-std text-slate-500">Filing Status</span><select data-id="filingStatus" class="input-base w-full mt-1 font-bold"><option>Single</option><option>Married Filing Jointly</option><option>Head of Household</option></select></label>
             <div id="assumptions-life"></div>
         </div>
-        <div class="space-y-6 lg:border-r lg:border-slate-700/30 lg:px-8"><div class="mb-4 pb-2 border-b border-slate-700/50 flex items-center gap-2"><i class="fas fa-university text-emerald-400"></i><h3 class="label-std text-slate-400">Retirement & Social Security</h3></div><div id="assumptions-retirement"></div></div>
+        <div class="space-y-6 lg:border-r lg:border-slate-700/30 lg:px-8">
+            <div class="mb-4 pb-2 border-b border-slate-700/50 flex items-center gap-2"><i class="fas fa-university text-emerald-400"></i><h3 class="label-std text-slate-400">Retirement & Social Security</h3></div>
+            <div id="assumptions-retirement"></div>
+        </div>
         <div class="space-y-6 lg:pl-8">
             <div class="mb-4 pb-2 border-b border-slate-700/50 flex items-center justify-between">
                 <div class="flex items-center gap-2"><i class="fas fa-chart-area text-amber-400"></i><h3 class="label-std text-slate-400">Market & Growth</h3></div>
@@ -407,17 +387,26 @@ window.createAssumptionControls = (data) => {
     `;
     const groups = {
         life: [{ id: 'currentAge', label: 'Current Age', min: 18, max: 100, step: 1 }, { id: 'retirementAge', label: 'Retirement Age', min: 18, max: 100, step: 1 }],
-        retirement: [{ id: 'ssStartAge', label: 'SS Start Age', min: 62, max: 70, step: 1 }, { id: 'ssMonthly', label: 'SS Monthly (Today\'s $)', min: 0, max: 6000, step: 100, isCurrency: true }],
+        retirement: [
+            { id: 'ssStartAge', label: 'SS Start Age', min: 62, max: 70, step: 1 }, 
+            { id: 'ssMonthly', label: 'SS Monthly (Today\'s $)', min: 0, max: 6000, step: 100, isCurrency: true },
+            { id: 'workYearsAtRetirement', label: 'SS Work Years', min: 10, max: 45, step: 1 },
+            { id: 'slowGoFactor', label: 'Early Ret (Age <65) Spend %', min: 0.5, max: 1.5, step: 0.1, isPct: true },
+            { id: 'midGoFactor', label: 'Mid Ret (Age 65-80) Spend %', min: 0.5, max: 1.5, step: 0.1, isPct: true },
+            { id: 'noGoFactor', label: 'Late Ret (Age 80+) Spend %', min: 0.5, max: 1.5, step: 0.1, isPct: true }
+        ],
         market: [{ id: 'stockGrowth', label: 'Stocks APY %', min: 0, max: 15, step: 0.5 }, { id: 'cryptoGrowth', label: 'Bitcoin %', min: 0, max: 15, step: 0.5 }, { id: 'metalsGrowth', label: 'Metals %', min: 0, max: 15, step: 0.5 }, { id: 'realEstateGrowth', label: 'Real Estate APY %', min: 0, max: 15, step: 0.5 }, { id: 'inflation', label: 'Inflation %', min: 0, max: 10, step: 0.1 }]
     };
     Object.entries(groups).forEach(([g, configs]) => {
         const sub = document.getElementById(`assumptions-${g}`);
-        configs.forEach(({ id, label, min, max, step, isCurrency }) => {
+        configs.forEach(({ id, label, min, max, step, isCurrency, isPct }) => {
             let val = data.assumptions?.[id] ?? assumptions.defaults[id];
             const div = document.createElement('div');
             div.className = 'space-y-2 mb-6';
             const suffix = (id.toLowerCase().includes('growth') || id === 'inflation') ? '%' : '';
-            div.innerHTML = `<label class="flex justify-between label-std text-slate-500">${label} <span class="text-emerald-400 font-black mono-numbers">${isCurrency ? math.toCurrency(val) : val + suffix}</span></label><input type="range" data-id="${id}" value="${val}" min="${min}" max="${max}" step="${step}" class="input-range">`;
+            const displayVal = isCurrency ? math.toCurrency(val) : (isPct ? `${Math.round(val * 100)}%` : val + suffix);
+            
+            div.innerHTML = `<label class="flex justify-between label-std text-slate-500">${label} <span class="text-emerald-400 font-black mono-numbers">${displayVal}</span></label><input type="range" data-id="${id}" value="${val}" min="${min}" max="${max}" step="${step}" class="input-range">`;
             
             if (id === 'ssMonthly') {
                 div.innerHTML += `

@@ -35,8 +35,11 @@ export const projection = {
     run: (data) => {
         const { assumptions, investments = [], realEstate = [], otherAssets = [], budget = {} } = data;
         const currentYear = new Date().getFullYear();
-        const endAge = parseFloat(document.getElementById('input-projection-end')?.value) || 75;
-        const duration = endAge - assumptions.currentAge;
+        // Chart uses this limit
+        const chartEndAge = parseFloat(document.getElementById('input-projection-end')?.value) || 75;
+        // Table always simulates to 100
+        const maxSimAge = 100;
+        const duration = maxSimAge - assumptions.currentAge;
 
         const realBtn = document.getElementById('toggle-projection-real');
         if (realBtn && !realBtn.dataset.init) {
@@ -81,14 +84,22 @@ export const projection = {
 
         for (let i = 0; i <= duration; i++) {
             const age = assumptions.currentAge + i;
-            labels.push(`${age} (${currentYear + i})`);
+            // Only add labels if within chart range
+            if (age <= chartEndAge) {
+                labels.push(`${age} (${currentYear + i})`);
+            }
             
             const inflationFactor = Math.pow(1 + inflationRate, i);
             const currentYearBuckets = {};
 
             Object.keys(buckets).forEach((key, idx) => {
                 let displayValue = isRealDollars ? (buckets[key] / inflationFactor) : buckets[key];
-                datasets[idx].data.push(displayValue);
+                
+                // Only plot if within chart range
+                if (age <= chartEndAge) {
+                    datasets[idx].data.push(displayValue);
+                }
+                
                 currentYearBuckets[key] = displayValue;
                 
                 if (key === 'Brokerage' || key === 'Pre-Tax' || key === 'Post-Tax' || key === 'HSA') buckets[key] *= (1 + stockGrowth);
@@ -98,7 +109,8 @@ export const projection = {
                 else if (key === 'Cash') buckets[key] *= (1 + (inflationRate * 0.5));
             });
 
-            if (i === 0 || i === duration || age % 5 === 0) {
+            // Table Logic: First 10 years, then every 5 years, or exactly 100
+            if (i < 10 || age % 5 === 0 || age === maxSimAge) {
                 tableData.push({ age, year: currentYear + i, ...currentYearBuckets });
             }
 

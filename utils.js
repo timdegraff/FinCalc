@@ -82,7 +82,10 @@ export const assumptions = {
         benefitCeiling: 1.38, 
         helocRate: 7,
         state: 'Michigan',
-        workYearsAtRetirement: 35
+        workYearsAtRetirement: 35,
+        slowGoFactor: 1.1,
+        midGoFactor: 1.0,
+        noGoFactor: 0.85
     }
 };
 

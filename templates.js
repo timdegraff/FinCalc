@@ -182,15 +182,17 @@ export const templates = {
     },
     "budget-expense": (data) => `
         <td class="px-6 py-3"><input data-id="name" type="text" placeholder="Expense Item" class="input-base bg-transparent border-none w-full font-bold text-white outline-none"></td>
-        <td class="px-6 py-3 text-center flex flex-col items-center gap-1">
-            <label class="flex items-center gap-2 cursor-pointer" title="Expense stops when you retire">
-                 <span class="text-[8px] uppercase font-bold text-slate-500">Stop</span>
-                 <input data-id="removedInRetirement" type="checkbox" class="w-3 h-3 accent-pink-500 rounded bg-slate-900 border-slate-700">
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer" title="Fixed cost (does not inflate)">
-                 <span class="text-[8px] uppercase font-bold text-slate-500">Fixed</span>
-                 <input data-id="isFixed" type="checkbox" class="w-3 h-3 accent-blue-500 rounded bg-slate-900 border-slate-700">
-            </label>
+        <td class="px-6 py-3 text-center">
+            <div class="flex items-center justify-center gap-4">
+                <label class="flex items-center gap-2 cursor-pointer" title="Expense stops when you retire">
+                    <span class="text-[8px] uppercase font-bold text-slate-500">Stop</span>
+                    <input data-id="removedInRetirement" type="checkbox" class="w-3 h-3 accent-pink-500 rounded bg-slate-900 border-slate-700">
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer" title="Fixed cost (does not inflate)">
+                    <span class="text-[8px] uppercase font-bold text-slate-500">Fixed</span>
+                    <input data-id="isFixed" type="checkbox" class="w-3 h-3 accent-blue-500 rounded bg-slate-900 border-slate-700">
+                </label>
+            </div>
         </td>
         <td class="px-6 py-3"><input data-id="monthly" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-400/80 font-bold mono-numbers outline-none"></td>
         <td class="px-6 py-3"><input data-id="annual" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-500 font-black mono-numbers outline-none"></td>
@@ -199,27 +201,27 @@ export const templates = {
     realEstate: () => `
         <td><input data-id="name" type="text" placeholder="Property" class="input-base w-full font-bold text-white"></td>
         <td><input data-id="value" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-black mono-numbers"></td>
-        <td><input data-id="mortgage" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-500 font-bold mono-numbers"></td>
+        <td><input data-id="mortgage" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-red-400 font-bold mono-numbers"></td>
         <td><input data-id="principalPayment" data-type="currency" type="text" placeholder="$0" title="Monthly Principal Payment" class="input-base w-full text-right text-blue-400 font-bold mono-numbers opacity-60"></td>
         <td class="text-center"><button data-action="remove" class="text-slate-700 hover:text-red-400"><i class="fas fa-times"></i></button></td>
     `,
     otherAsset: () => `
         <td><input data-id="name" type="text" placeholder="Asset" class="input-base w-full font-bold text-white"></td>
         <td><input data-id="value" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-teal-400 font-black mono-numbers"></td>
-        <td><input data-id="loan" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-500 font-bold mono-numbers"></td>
+        <td><input data-id="loan" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-red-400 font-bold mono-numbers"></td>
         <td><input data-id="principalPayment" data-type="currency" type="text" placeholder="$0" title="Monthly Principal Payment" class="input-base w-full text-right text-blue-400 font-bold mono-numbers opacity-60"></td>
         <td class="text-center"><button data-action="remove" class="text-slate-700 hover:text-red-400"><i class="fas fa-times"></i></button></td>
     `,
     heloc: (data) => `
         <td><input data-id="name" type="text" placeholder="HELOC" class="input-base w-full font-bold text-white"></td>
-        <td><input data-id="balance" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-500 font-black mono-numbers"></td>
+        <td><input data-id="balance" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-red-400 font-black mono-numbers"></td>
         <td><input data-id="rate" type="number" step="0.1" placeholder="7.0" value="${data.rate || 7.0}" class="input-base w-full text-center text-red-400 font-bold mono-numbers"></td>
         <td><input data-id="limit" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right font-bold mono-numbers"></td>
         <td class="text-center"><button data-action="remove" class="text-slate-700 hover:text-red-400"><i class="fas fa-times"></i></button></td>
     `,
     debt: () => `
         <td><input data-id="name" type="text" placeholder="Debt" class="input-base w-full font-bold text-white"></td>
-        <td><input data-id="balance" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-pink-500 font-black mono-numbers"></td>
+        <td><input data-id="balance" data-type="currency" type="text" placeholder="$0" class="input-base w-full text-right text-red-400 font-black mono-numbers"></td>
         <td><input data-id="principalPayment" data-type="currency" type="text" placeholder="$0" title="Monthly Principal Payment" class="input-base w-full text-right text-blue-400 font-bold mono-numbers opacity-60"></td>
         <td class="text-center"><button data-action="remove" class="text-slate-700 hover:text-red-400"><i class="fas fa-times"></i></button></td>
     `
