@@ -90,10 +90,25 @@ export const engine = {
         return table[roundedAge];
     },
 
+    // IRS Uniform Lifetime Table (abbreviated for typical RMD ages)
+    // Starts at age 72 usually, simplified for 75 start in our logic
+    calculateRMD: (balance, age) => {
+        if (age < 75 || balance <= 0) return 0;
+        const distributionPeriod = {
+            75: 24.6, 76: 23.7, 77: 22.9, 78: 22.0, 79: 21.1,
+            80: 20.2, 81: 19.4, 82: 18.5, 83: 17.7, 84: 16.8,
+            85: 16.0, 86: 15.2, 87: 14.4, 88: 13.7, 89: 12.9,
+            90: 12.2, 91: 11.5, 92: 10.8, 93: 10.1, 94: 9.5,
+            95: 8.9, 96: 8.4, 97: 7.8, 98: 7.3, 99: 6.8, 100: 6.4
+        };
+        const factor = distributionPeriod[age] || 6.4;
+        return balance / factor;
+    },
+
     calculateMaxSepp: (balance, age) => {
         if (balance <= 0) return 0;
         const n = engine.getLifeExpectancy(age);
-        const r = 0.05; 
+        const r = 0.05; // Reasonable interest rate assumption for 72(t)
         const numerator = r * Math.pow(1 + r, n);
         const denominator = Math.pow(1 + r, n) - 1;
         const annualPayment = balance * (numerator / denominator);
@@ -106,17 +121,45 @@ export const engine = {
         return fullBenefit * multiplier;
     },
 
-    calculateTax: (taxableIncome, status = 'Single', state = 'Michigan') => {
-        const stdDed = status === 'Single' ? 15000 : 30000;
+    calculateTaxableSocialSecurity: (ssAmount, otherIncome, status = 'Single') => {
+        if (ssAmount <= 0) return 0;
+        // Provisional Income = MAGI + 50% of SS
+        const provisionalIncome = otherIncome + (ssAmount * 0.5);
+        let threshold1, threshold2;
+
+        if (status === 'Single') {
+            threshold1 = 25000;
+            threshold2 = 34000;
+        } else {
+            threshold1 = 32000;
+            threshold2 = 44000;
+        }
+
+        let taxableAmount = 0;
+
+        if (provisionalIncome > threshold2) {
+            taxableAmount = (0.5 * (threshold2 - threshold1)) + (0.85 * (provisionalIncome - threshold2));
+        } else if (provisionalIncome > threshold1) {
+            taxableAmount = 0.5 * (provisionalIncome - threshold1);
+        }
+
+        // Taxable portion cannot exceed 85% of total benefit
+        return Math.min(taxableAmount, ssAmount * 0.85);
+    },
+
+    calculateTax: (taxableIncome, status = 'Single', state = 'Michigan', inflationFactor = 1) => {
+        const stdDed = (status === 'Single' ? 15000 : 30000) * inflationFactor;
         let taxable = Math.max(0, taxableIncome - stdDed);
         let tax = 0;
         
-        const brackets = status === 'Single' ? 
+        // 2026 Brackets (Base)
+        const baseBrackets = status === 'Single' ? 
             [[11600, 0.10], [47150, 0.12], [100525, 0.22], [191950, 0.24]] :
             [[23200, 0.10], [94300, 0.12], [201050, 0.22], [383900, 0.24]];
 
         let prev = 0;
-        for (const [limit, rate] of brackets) {
+        for (const [limitBase, rate] of baseBrackets) {
+            const limit = limitBase * inflationFactor;
             const range = Math.min(taxable, limit - prev);
             tax += range * rate;
             taxable -= range;
