@@ -5,7 +5,8 @@ import { math, engine, assetColors, stateTaxRates } from './utils.js';
 let isRealDollars = false;
 
 export const burndown = {
-    priorityOrder: ['cash', 'taxable', 'roth-basis', 'heloc', '401k', 'crypto', 'metals', 'roth-earnings', 'hsa'],
+    // Default order
+    priorityOrder: ['cash', 'taxable', 'roth-basis', '401k', 'crypto', 'metals', 'roth-earnings', 'heloc', 'hsa'],
     
     init: () => {
         const container = document.getElementById('tab-burndown');
@@ -143,13 +144,11 @@ export const burndown = {
             };
         });
         
-        // Synced Retirement Slider Logic (Handled in core.js for global sync, but basic listener here)
         const topRetireSlider = document.getElementById('input-top-retire-age');
         if (topRetireSlider) {
             topRetireSlider.oninput = (e) => {
                 const val = e.target.value;
                 document.getElementById('label-top-retire-age').textContent = val;
-                // Syncs with core logic via data-id="retirementAge" listener in core.js
             };
         }
 
@@ -189,7 +188,10 @@ export const burndown = {
     },
 
     load: (data) => {
-        if (data?.priority) burndown.priorityOrder = data.priority;
+        if (data?.priority) {
+            // Deduplicate logic to prevent duplicate columns
+            burndown.priorityOrder = [...new Set(data.priority)];
+        }
         isRealDollars = !!data?.isRealDollars;
         const config = [
             {id: 'burndown-strategy', key: 'strategy', type: 'val'},
@@ -204,7 +206,6 @@ export const burndown = {
             }
         });
         
-        // Sync retirement age slider visual state on load
         const rAge = window.currentData?.assumptions?.retirementAge || 65;
         const rSlider = document.getElementById('input-top-retire-age');
         if (rSlider) {
@@ -336,14 +337,11 @@ export const burndown = {
             'heloc': helocs.reduce((s, h) => s + math.fromCurrency(h.balance), 0)
         };
         
-        // Deep copy debt objects to allow amortization mutation without affecting source
         const simRealEstate = realEstate.map(r => ({ ...r, mortgage: math.fromCurrency(r.mortgage), principalPayment: math.fromCurrency(r.principalPayment) }));
         const simDebts = debts.map(d => ({ ...d, balance: math.fromCurrency(d.balance), principalPayment: math.fromCurrency(d.principalPayment) }));
         const simOtherAssets = otherAssets.map(o => ({ ...o, loan: math.fromCurrency(o.loan), principalPayment: math.fromCurrency(o.principalPayment) }));
 
         const helocLimit = helocs.reduce((s, h) => s + math.fromCurrency(h.limit), 0);
-        
-        // Calculate Weighted Average HELOC Rate
         let totalHelocBal = helocs.reduce((s, h) => s + math.fromCurrency(h.balance), 0);
         let weightedRateSum = helocs.reduce((s, h) => s + (math.fromCurrency(h.balance) * (parseFloat(h.rate) || 7.0)), 0);
         const avgHelocRate = (totalHelocBal > 0 ? (weightedRateSum / totalHelocBal) : 7.0) / 100;
@@ -355,7 +353,6 @@ export const burndown = {
         let seppFixedAmount = 0; 
         let isSeppStarted = false;
 
-        // Spending Phase Multipliers (default to 1.0 if not set)
         const earlyRetireFactor = assumptions.slowGoFactor || 1.0;
         const midRetireFactor = assumptions.midGoFactor || 1.0;
         const lateRetireFactor = assumptions.noGoFactor || 1.0;
@@ -371,7 +368,6 @@ export const burndown = {
             // Amortize Debts
             const amortize = (arr, key) => arr.reduce((s, item) => {
                 if (item[key] > 0) {
-                     // Simple principal reduction if provided
                      const annualPrincipal = (item.principalPayment || 0) * 12;
                      item[key] = Math.max(0, item[key] - annualPrincipal);
                 }
@@ -382,20 +378,17 @@ export const burndown = {
             const totalOtherLoans = amortize(simOtherAssets, 'loan');
             const totalDebt = amortize(simDebts, 'balance');
 
-            // NW Capture
             const currentREVal = realEstate.reduce((s, r) => s + (math.fromCurrency(r.value) * Math.pow(1 + realEstateGrowth, i)), 0);
             const currentREEquity = currentREVal - totalMortgage;
-            const fixedOtherAssetsVal = otherAssets.reduce((s, o) => s + math.fromCurrency(o.value), 0); // No growth assumed for generic other
+            const fixedOtherAssetsVal = otherAssets.reduce((s, o) => s + math.fromCurrency(o.value), 0);
             
             const currentNW = (bal['cash'] + bal['taxable'] + bal['roth-basis'] + bal['roth-earnings'] + bal['401k'] + bal['crypto'] + bal['metals'] + bal['hsa'] + fixedOtherAssetsVal + currentREEquity) - bal['heloc'] - totalOtherLoans - totalDebt;
 
-            // Budget Calculation (Fixed vs Variable)
             let baseBudget = 0;
             if (stateConfig.useSync) {
                 (budget.expenses || []).forEach(exp => {
                     if (isRetired && exp.removedInRetirement) return;
                     const amount = math.fromCurrency(exp.annual);
-                    // Fixed expenses do NOT inflate. Variable do.
                     if (exp.isFixed) baseBudget += amount;
                     else baseBudget += (amount * inflationFactor);
                 });
@@ -403,7 +396,6 @@ export const burndown = {
                 baseBudget = (stateConfig.manualBudget || 100000) * inflationFactor;
             }
 
-            // Apply Aging Multipliers
             let targetBudget = baseBudget;
             if (isRetired) {
                 if (age < 65) targetBudget *= earlyRetireFactor;
@@ -416,9 +408,9 @@ export const burndown = {
                 targetBudget = currentNW * safeRate;
             }
 
-            // --- 1. Base Income & MAGI Prep ---
-            let ordinaryIncome = 0;
-            let ltcgIncome = 0;
+            // --- 1. Base Income ---
+            let ordinaryIncomeBase = 0;
+            let ltcgIncomeBase = 0;
             let netIncomeAvailable = 0; 
             let totalPreTaxDeductions = 0;
 
@@ -433,7 +425,7 @@ export const burndown = {
                 if (inc.nonTaxableUntil && parseInt(inc.nonTaxableUntil) >= currentYearIter) {
                     netIncomeAvailable += netSourceIncome;
                 } else {
-                    ordinaryIncome += netSourceIncome;
+                    ordinaryIncomeBase += netSourceIncome;
                     netIncomeAvailable += netSourceIncome;
                     totalPreTaxDeductions += grossBase * (parseFloat(inc.contribution) / 100 || 0);
                 }
@@ -441,144 +433,144 @@ export const burndown = {
 
             // Social Security
             const ssGross = (age >= assumptions.ssStartAge) ? engine.calculateSocialSecurity(assumptions.ssMonthly || 0, assumptions.workYearsAtRetirement || 35, inflationFactor) : 0;
-            const stateForTax = assumptions.state || 'Michigan';
-            const taxesSS = (stateTaxRates[stateForTax] || {}).taxesSS;
-            
-            const ssTaxableFederal = engine.calculateTaxableSocialSecurity(ssGross, ordinaryIncome - totalPreTaxDeductions, filingStatus);
-            // If state taxes SS, we treat it as ordinary. If not, logic handled in calculateTax roughly or via explicit exclusion (Simplified here: mapped to ordinary for Fed calc)
-            ordinaryIncome += ssTaxableFederal;
+            const ssTaxableFederal = engine.calculateTaxableSocialSecurity(ssGross, ordinaryIncomeBase - totalPreTaxDeductions, filingStatus);
+            ordinaryIncomeBase += ssTaxableFederal;
             netIncomeAvailable += ssGross;
 
-            // RMDs (Required Minimum Distributions)
-            let rmdAmount = 0;
+            // RMDs
             if (age >= 75) {
-                rmdAmount = engine.calculateRMD(bal['401k'], age);
-                bal['401k'] -= rmdAmount;
-                ordinaryIncome += rmdAmount;
-                netIncomeAvailable += rmdAmount;
-                yearResult.draws['401k'] = (yearResult.draws['401k'] || 0) + rmdAmount;
-                yearResult.rmdAmount = rmdAmount;
+                const rmd = engine.calculateRMD(bal['401k'], age);
+                bal['401k'] -= rmd;
+                ordinaryIncomeBase += rmd;
+                netIncomeAvailable += rmd;
+                yearResult.draws['401k'] = (yearResult.draws['401k'] || 0) + rmd;
+                yearResult.rmdAmount = rmd;
             }
 
-            // Deduct Pre-Tax Savings
             totalPreTaxDeductions += (budget.savings?.filter(s => s.type === 'HSA').reduce((s, x) => s + math.fromCurrency(x.annual), 0) || 0);
-            ordinaryIncome -= totalPreTaxDeductions;
+            ordinaryIncomeBase -= totalPreTaxDeductions;
             netIncomeAvailable -= totalPreTaxDeductions;
 
-            // Health Insurance Premium Load (ACA Silver Estimate if applicable)
-            // Simplified: If Early Retired and Silver/Standard, add cost.
-            // (We add it to the budget NEED, not the budget itself to avoid double counting if user put it in budget tab)
-            // For now, relying on user budget input as requested, but logic is ready for future.
-
-            // --- 2. Calculate Initial Tax & Deficit ---
-            let estimatedTax = engine.calculateTax(ordinaryIncome, ltcgIncome, filingStatus, assumptions.state, inflationFactor);
-            netIncomeAvailable -= estimatedTax;
+            // --- TAX CONVERGENCE LOOP ---
+            // We loop to cover taxes. If we draw more, we owe more tax, so we draw more.
+            let ordinaryIncomeIter = ordinaryIncomeBase;
+            let ltcgIncomeIter = ltcgIncomeBase;
+            let iterationTax = 0;
+            let totalDrawNeeded = Math.max(0, targetBudget - netIncomeAvailable);
+            let assetsDrawnThisYear = 0;
+            let budgetGap = totalDrawNeeded;
             
-            // Check for Surplus (e.g. from RMDs or Pensions > Budget)
-            let remainingBudgetNeed = targetBudget - netIncomeAvailable;
+            // Loop up to 3 times to converge on tax impact
+            for (let pass = 0; pass < 3; pass++) {
+                // Calculate tax based on current known income (base + prev loop draws)
+                iterationTax = engine.calculateTax(ordinaryIncomeIter, ltcgIncomeIter, filingStatus, assumptions.state, inflationFactor);
+                
+                // Total cash we need = Original Budget + Tax Bill
+                // Cash we have = Net Income (before tax) + Assets Drawn so far
+                // Gap = (Budget + Tax) - (Net Income + AssetsDrawn)
+                let currentTotalNeed = targetBudget + iterationTax;
+                let cashOnHand = netIncomeAvailable + assetsDrawnThisYear;
+                let shortfall = currentTotalNeed - cashOnHand;
+                
+                if (shortfall <= 5) break; // Converged
 
-            if (remainingBudgetNeed < 0) {
-                // SURPLUS! Reinvest.
-                const surplus = Math.abs(remainingBudgetNeed);
-                // Priority: Pay down HELOC, then Taxable Brokerage
+                // Draw the shortfall
+                const priorityOrderEffective = burndown.priorityOrder.filter(k => k !== 'hsa' && k !== 'heloc').concat(['heloc', 'hsa']); // Put HELOC last as safety
+                
+                // 72t Setup
+                if (isRetired && age < 60 && stateConfig.useSEPP && bal['401k'] > 0 && shortfall > 0 && !isSeppStarted) {
+                     seppFixedAmount = engine.calculateMaxSepp(bal['401k'], age);
+                     isSeppStarted = true;
+                }
+
+                priorityOrderEffective.forEach(pk => {
+                    if (shortfall <= 0) return;
+                    
+                    // 72t Logic
+                    if (pk === '401k' && isSeppStarted && age < 60) {
+                         // Can only draw exactly the SEPP amount from 401k (assuming all 401k is wrapped in SEPP for simplicity)
+                         // But we might have already drawn it in previous pass or RMD? RMD not applicable <60.
+                         // Check if we already utilized SEPP this year
+                         const seppUtilized = yearResult.draws['401k'] || 0;
+                         const seppRemaining = Math.max(0, seppFixedAmount - seppUtilized);
+                         
+                         const draw = Math.min(seppRemaining, shortfall);
+                         if (draw > 0) {
+                             bal['401k'] -= draw;
+                             yearResult.draws['401k'] = (yearResult.draws['401k'] || 0) + draw;
+                             yearResult.seppAmount = (yearResult.seppAmount || 0) + draw;
+                             shortfall -= draw;
+                             ordinaryIncomeIter += draw;
+                             assetsDrawnThisYear += draw;
+                             return; // Don't draw more 401k if SEPP active
+                         }
+                    }
+
+                    if (pk === 'roth-earnings' && age < 60) {
+                        // Penalty Logic
+                        const rawDraw = Math.min(bal[pk], shortfall * 1.15); 
+                        if (rawDraw > 0) {
+                             bal[pk] -= rawDraw;
+                             const netDraw = rawDraw / 1.15; 
+                             yearResult.draws[pk] = (yearResult.draws[pk] || 0) + rawDraw;
+                             shortfall -= netDraw;
+                             ordinaryIncomeIter += rawDraw; 
+                             assetsDrawnThisYear += netDraw;
+                             return;
+                        }
+                    }
+                    
+                    let limit = (pk === 'heloc') ? (helocLimit - bal['heloc']) : bal[pk];
+                    if (limit > 0) {
+                        const canDraw = Math.min(limit, shortfall);
+                        
+                        if (pk === 'heloc') bal['heloc'] += canDraw;
+                        else bal[pk] -= canDraw;
+                        
+                        yearResult.draws[pk] = (yearResult.draws[pk] || 0) + canDraw;
+                        shortfall -= canDraw;
+                        assetsDrawnThisYear += canDraw;
+
+                        if (pk === 'taxable') {
+                            const currentBasis = bal['taxableBasis'];
+                            const currentVal = bal['taxable'] + canDraw;
+                            const gainRatio = currentVal > 0 ? Math.max(0, (currentVal - currentBasis) / currentVal) : 0;
+                            const taxablePortion = canDraw * gainRatio;
+                            
+                            ltcgIncomeIter += taxablePortion;
+                            bal['taxableBasis'] -= (canDraw * (1 - gainRatio)); 
+                        } else if (burndown.assetMeta[pk].isTaxable) {
+                             ordinaryIncomeIter += canDraw;
+                        }
+                    }
+                });
+            } // End Tax Loop
+
+            // --- Final Reconcile & Surplus Handling ---
+            // If after all drawing, we have a surplus (e.g. forced RMDs > Budget + Tax), pay down debt
+            let finalTax = engine.calculateTax(ordinaryIncomeIter, ltcgIncomeIter, filingStatus, assumptions.state, inflationFactor);
+            let finalCash = netIncomeAvailable + assetsDrawnThisYear - finalTax;
+            let surplus = finalCash - targetBudget;
+
+            if (surplus > 0) {
                 if (bal['heloc'] > 0) {
                     const paydown = Math.min(bal['heloc'], surplus);
                     bal['heloc'] -= paydown;
-                    if (surplus > paydown) {
-                        bal['taxable'] += (surplus - paydown);
-                        bal['taxableBasis'] += (surplus - paydown);
-                    }
-                } else {
+                    surplus -= paydown;
+                }
+                if (surplus > 0) {
                     bal['taxable'] += surplus;
                     bal['taxableBasis'] += surplus;
                 }
-                remainingBudgetNeed = 0; // Fulfilled
-            }
-
-            // --- 3. Decumulation Loop ---
-            const priorityOrderEffective = burndown.priorityOrder.filter(k => k !== 'hsa').concat(['hsa']);
-            const medicaidCeiling = fpl * 1.38;
-
-            // 72t Logic Check
-            if (isRetired && age < 60 && stateConfig.useSEPP && bal['401k'] > 0 && remainingBudgetNeed > 0) {
-                if (!isSeppStarted) {
-                    seppFixedAmount = engine.calculateMaxSepp(bal['401k'], age);
-                    isSeppStarted = true;
-                }
-            }
-
-            priorityOrderEffective.forEach(pk => {
-                if (remainingBudgetNeed <= 0) return;
-
-                // SPECIAL ASSET HANDLING
-                if (pk === '401k') {
-                    if (isSeppStarted && age < 60) {
-                        const draw = Math.min(bal['401k'], seppFixedAmount); 
-                        if (draw > 0) {
-                            bal['401k'] -= draw;
-                            yearResult.draws['401k'] = (yearResult.draws['401k'] || 0) + draw;
-                            yearResult.seppAmount = draw;
-                            remainingBudgetNeed -= draw;
-                            ordinaryIncome += draw;
-                            return; 
-                        }
-                    }
-                }
-
-                if (pk === 'roth-earnings' && age < 60) {
-                    const rawDraw = Math.min(bal[pk], remainingBudgetNeed * 1.15); 
-                    if (rawDraw > 0) {
-                         bal[pk] -= rawDraw;
-                         const netDraw = rawDraw / 1.15; 
-                         yearResult.draws[pk] = (yearResult.draws[pk] || 0) + rawDraw;
-                         remainingBudgetNeed -= netDraw;
-                         ordinaryIncome += rawDraw; 
-                         return;
-                    }
-                }
-                
-                let limit = (pk === 'heloc') ? (helocLimit - bal['heloc']) : bal[pk];
-                
-                if (limit > 0) {
-                    const amountNeeded = remainingBudgetNeed;
-                    const canDraw = Math.min(limit, amountNeeded);
-                    
-                    if (pk === 'heloc') bal['heloc'] += canDraw;
-                    else bal[pk] -= canDraw;
-                    
-                    yearResult.draws[pk] = (yearResult.draws[pk] || 0) + canDraw;
-                    remainingBudgetNeed -= canDraw;
-
-                    if (pk === 'taxable') {
-                        const currentBasis = bal['taxableBasis'];
-                        const currentVal = bal['taxable'] + canDraw;
-                        const gainRatio = currentVal > 0 ? Math.max(0, (currentVal - currentBasis) / currentVal) : 0;
-                        const taxablePortion = canDraw * gainRatio;
-                        
-                        ltcgIncome += taxablePortion;
-                        bal['taxableBasis'] -= (canDraw * (1 - gainRatio)); 
-                    } else if (burndown.assetMeta[pk].isTaxable) {
-                         ordinaryIncome += canDraw;
-                    }
-                }
-            });
-
-            // --- 4. Final Reconcile ---
-            const finalTax = engine.calculateTax(ordinaryIncome, ltcgIncome, filingStatus, assumptions.state, inflationFactor);
-            // Note: We don't retroactively draw for the increased tax in this simplified loop, but accurate MAGI is captured.
-            
-            // HELOC Paydown if Surplus (Re-check in case draws created surplus via fixed inputs? Unlikely but safe)
-            if (remainingBudgetNeed < 0 && bal['heloc'] > 0) { 
-                const paydownAmount = Math.min(bal['heloc'], Math.abs(remainingBudgetNeed));
-                bal['heloc'] = Math.max(0, bal['heloc'] - paydownAmount);
             }
             
-            const totalMagi = ordinaryIncome + ltcgIncome;
+            const totalMagi = ordinaryIncomeIter + ltcgIncomeIter;
             yearResult.balances = { ...bal };
             yearResult.budget = targetBudget;
             yearResult.magi = totalMagi;
             yearResult.netWorth = currentNW;
             
+            const medicaidCeiling = fpl * 1.38;
             yearResult.isMedicaid = (age < 65) && (totalMagi <= medicaidCeiling);
             yearResult.isSilver = (age < 65) && (totalMagi <= fpl * 2.5 && !yearResult.isMedicaid);
             results.push(yearResult);
@@ -595,5 +587,64 @@ export const burndown = {
             bal['roth-earnings'] += rothGrowth;
         }
         return results;
+    },
+
+    renderTable: (results) => {
+        const keys = burndown.priorityOrder;
+        const infRate = (window.currentData.assumptions.inflation || 3) / 100;
+        const headerCells = keys.map(k => `<th class="p-2 text-right text-[9px] min-w-[75px]" style="color: ${burndown.assetMeta[k]?.color}">${burndown.assetMeta[k]?.short}</th>`).join('');
+        
+        const rows = results.map((r, i) => {
+            const inf = isRealDollars ? Math.pow(1 + infRate, i) : 1;
+            const draws = keys.map(k => {
+                const amt = (r.draws[k] || 0) / inf;
+                const bal = r.balances[k] / inf;
+                const meta = burndown.assetMeta[k];
+                const is72t = k === '401k' && (r.seppAmount || 0) > 0;
+                const isRmd = k === '401k' && (r.rmdAmount || 0) > 0;
+                return `<td class="p-1.5 text-right border-l border-slate-800/50">
+                    <div class="${amt > 0 ? 'font-bold' : 'text-slate-700'}" ${amt > 0 ? `style="color: ${meta.color}"` : ''}>
+                        ${formatter.formatCurrency(amt, 0)}
+                        ${is72t ? '<span class="text-[7px] block opacity-60">72t</span>' : ''}
+                        ${isRmd ? '<span class="text-[7px] block opacity-60 text-amber-500">RMD</span>' : ''}
+                    </div>
+                    <div class="text-[8px] opacity-40">${formatter.formatCurrency(bal, 0)}</div>
+                </td>`;
+            }).join('');
+            
+            let badge;
+            if (r.age >= 65) {
+                 badge = `<span class="px-2 py-1 rounded bg-slate-600 text-white text-[9px] font-black uppercase">Medicare</span>`;
+            } else if (r.isMedicaid) {
+                 badge = `<span class="px-2 py-1 rounded bg-emerald-500 text-white text-[9px] font-black uppercase">Medicaid</span>`;
+            } else if (r.isSilver) {
+                 badge = `<span class="px-2 py-1 rounded bg-blue-500 text-white text-[9px] font-black uppercase">Silver</span>`;
+            } else {
+                 badge = `<span class="px-2 py-1 rounded bg-slate-700 text-slate-400 text-[9px] font-black">Standard</span>`;
+            }
+            
+            return `<tr class="border-b border-slate-800/50 hover:bg-slate-800/10 text-[10px]">
+                <td class="p-2 text-center font-bold border-r border-slate-700 bg-slate-800/20">${r.age}</td>
+                <td class="p-2 text-right text-slate-400">${formatter.formatCurrency(r.budget / inf, 0)}</td>
+                <td class="p-2 text-right font-black text-white">${formatter.formatCurrency(r.magi / inf, 0)}</td>
+                <td class="p-2 text-center border-x border-slate-800/50">${badge}</td>
+                ${draws}
+                <td class="p-2 text-right font-black border-l border-slate-700 text-teal-400 bg-slate-800/20">${formatter.formatCurrency(r.netWorth / inf, 0)}</td>
+            </tr>`;
+        }).join('');
+        
+        return `<table class="w-full text-left border-collapse table-auto" style="font-family: 'Inter', sans-serif;">
+            <thead class="sticky top-0 bg-slate-800 text-slate-500 label-std z-20">
+                <tr>
+                    <th class="p-2 border-r border-slate-700 w-10">Age</th>
+                    <th class="p-2 text-right">Budget</th>
+                    <th class="p-2 text-right">MAGI</th>
+                    <th class="p-2 text-center border-x border-slate-800/50">Status</th>
+                    ${headerCells}
+                    <th class="p-2 text-right border-l border-slate-700">Net Worth</th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>`;
     }
 };
